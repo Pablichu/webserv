@@ -2,7 +2,7 @@ ROOT = ./srcs/
 
 NAME = webserv
 CXX = g++
-CXXFLAGS = -Wall -Werror -Wextra -fsanitize=address -g3 -std=c++98 -pedantic
+CXXFLAGS = -Wall -Werror -Wextra -Iincludes -fsanitize=address -g3 -std=c++98 -pedantic
 
 SRC =	main.cpp \
 		$(ROOT)/Config.cpp \

@@ -1,1 +1,1 @@
-#include "../includes/Config.hpp"
+#include "Config.hpp"
