@@ -5,9 +5,22 @@
 class	Response
 {
 	private:
-		
+		//Status line
+		std::string	protocol; //	Usually HTTP/1.1
+		uint		status;
+		std::string	status_msg;
+
+		//Headers
+		std::string	cnt_encoding;
+		std::string	cnt_type; //	Usually text/html; charset=utf-8
+		int			cnt_length;
+
+		//Body
+		std::string	body;
 
 	public:
 		Response();
 		~Response();
+
+		std::string		get();
 }
