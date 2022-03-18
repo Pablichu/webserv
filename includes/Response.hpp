@@ -19,8 +19,8 @@ class	Response
 		std::string	body;
 
 	public:
-		Response();
-		~Response();
+		Response(std::string file_route);
+		virtual ~Response();
 
 		std::string		get();
 }
