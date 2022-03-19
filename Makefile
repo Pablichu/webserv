@@ -1,4 +1,4 @@
-ROOT = ./srcs/
+ROOT = ./sources
 
 NAME = webserv
 CXX = g++
@@ -20,6 +20,9 @@ all: $(NAME)
 
 $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
+
+response:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Response.cpp ./tests/response.cpp -o response
 
 clean:
 	rm -rf $(NAME)

@@ -5,9 +5,9 @@
 class	Petition
 {
 	private:
-		
+
 
 	public:
 		Petition();
 		~Petition();
-}
+};

@@ -5,9 +5,9 @@
 class	Config
 {
 	private:
-		
+
 
 	public:
 		Config();
 		~Config();
-}
+};
