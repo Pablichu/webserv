@@ -2,6 +2,10 @@
 
 Response::Response(std::string file_route)
 {
+	protocol = "HTTP/1.1";
+	status = 200;
+	status_msg = "OK";
+
 	std::string		doctype
 	(
 		file_route.substr
@@ -12,6 +16,25 @@ Response::Response(std::string file_route)
 	);
 	std::ifstream	file(file_route.c_str());
 
-	cnt_type = std::string("text/") + doctype + "; charset=utf-8"; //TODO: cambiar en futuro
-	cnt_length = file.size();
+	cnt_type = "text/" + doctype + "; charset=utf-8"; //TODO: cambiar en futuro
+
+	body = std::string((std::istreambuf_iterator<char>(file)),
+						std::istreambuf_iterator<char>());
+
+	cnt_length = body.size();
+}
+
+Response::~Response() {}
+
+std::string		Response::get()
+{
+	std::stringstream	rsp;
+
+	rsp << protocol << " " << status << " " << status_msg << std::endl;
+	rsp << "Content-length: " << cnt_length << std::endl;
+	rsp << "Content-type: " << cnt_type << std::endl;
+	rsp << std::endl;
+	rsp << body;
+
+	return rsp.str();
 }

@@ -2,6 +2,9 @@
 
 //Internal libraries
 #include <iostream>
+#include <fstream>
+#include <streambuf>
+#include <sstream>
 
 //Server
 #include "config.hpp"

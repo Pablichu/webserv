@@ -20,7 +20,7 @@ class	Response
 
 	public:
 		Response(std::string file_route);
-		virtual ~Response();
+		~Response();
 
 		std::string		get();
 };
