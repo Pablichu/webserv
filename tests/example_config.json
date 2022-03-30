@@ -1,0 +1,28 @@
+{
+  "server": {
+    "listen": 8080,
+    "host": "localhost",
+    "server_name": "",
+    "404_error_page": "/tmp/www/404.html",
+    "max_body_size": 8192,
+    "location": [
+      {
+        "url": "/",
+        "root": "/tmp/www/localhost",
+        "methods": "GET",
+        "redirection": "",
+        "dir_list": false,
+        "default_file": "/tmp/www/localhost/index.html"
+      },
+      {
+        "url": "/gallery",
+        "root": "/tmp/www/localhost/gallery",
+        "methods": "GET POST DELETE",
+        "redirection": "",
+        "dir_list": false,
+        "default_file": "/tmp/www/localhost/gallery/gallery.html",
+        "upload_dir": "/tmp/www/localhost/media"
+      }
+    ]
+  }
+}
