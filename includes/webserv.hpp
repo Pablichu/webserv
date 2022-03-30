@@ -7,7 +7,7 @@
 #include <sstream>
 
 //Server
-#include "config.hpp"
-#include "petition.hpp"
-#include "response.hpp"
-#include "server.hpp"
+#include "Config.hpp"
+#include "Petition.hpp"
+#include "Response.hpp"
+#include "Server.hpp"
