@@ -43,10 +43,16 @@ class	Config
 		bool								_validPath(void) const;
 		void								_tokenizeLine(std::string & line,
 													std::vector<std::string> & tokens);
-		bool								_process_braces(char brace, std::size_t & pos,
-													std::stack<std::pair<char, std::string>> & state);
-		bool								_process_brackets(char bracket, std::size_t & pos,
-													std::stack<std::pair<char, std::string>> & state);
+		bool								_processBraces(char brace, std::size_t & pos,
+													std::stack< std::pair<char, std::string> > & state);
+		bool								_processBrackets(char bracket, std::size_t & pos,
+													std::stack< std::pair<char, std::string> > & state);
+    bool                _processComma(std::size_t & pos,
+                          std::stack< std::pair<char, std::string> > & state);
+    bool                _processColon(std::size_t & pos,
+                          std::stack< std::pair<char, std::string> > & state);
+    bool                _processString(std::string const & token, std::size_t & pos,
+                          std::stack< std::pair<char, std::string> > & state);
 		bool								_getConfigData(std::vector<std::string> const & tokens);
 		bool								_checkMinConfig(void) const;
 		bool								_validFile(void);

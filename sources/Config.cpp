@@ -1,4 +1,4 @@
-#include "../includes/Config.hpp"
+#include "Config.hpp"
 
 Config::Config(void) : _path("default/path")
 {
@@ -51,8 +51,8 @@ bool  Config::_validPath(void) const
   return (true);
 }
 
-bool  Config::_process_braces(char brace, std::size_t & pos,
-  std::stack<std::pair<char, std::string>> & state)
+bool  Config::_processBraces(char brace, std::size_t & pos,
+  std::stack< std::pair<char, std::string> > & state)
 {
   if (brace == '{')
   {
@@ -82,12 +82,75 @@ bool  Config::_process_braces(char brace, std::size_t & pos,
   return (true);
 }
 
+bool  Config::_processBrackets(char bracket, std::size_t & pos,
+  std::stack< std::pair<char, std::string> > & state)
+{
+  if (bracket == '[')
+  {
+    if (state.empty())
+      return (false);
+    if (!state.top().first
+        && (state.top().second == "server" || state.top().second == "location"))
+      state.top().first = '[';
+    else
+      return (false);
+  }
+  else
+  {
+    if (state.top().first != '[')
+      return (false);
+    state.push(std::pair<char, std::string>('[', state.top().second));
+  }
+  return (true);
+}
+
+bool  Config::_processComma(std::size_t & pos,
+  std::stack< std::pair<char, std::string> > & state)
+{
+  if (state.top().first == '=')
+    state.top().first = ',';
+  else if (state.top().first == '}' || state.top().first == ']')
+  {
+    state.pop();
+    state.pop();
+  }
+  else
+    return (false);
+  pos += 1;
+  return (true);
+}
+
+bool  Config::_processColon(std::size_t & pos,
+  std::stack< std::pair<char, std::string> > & state)
+{
+  if (!state.top().first && state.top().second != "")
+    state.top().first = ':';
+  else
+    return (false);
+  return (true);
+}
+
+bool  Config::_processString(std::string const & token, std::size_t & pos,
+  std::stack< std::pair<char, std::string> > & state)
+{
+  std::string val;
+  std::size_t end_quote;
+
+  end_quote = token.find("\"", pos + 1);
+  if (end_quote == std::string::npos)
+    return (false);
+  val = token.substr(pos + 1, end_quote - pos + 1);
+  //Check block: server or location
+  //Check valid val for block
+  return (true);
+}
+
 bool  Config::_getConfigData(std::vector<std::string> const & tokens)
 {
-  std::stack<std::pair<char, std::string>>  state;
-  std::vector<std::string>::const_iterator  it;
-  std::size_t                               pos;
-  bool                                      valid;
+  std::stack< std::pair<char, std::string> >  state;
+  std::vector<std::string>::const_iterator    it;
+  std::size_t                                 pos;
+  bool                                        valid;
 
   if (tokens.empty())
     return (false);
@@ -98,15 +161,17 @@ bool  Config::_getConfigData(std::vector<std::string> const & tokens)
     {
       //pos gets updated inside process methods
       if ((*it)[pos] == '{' || (*it)[pos] == '}')
-        valid = this->_process_braces((*it)[pos], pos, state);
+        valid = this->_processBraces((*it)[pos], pos, state);
       else if ((*it)[pos] == '[' || (*it)[pos] == ']')
-        valid = this->_process_brackets((*it)[pos], pos, state);
-      else if ((*it)[pos] == '"' || isdigit((*it)[pos]))
+        valid = this->_processBrackets((*it)[pos], pos, state);
+      else if ((*it)[pos] == '"')
+        valid = this->_processString(*it, pos, state);
+      else if (isdigit((*it)[pos]))
       {}
       else if ((*it)[pos] == ',')
-      {}
+        valid = this->_processComma(pos, state);
       else if ((*it)[pos] == ':')
-      {}
+        valid = this->_processColon(pos, state);
       else
         valid = false;
       if (!valid)
