@@ -260,10 +260,10 @@ bool  Config::_processDigits(std::string const & token, std::size_t & pos,
 
   if (state.top().first != ':')
     return (false);
-  end = 0;
+  end = pos;
   while (token[end] && std::isdigit(token[end]))
     ++end;
-  val = token.substr(0, end);
+  val = token.substr(pos, end - pos);
   if (val.length() > 5)
     return (false);
   prop.first = state.top().second;
