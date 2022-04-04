@@ -312,7 +312,7 @@ bool  Config::_getConfigData(std::vector<std::string> const & tokens)
         return (false);
     }
   }
-  if (state.top().first != '}' && state.top().second != "")
+  if (state.top().first != '}' || state.top().second != "")
     return (false);
   return (true);
 }
