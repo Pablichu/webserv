@@ -1,3 +1,4 @@
+#1 valid
 {
   "server": {
     "port": 7689,
@@ -8,6 +9,7 @@
   }
 }
 ###
+#2 invalid
 {
   "server": {
     "host": [
@@ -18,11 +20,18 @@
   }
 }
 ###
+#3 invalid
 {
   "server": {
     "port": 8000
   }
 ###
+#4 invalid
 {
   server: {}
 }
+###
+#5 valid
+{"server":{"port":8000,
+  "host": "hello",
+  "server_name":"hello.com,bye.es"}}

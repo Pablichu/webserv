@@ -1,7 +1,7 @@
 #include "Config.hpp"
 
 bool  generateConfigFile(std::ifstream & file,
-                          std::string const & sampleFilePath)
+          std::string const & sampleFilePath, bool & expectValid)
 {
   std::ofstream configFile;
   std::string   line;
@@ -9,6 +9,11 @@ bool  generateConfigFile(std::ifstream & file,
   configFile.open(sampleFilePath.c_str());
   if (!configFile.is_open())
     return (false);
+  std::getline(file, line);
+  if (line.find("invalid") != std::string::npos)
+    expectValid = false;
+  else
+    expectValid = true;
   while (std::getline(file, line))
   {
     if (line == "###")
@@ -25,17 +30,24 @@ void  testConfigs(std::ifstream & file, Config & config,
                     std::string const & sampleFilePath)
 {
   bool        next;
+  bool        expectValid;
+  bool        valid;
   std::size_t i;
 
   std::cout << "\n";
   i = 1;
   while (1)
   {
-    next = generateConfigFile(file, sampleFilePath);
-    if (config.isValid())
-      std::cout << "#" << i << " Valid config\n" << std::endl;
+    next = generateConfigFile(file, sampleFilePath, expectValid);
+    valid = config.isValid();
+    if (valid)
+      std::cout << "#" << i << " Sample config is valid";
     else
-      std::cout << "#" << i << " Invalid config\n" << std::endl;
+      std::cout << "#" << i << " Sample config is invalid";
+    if (valid != expectValid)
+      std::cout << ": WRONG! Unexpected validity\n" << std::endl;
+    else
+      std::cout << ": OK\n" << std::endl;
     if (!next)
       break ;
     ++i;
