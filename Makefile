@@ -27,6 +27,12 @@ response:
 config:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Config.cpp ./tests/config.cpp -o config
 
+config_multi:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Config.cpp ./tests/multi_config.cpp -o config
+	@touch sample_test_config.json
+	@./config tests/multi_config.json sample_test_config.json
+	@rm sample_test_config.json config
+
 clean:
 	rm -rf $(NAME)
 

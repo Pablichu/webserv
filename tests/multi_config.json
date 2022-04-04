@@ -1,0 +1,28 @@
+{
+  "server": {
+    "port": 7689,
+    "host": "hello",
+    "location": {
+      "uri": "bye"
+    }
+  }
+}
+###
+{
+  "server": {
+    "host": [
+      {
+        "port": 8799
+      }
+    ]
+  }
+}
+###
+{
+  "server": {
+    "port": 8000
+  }
+###
+{
+  server: {}
+}
