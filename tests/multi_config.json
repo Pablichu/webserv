@@ -35,3 +35,9 @@
 {"server":{"port":8000,
   "host": "hello",
   "server_name":"hello.com,bye.es"}}
+###
+#6 invalid
+"server": {
+  "port": 8000,
+  "host": "hello"
+}
