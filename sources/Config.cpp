@@ -43,7 +43,7 @@ bool  Config::_validPath(void) const
   if ( this->_path.length() <= 5
       || file_type_pos == std::string::npos
       || file_type_pos + 5 != this->_path.length() )
-      return (false);
+    return (false);
   //Check file exists
   file.open(this->_path.c_str()); //C++98 ifstream doesn't accept std::string
   if (!file.is_open())
@@ -209,9 +209,9 @@ bool  Config::_processString(std::string const & token, std::size_t & pos,
   {
     if (val == "server" && state.top().second == "")
       state.push(std::pair<char, std::string>(0, "server"));
-    else if (state.top().second == "server" && this->_isServerProperty(val))
-      state.push(std::pair<char, std::string>(0, val));
-    else if (state.top().second == "location" && this->_isLocationProperty(val))
+    else if ( (state.top().second == "server" && this->_isServerProperty(val))
+            || (state.top().second == "location"
+                && this->_isLocationProperty(val)) )
       state.push(std::pair<char, std::string>(0, val));
     else
       return (false);
@@ -276,6 +276,14 @@ bool  Config::_processDigits(std::string const & token, std::size_t & pos,
   pos += val.length();
   return (true);
 }
+
+/*
+**  Loops through each token and each of its characacters checking
+**  for syntax errors and validating and extracting config data.
+**
+**  state is a stack that stores the previous interpreted json symbol
+**  and property as a pair to provide context for syntax validation.
+*/
 
 bool  Config::_getConfigData(std::vector<std::string> const & tokens)
 {
@@ -346,7 +354,7 @@ bool  Config::_validFile(void)
   //Tokenize all json file lines
   while (std::getline(file, line))
     this->_tokenizeLine(line, tokens);
-  //Returns false if bad syntax is encountered
+  // Adds data to config and returns false if bad syntax is encountered
   valid = this->_getConfigData(tokens);
   //Check if config file has minimum data for the server to work
   if (valid && !this->_checkMinConfig())
@@ -362,6 +370,10 @@ ServerConfig::ServerConfig(void) : port(0), host(""), not_found_page(""),
 {
   return ;
 }
+
+/*
+**  Adds a property to the struct if data is valid and was not inserted before.
+*/
 
 bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
 {
@@ -396,12 +408,23 @@ bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
   return (true);
 }
 
+/*
+**  Determines if property was provided by the user. It checks if
+**  it was inserted in the _userDefined set data structure when
+**  processing the config file data.
+*/
+
 bool  ServerConfig::isUserDefined(std::string const & property)
 {
   if (this->_userDefined.find(property) == this->_userDefined.end())
     return (false);
   return (true);
 }
+
+/*
+**  Insert one or more names, which are delimited by commas if more than one,
+**  to the server_name set data structure.
+*/
 
 bool  ServerConfig::_setServerName(std::string const & value)
 {
@@ -415,7 +438,7 @@ bool  ServerConfig::_setServerName(std::string const & value)
     if (name == "") //Double comma or starting comma found
       return (false);
     no_repeat = (this->server_name.insert(name)).second;
-    if (!no_repeat) // METHOD WAS ALREADY INSERTED IN set
+    if (!no_repeat) // NAME WAS ALREADY INSERTED IN set
       return (false);
   }
   if (value != "" && value[value.length() - 1] == ',') //Found comma at the end
@@ -431,10 +454,14 @@ LocationConfig::LocationConfig(void) : uri(""), root(""), redirection(""),
   return ;
 }
 
+/*
+**  Adds a property to the struct if data is valid and was not inserted before.
+*/
+
 bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
 {
-  std::string       prop;
-  std::string       val;
+  std::string prop;
+  std::string val;
 
   prop = pr.first;
   val = pr.second;
@@ -467,12 +494,23 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
   return (true);
 }
 
+/*
+**  Determines if property was provided by the user. It checks if
+**  it was inserted in the _userDefined set data structure when
+**  processing the config file data.
+*/
+
 bool  LocationConfig::isUserDefined(std::string const & property)
 {
   if (this->_userDefined.find(property) == this->_userDefined.end())
     return (false);
   return (true);
 }
+
+/*
+**  Insert one or more methods, which are delimited by commas if more than one,
+**  to the methods set data structure.
+*/
 
 bool  LocationConfig::_setMethods(std::string const & value)
 {
