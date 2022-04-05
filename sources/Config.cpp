@@ -147,8 +147,6 @@ bool  Config::_processBrackets(char bracket, std::size_t & pos,
 {
   if (bracket == '[')
   {
-    if (state.empty())
-      return (false);
     if (state.top().first == ':'
         && (state.top().second == "server" || state.top().second == "location"))
       state.top().first = '[';
@@ -286,7 +284,7 @@ bool  Config::_getConfigData(std::vector<std::string> const & tokens)
   std::size_t                                 pos;
   bool                                        valid;
 
-  if (tokens.empty())
+  if (tokens.empty() || tokens[0][0] != '{')
     return (false);
   for (it = tokens.begin(); it != tokens.end(); ++it)
   {
