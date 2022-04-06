@@ -23,6 +23,7 @@ struct LocationConfig
 
 private:
 
+	//Data structure to store which properties were defined by the user
 	std::set<std::string>	_userDefined;
 
 	bool	_setMethods(std::string const & value);
@@ -46,10 +47,15 @@ struct	ServerConfig
 
 private:
 
+	//Data structure to store which properties were defined by the user
 	std::set<std::string>	_userDefined;
 
 	bool	_setServerName(std::string const & value);
 };
+
+/*
+**	Config class which has ServerConfig/s and LocationConfig/s inside
+*/
 
 class	Config
 {
@@ -61,11 +67,22 @@ class	Config
 
 		bool	_validPath(void) const;
 
-		bool	_checkMinConfig(void) const;
+		bool	_checkMinData(void) const;
 
 		bool	_isServerProperty(std::string const & prop);
 		bool	_isLocationProperty(std::string const & prop);
-	
+
+		//Data extraction methods
+		bool	_extractProperty(std::string const & token, std::size_t & pos,
+														std::stack<std::pair<char, std::string> > & state,
+														std::pair<std::string, std::string> & prop);
+		void	_extractMultiStruct(char bracket, std::size_t & pos,
+													std::stack<std::pair<char, std::string> > & state);
+		void	_extractStruct(char brace, std::size_t & pos,
+													std::stack<std::pair<char, std::string> > & state);
+		bool	_extractData(std::vector<std::string> const & tokens);
+
+		//Validation methods
 		bool	_processBraces(char brace, std::size_t & pos,
 													std::stack< std::pair<char, std::string> > & state);
 		bool	_processBrackets(char bracket, std::size_t & pos,
@@ -78,11 +95,9 @@ class	Config
                           std::stack< std::pair<char, std::string> > & state);
 		bool  _processDigits(std::string const & token, std::size_t & pos,
                           std::stack< std::pair<char, std::string> > & state);
-
-		bool	_getConfigData(std::vector<std::string> const & tokens);
-		void	_tokenizeLine(std::string & line, std::vector<std::string> & tokens);
-
-		bool	_validFile(void);
+		bool	_validateSyntax(std::vector<std::string> const & tokens);
+		
+		void	_tokenizeFile(std::vector<std::string> & tokens);
 
 	public:
 
@@ -91,7 +106,8 @@ class	Config
 
 		std::string const &	getPath(void) const;
 		void								setPath(std::string const & path);
+		
 		//NEED TO DISCUSS HOW TO ACCESS THE CONFIG VALUES
 
-		bool								isValid(void);
+		bool								parseFile(void);
 };

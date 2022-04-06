@@ -1,6 +1,8 @@
 #include "Config.hpp"
 #include <cstdlib>
 
+// Config class METHOD DEFINITIONS
+
 Config::Config(void) : _path("default/path")
 {
   return ;
@@ -22,11 +24,18 @@ void  Config::setPath(std::string const & path)
   return ;
 }
 
-bool  Config::isValid(void)
+bool  Config::parseFile(void)
 {
-  if (this->_path == ""
-      || !this->_validPath()
-      || !this->_validFile())
+  std::vector<std::string>  tokens;
+
+  if (this->_path == "" || !this->_validPath())
+    return (false);
+  this->_tokenizeFile(tokens);
+  if (!this->_validateSyntax(tokens))
+    return (false);
+  if (!this->_extractData(tokens))
+    return (false);
+  if (!this->_checkMinData())
     return (false);
   return (true);
 }
@@ -52,7 +61,7 @@ bool  Config::_validPath(void) const
   return (true);
 }
 
-bool  Config::_checkMinConfig(void) const
+bool  Config::_checkMinData(void) const
 {
   //PENDING ...
   //NEED TO DISCUSS WHAT OR IF THERE ARE MINIMUM CONFIG PROPERTIES
@@ -77,6 +86,126 @@ bool  Config::_isLocationProperty(std::string const & prop)
   return (true);
 }
 
+// DATA EXTRACTION METHODS
+
+bool	Config::_extractProperty(std::string const & token, std::size_t & pos,
+												  std::stack<std::pair<char, std::string> > & state,
+													std::pair<std::string, std::string> & prop)
+{
+  std::string str;
+  std::size_t end;
+
+  if (token[pos] == '"')
+  {
+    end = token.find("\"", pos + 1);
+    if (end == std::string::npos)
+      return (false);
+    str = token.substr(pos + 1, end - (pos + 1));
+    pos += str.length() + 2;
+  }
+  else // isdigit(token[0])
+  {
+    end = pos;
+    while (token[end] && std::isdigit(token[end]))
+      ++end;
+    str = token.substr(pos, end - pos);
+    pos += str.length();
+  }
+  if (str == "server" || str == "location")
+    state.push(std::pair<char, std::string>(0, str));
+  else if (prop.first == "")
+    prop.first = str;
+  else
+  {
+    prop.second = str;
+    if ( (this->_isServerProperty(prop.first)
+          && !this->_serverConfig.back().setProperty(prop))
+        || (this->_isLocationProperty(prop.first)
+          && !this->_serverConfig.back().location.back().setProperty(prop)))
+      return (false);
+    prop.first.clear();
+    prop.second.clear();
+  }
+  return (true);
+}
+
+void  Config::_extractMultiStruct(char bracket, std::size_t & pos,
+													std::stack<std::pair<char, std::string> > & state)
+{
+  if (bracket == '[')
+    state.top().first = '[';
+  else // bracket == ']'
+    state.pop();
+  pos += 1;
+  return ;
+}
+
+void  Config::_extractStruct(char brace, std::size_t & pos,
+					      std::stack<std::pair<char, std::string> > & state)
+{
+  if (brace == '{')
+  {
+    if (state.empty())
+      state.push(std::pair<char, std::string>('{', ""));
+    else
+    {
+      if (!state.top().first)
+        state.top().first = '{';
+      else
+        state.push(std::pair<char, std::string>('{', state.top().second));
+      if (state.top().second == "server")
+        this->_serverConfig.push_back(ServerConfig());
+      else if (state.top(). second == "location")
+        this->_serverConfig.back().location.push_back(LocationConfig());
+    }
+  }
+  else // brace == '}'
+    state.pop();
+  pos += 1;
+  return ;
+}
+
+/*
+**  Loops through each token and each of its characacters
+**  validating and extracting config data.
+**
+**  state is a stack that stores the current struct scope
+**  as a pair to provide context for property extraction.
+*/
+
+bool  Config::_extractData(std::vector<std::string> const & tokens)
+{
+  std::stack< std::pair<char, std::string> >  state;
+  std::vector<std::string>::const_iterator    it;
+  std::size_t                                 pos;
+  std::pair<std::string, std::string>         prop;
+
+  prop.first = "";
+  prop.second = "";
+  for (it = tokens.begin(); it != tokens.end(); ++it)
+  {
+    pos = 0;
+    while ((*it)[pos])
+    {
+      //pos gets updated inside extract methods
+      if ((*it)[pos] == '{' || (*it)[pos] == '}')
+        this->_extractStruct((*it)[pos], pos, state);
+      else if ((*it)[pos] == '[' || (*it)[pos] == ']')
+        this->_extractMultiStruct((*it)[pos], pos, state);
+      else if ((*it)[pos] == '"' || isdigit((*it)[pos]))
+      {
+        if (!this->_extractProperty(*it, pos, state, prop))
+          return (false);
+      }
+      else
+        ++pos;
+    }
+  }
+  return (true);
+}
+
+// VALIDATION METHODS
+
 bool  Config::_processBraces(char brace, std::size_t & pos,
   std::stack< std::pair<char, std::string> > & state)
 {
@@ -88,34 +217,15 @@ bool  Config::_processBraces(char brace, std::size_t & pos,
     {
       state.pop();
       state.push(std::pair<char, std::string>('{', state.top().second));
-      if (state.top().second == "server")
-        this->_serverConfig.push_back(ServerConfig());
-      else if (state.top().second == "location")
-        this->_serverConfig.back().location.push_back(LocationConfig());
-      else
+      if (state.top().second != "server" && state.top().second != "location")
         return (false);
     }
     else if (state.top().first == '[') //First of multi_server or multi_location
-    {
       state.push(std::pair<char, std::string>('{', state.top().second));
-      if (state.top().second == "server")
-        this->_serverConfig.push_back(ServerConfig());
-      else
-        this->_serverConfig.back().location.push_back(LocationConfig());
-    }
     else if (state.top().first == ':'
               && (state.top().second == "server"
               || state.top().second == "location"))
-    {
       state.top().first = '{';
-      if (state.top().second == "server")
-        this->_serverConfig.push_back(ServerConfig());
-      else if (!this->_serverConfig.empty()
-                && this->_serverConfig.back().location.empty())
-        this->_serverConfig.back().location.push_back(LocationConfig());
-      else
-        return (false);
-    }
     else
       return (false);
   }
@@ -229,20 +339,8 @@ bool  Config::_processString(std::string const & token, std::size_t & pos,
     else
       return (false);
   }
-  else if (state.top().first == ':'
-            && (this->_isServerProperty(state.top().second)
-                || this->_isLocationProperty(state.top().second)))
-  {
-    prop.first = state.top().second;
-    prop.second = val;
-    //Checks to which structure the property belongs and tries to set it.
-    if ( (this->_isServerProperty(prop.first)
-          && !this->_serverConfig.back().setProperty(prop))
-        || (this->_isLocationProperty(prop.first)
-          && !this->_serverConfig.back().location.back().setProperty(prop)))
-      return (false);
+  else if (state.top().first == ':')
     state.top().first = '=';
-  }
   else
     return (false);
   pos += val.length() + 2;
@@ -264,14 +362,6 @@ bool  Config::_processDigits(std::string const & token, std::size_t & pos,
   val = token.substr(pos, end - pos);
   if (val.length() > 5)
     return (false);
-  prop.first = state.top().second;
-  prop.second = val;
-  //Checks to which structure the property belongs and tries to set it.
-  if ( (this->_isServerProperty(prop.first)
-          && !this->_serverConfig.back().setProperty(prop))
-        || (this->_isLocationProperty(prop.first)
-          && !this->_serverConfig.back().location.back().setProperty(prop)))
-    return (false);
   state.top().first = '=';
   pos += val.length();
   return (true);
@@ -279,13 +369,13 @@ bool  Config::_processDigits(std::string const & token, std::size_t & pos,
 
 /*
 **  Loops through each token and each of its characacters checking
-**  for syntax errors and validating and extracting config data.
+**  for syntax errors.
 **
 **  state is a stack that stores the previous interpreted json symbol
 **  and property as a pair to provide context for syntax validation.
 */
 
-bool  Config::_getConfigData(std::vector<std::string> const & tokens)
+bool  Config::_validateSyntax(std::vector<std::string> const & tokens)
 {
   std::stack< std::pair<char, std::string> >  state;
   std::vector<std::string>::const_iterator    it;
@@ -323,44 +413,30 @@ bool  Config::_getConfigData(std::vector<std::string> const & tokens)
   return (true);
 }
 
-void  Config::_tokenizeLine(std::string & line,
-        std::vector<std::string> & tokens)
+void  Config::_tokenizeFile(std::vector<std::string> & tokens)
 {
+  std::ifstream     file(this->_path.c_str());
+  std::string       line;
   std::stringstream line_stream;
   std::string       token;
 
-  //Trim left and right whitespace
-  line.erase(0, line.find_first_not_of(" \n\r\t"));                                                                                               
-  line.erase(line.find_last_not_of(" \n\r\t") + 1);
-  //Pass line to stringstream
-  line_stream << line;
-  //Get substrings delimited by spaces from stringstream
-  while (std::getline(line_stream, token, ' '))
-  {
-    //Prevents adding empty string when multiple spaces are found between tokens
-    if (token != "")
-      tokens.push_back(token);
-  }
-  return ;
-}
-
-bool  Config::_validFile(void)
-{
-  std::ifstream             file(this->_path.c_str());
-  std::string               line;
-  std::vector<std::string>  tokens;
-  bool                      valid;
-
-  //Tokenize all json file lines
   while (std::getline(file, line))
-    this->_tokenizeLine(line, tokens);
-  // Adds data to config and returns false if bad syntax is encountered
-  valid = this->_getConfigData(tokens);
-  //Check if config file has minimum data for the server to work
-  if (valid && !this->_checkMinConfig())
-    valid = false;
+  {
+    //Trim left and right whitespace
+    line.erase(0, line.find_first_not_of(" \n\r\t"));                                                                                               
+    line.erase(line.find_last_not_of(" \n\r\t") + 1);
+    line_stream << line;
+    //Get substrings delimited by spaces from stringstream
+    while (std::getline(line_stream, token, ' '))
+    {
+      //Prevents adding empty string when multiple spaces are found
+      if (token != "")
+        tokens.push_back(token);
+    }
+    line_stream.clear();
+  }
   file.close();
-  return (valid);
+  return ;
 }
 
 //ServerConfig STRUCTURE METHOD DEFINITIONS

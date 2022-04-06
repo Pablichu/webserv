@@ -39,7 +39,7 @@ void  testConfigs(std::ifstream & file, Config & config,
   while (1)
   {
     next = generateConfigFile(file, sampleFilePath, expectValid);
-    valid = config.isValid();
+    valid = config.parseFile();
     if (valid)
       std::cout << "#" << i << " Sample config is valid";
     else
