@@ -561,9 +561,9 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
     else
       return (false);
   }
-  else if ("default_file" && (this->_userDefined.insert(prop)).second)
+  else if (prop == "default_file" && (this->_userDefined.insert(prop)).second)
     this->default_file = val; // validate path
-  else if ("upload_dir" && (this->_userDefined.insert(prop)).second)
+  else if (prop == "upload_dir" && (this->_userDefined.insert(prop)).second)
     this->upload_dir = val; // validate path
   else
     return (false);
