@@ -59,55 +59,58 @@ private:
 
 class	Config
 {
-	private:
-		//Config file path
-		std::string									_path;
-		//Dynamic array to store different server configs
-		std::vector< ServerConfig >	_serverConfig;
 
-		bool	_validPath(void) const;
+private:
+	//Config file path
+	std::string									_path;
+	//Dynamic array to store different server configs
+	std::vector< ServerConfig >	_serverConfig;
 
-		bool	_checkMinData(void) const;
+	bool	_validPath(void) const;
 
-		bool	_isServerProperty(std::string const & prop);
-		bool	_isLocationProperty(std::string const & prop);
+	bool	_checkMinData(void) const;
 
-		//Data extraction methods
-		bool	_extractProperty(std::string const & token, std::size_t & pos,
-														std::stack<std::pair<char, std::string> > & state,
-														std::pair<std::string, std::string> & prop);
-		void	_extractMultiStruct(char bracket, std::size_t & pos,
-													std::stack<std::pair<char, std::string> > & state);
-		void	_extractStruct(char brace, std::size_t & pos,
-													std::stack<std::pair<char, std::string> > & state);
-		bool	_extractData(std::vector<std::string> const & tokens);
+	bool	_isServerProperty(std::string const & prop);
+	bool	_isLocationProperty(std::string const & prop);
 
-		//Validation methods
-		bool	_processBraces(char brace, std::size_t & pos,
-													std::stack< std::pair<char, std::string> > & state);
-		bool	_processBrackets(char bracket, std::size_t & pos,
-													std::stack< std::pair<char, std::string> > & state);
-    bool  _processComma(std::size_t & pos,
-                          std::stack< std::pair<char, std::string> > & state);
-    bool  _processColon(std::size_t & pos,
-                          std::stack< std::pair<char, std::string> > & state);
-    bool  _processString(std::string const & token, std::size_t & pos,
-                          std::stack< std::pair<char, std::string> > & state);
-		bool  _processDigits(std::string const & token, std::size_t & pos,
-                          std::stack< std::pair<char, std::string> > & state);
-		bool	_validateSyntax(std::vector<std::string> const & tokens);
-		
-		void	_tokenizeFile(std::vector<std::string> & tokens);
+	//Data extraction methods
+	bool	_extractProperty(std::string const & token, std::size_t & pos,
+													std::stack<std::pair<char, std::string> > & state,
+													std::pair<std::string, std::string> & prop);
+	void	_extractMultiStruct(char bracket, std::size_t & pos,
+												std::stack<std::pair<char, std::string> > & state);
+	void	_extractStruct(char brace, std::size_t & pos,
+												std::stack<std::pair<char, std::string> > & state);
+	bool	_extractData(std::vector<std::string> const & tokens);
 
-	public:
+	//Validation methods
+	bool	_processBraces(char brace, std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool	_processBrackets(char bracket, std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool  _processComma(std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool  _processColon(std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool  _processString(std::string const & token, std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool  _processDigits(std::string const & token, std::size_t & pos,
+												std::stack< std::pair<char, std::string> > & state);
+	bool	_validateSyntax(std::vector<std::string> const & tokens);
+	
+	void	_tokenizeFile(std::vector<std::string> & tokens);
 
-		Config(void);
-		~Config(void);
+public:
 
-		std::string const &	getPath(void) const;
-		void								setPath(std::string const & path);
-		
-		//NEED TO DISCUSS HOW TO ACCESS THE CONFIG VALUES
+	Config(void);
+	~Config(void);
 
-		bool								parseFile(void);
+	std::string const &	getPath(void) const;
+	void								setPath(std::string const & path);
+
+	bool								parseFile(void);
+
+	//NEED TO DISCUSS HOW TO ACCESS THE CONFIG VALUES
+	std::vector< ServerConfig > const &	getConfig(void) const;
+
 };

@@ -40,6 +40,11 @@ bool  Config::parseFile(void)
   return (true);
 }
 
+std::vector< ServerConfig > const &	Config::getConfig(void) const
+{
+  return (this->_serverConfig);
+}
+
 //PRIVATE METHODS
 
 bool  Config::_validPath(void) const
