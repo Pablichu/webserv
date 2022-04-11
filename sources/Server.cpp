@@ -22,7 +22,11 @@ Server::~Server(void)
   delete[] this->_connections;
 }
 
-// Obtain one listening socket per ServerConfig
+/*
+**  Obtain one listening socket per ServerConfig.
+**
+**  This function should be called for each listening socket.
+*/
 
 bool  Server::prepare(void)
 {
@@ -67,7 +71,7 @@ bool  Server::prepare(void)
 		return (false);
 	}
 
-  //	Listening to socket_fd
+  //	Start listening to socket
 	if (listen(sock, MAX_REQUEST))
 	{
 		std::cerr << "Could not create socket queue" << std::endl;
@@ -154,19 +158,59 @@ bool  Server::_acceptConn(int listenSocket)
   return (true);
 }
 
+/* Handle 2 types of events:
+**
+**  1. A listening socket receives new connections from clients.
+**  2. When an accepted connection is ready to receive the data
+**      and then send data to it.
+*/
+bool  Server::_handleEvent(std::size_t index)
+{
+  int         socket;
+  std::string data;
+
+  socket = this->_connections[index].fd;
+  if (std::find(this->_sockets.begin(), this->_sockets.end(),
+        socket) != this->_sockets.end())
+  {
+    // New client/s connected to one of listening sockets
+    if (!this->_acceptConn(socket))
+      return (false);
+  }
+  else
+  {
+    // Connected client socket is ready to read
+    if (!this->_receiveData(socket, data))
+      return (false);
+    std::cout << "Data received !!!!!\n\n" << data << std::endl;
+    close(socket);
+    this->_removeConnection(index);
+  }
+  return (true);
+}
+
+void  Server::_monitorListenSocketEvents(void)
+{
+  std::size_t i;
+
+  for (i = 0; i < this->_connLen; i++)
+  {
+    this->_connections[i].fd = this->_sockets[i];
+    this->_connections[i].events = POLLIN; //Maybe also POLLOUT
+  }  
+  return ;
+}
+
 bool  Server::start(void)
 {
-  struct pollfd conn;
-  std::size_t   loopConnLen;
-  int           res;
-  std::string   data;
+  std::size_t loopConnLen;
+  int         res;
+  int         handlingCount;
 
-  conn.fd = this->_sockets[0];
-  conn.events = POLLIN; //Maybe also POLLOUT
-  this->_connections[0] = conn;
+  this->_monitorListenSocketEvents();
   while (true)
   {
-    loopConnLen = this->_connLen;
+    loopConnLen = this->_connLen; //Update number of monitored socket for next poll call
     res = poll(this->_connections, loopConnLen, -1); // TIMEOUT -1 blocks until event is received
     if (res < 0)
     {
@@ -178,30 +222,15 @@ bool  Server::start(void)
       std::cerr << "poll() timeout" << std::endl;
       continue ;
     }*/
+    handlingCount = 0;
     for (std::size_t i = 0; i < loopConnLen; ++i) // INEFFICIENT!! USE kqueue INSTEAD of poll
     {
       if (this->_connections[i].revents == 0)
         continue;
-      if (std::find(this->_sockets.begin(), this->_sockets.end(),
-            this->_connections[i].fd) != this->_sockets.end())
-      {
-        // New client/s connected to one of listening sockets
-        if (!this->_acceptConn(this->_connections[i].fd))
-          return (false);
-      }
-      else
-      {
-        // Connected client socket is ready to read
-        if (!this->_receiveData(this->_connections[i].fd, data))
-        {
-          data.clear();
-          break ;
-        }
-        std::cout << "Data received !!!!!\n\n" << data << std::endl;
-        data.clear();
-        close(this->_connections[i].fd);
-        this->_removeConnection(i);
-      }
+      if (!this->_handleEvent(i))
+        break ;
+      if (++handlingCount == res) // To stop iterating when total events have been handled
+        break ;
     }    
   } 
   return (true);

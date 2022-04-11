@@ -29,6 +29,8 @@ class	Server
 		bool	_receiveData(int socket, std::string & data);
 		void	_increaseConnCap(void);
 		bool	_acceptConn(int	socket);
+		bool	_handleEvent(std::size_t index);
+		void	_monitorListenSocketEvents(void);
 
 	public:
 		Server();
