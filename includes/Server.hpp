@@ -26,6 +26,7 @@ class	Server
 		std::size_t					_connCap;
 
 		void	_removeConnection(std::size_t index);
+		bool	_sendData(int socket, std::string & data);
 		bool	_receiveData(int socket, std::string & data);
 		void	_increaseConnCap(void);
 		bool	_acceptConn(int	socket);

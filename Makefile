@@ -25,7 +25,7 @@ response:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Response.cpp ./tests/response.cpp -o response
 
 server:
-	$(CXX) $(CXXFLAGS) $(ROOT)/Server.cpp ./tests/server.cpp -o server
+	$(CXX) $(CXXFLAGS) $(ROOT)/Server.cpp $(ROOT)/Response.cpp ./tests/server.cpp -o server
 
 clean:
 	rm -rf $(NAME)

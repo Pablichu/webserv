@@ -91,6 +91,29 @@ void  Server::_removeConnection(std::size_t index)
   return ;
 }
 
+bool  Server::_sendData(int socket, std::string & data)
+{
+  Response    res("hola.html");
+  std::string resData;
+  int         sent;
+  std::size_t totalSent;
+
+  (void)data; // Not reading data for now...
+  resData = res.get();
+  totalSent = 0;
+  while (totalSent != resData.length()) // send might not send all resData in one call
+  {
+    sent = send(socket, resData.c_str() + totalSent, resData.length() - totalSent, 0);
+    if (sent < 0)
+    {
+      std::cout << "Could not send data to client." << std::endl;
+      return (false);
+    }
+    totalSent += sent;
+  }
+  return (true);
+}
+
 bool  Server::_receiveData(int socket, std::string & data)
 {
   std::size_t const buffLen = 500;
@@ -168,7 +191,9 @@ bool  Server::_handleEvent(std::size_t index)
 {
   int         socket;
   std::string data;
+  bool        ok;
 
+  ok = true;
   socket = this->_connections[index].fd;
   if (std::find(this->_sockets.begin(), this->_sockets.end(),
         socket) != this->_sockets.end())
@@ -183,10 +208,12 @@ bool  Server::_handleEvent(std::size_t index)
     if (!this->_receiveData(socket, data))
       return (false);
     std::cout << "Data received !!!!!\n\n" << data << std::endl;
+    if (!this->_sendData(socket, data))
+      ok = false;
     close(socket);
     this->_removeConnection(index);
   }
-  return (true);
+  return (ok);
 }
 
 void  Server::_monitorListenSocketEvents(void)
