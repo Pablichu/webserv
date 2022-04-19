@@ -5,6 +5,8 @@
 #include <fstream>
 #include <streambuf>
 #include <sstream>
+#include <unistd.h>
+#include <fcntl.h>
 
 //Server
 #include "Config.hpp"

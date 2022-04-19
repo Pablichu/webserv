@@ -33,6 +33,9 @@ config_multi:
 	@./config tests/multi_config.json sample_test_config.json
 	@rm sample_test_config.json config
 
+server:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Server.cpp $(ROOT)/Response.cpp ./tests/server.cpp -o server
+
 clean:
 	rm -rf $(NAME)
 
