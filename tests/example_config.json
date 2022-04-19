@@ -1,8 +1,7 @@
 {
   "server": {
     "port": 8080,
-    "host": "localhost",
-    "server_name": "",
+    "server_name": "localhost,www.hola.es",
     "not_found_page": "/tmp/www/404.html",
     "max_body_size": 8192,
     "location": [

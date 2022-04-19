@@ -75,7 +75,7 @@ bool  Config::_checkMinData(void) const
 
 bool  Config::_isServerProperty(std::string const & prop)
 {
-  if (prop != "port" && prop != "host" && prop != "server_name"
+  if (prop != "port" && prop != "server_name"
         && prop != "not_found_page" && prop != "max_body_size"
         && prop != "location")
     return (false);
@@ -446,8 +446,7 @@ void  Config::_tokenizeFile(std::vector<std::string> & tokens)
 
 //ServerConfig STRUCTURE METHOD DEFINITIONS
 
-ServerConfig::ServerConfig(void) : port(0), host(""), not_found_page(""),
-  max_body_size(0)
+ServerConfig::ServerConfig(void) : port(0), not_found_page(""), max_body_size(0)
 {
   return ;
 }
@@ -469,8 +468,6 @@ bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
     if (this->port > 65535)
       return (false);
   }
-  else if (prop == "host" && (this->_userDefined.insert(prop)).second)
-    this->host = val; // validate name
   else if (prop == "server_name" && (this->_userDefined.insert(prop)).second)
   {
     if (!this->_setServerName(val))

@@ -33,8 +33,7 @@ private:
 struct	ServerConfig
 {
 	std::size_t										port; // max. port number 65535
-	std::string										host;
-	std::set<std::string>					server_name;
+	std::set<std::string>					server_name; // host
 	std::string										not_found_page;
 	std::size_t										max_body_size;
 	//Dynamic array to store different location configs

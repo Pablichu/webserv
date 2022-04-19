@@ -2,7 +2,7 @@
 {
   "server": {
     "port": 7689,
-    "host": "hello",
+    "max_body_size": 8192,
     "location": {
       "uri": "bye"
     }
@@ -12,7 +12,7 @@
 #2 invalid
 {
   "server": {
-    "host": [
+    "not_found_page": [
       {
         "port": 8799
       }
@@ -33,11 +33,11 @@
 ###
 #5 valid
 {"server":{"port":8000,
-  "host": "hello",
+  "not_found_page": "/tmp/www/404.html",
   "server_name":"hello.com,bye.es"}}
 ###
 #6 invalid
 "server": {
   "port": 8000,
-  "host": "hello"
+  "not_found_page": "/tmp/www/404.html",
 }

@@ -45,7 +45,6 @@ void  printConf(std::vector<ServerConfig> const & cf)
   for (it = cf.begin(); it != cf.end(); ++it, ++i)
   {
     std::cout << "\nSERVER # " << i << "\n\n";
-    std::cout << "host: " << it->host << '\n';
     std::cout << "port: " << it->port << '\n';
     std::cout << "server_name: ";
     printSet(it->server_name);
