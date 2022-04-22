@@ -86,7 +86,8 @@ bool  Config::_isLocationProperty(std::string const & prop)
 {
   if (prop != "uri" && prop != "root" && prop != "methods"
         && prop != "redirection" && prop != "dir_list"
-        && prop != "default_file" && prop != "upload_dir")
+        && prop != "default_file" && prop != "upload_dir"
+        && prop != "cgi_dir")
     return (false);
   return (true);
 }
@@ -445,8 +446,9 @@ void  Config::_tokenizeFile(std::vector<std::string> & tokens)
 }
 
 //ServerConfig STRUCTURE METHOD DEFINITIONS
+//No need to initialize empty string classes
 
-ServerConfig::ServerConfig(void) : port(0), not_found_page(""), max_body_size(0)
+ServerConfig::ServerConfig(void) : port(0), max_body_size(0)
 {
   return ;
 }
@@ -525,9 +527,9 @@ bool  ServerConfig::_setServerName(std::string const & value)
 }
 
 //LocationConfig STRUCTURE METHOD DEFINITIONS
+//No need to initialize empty string classes
 
-LocationConfig::LocationConfig(void) : uri(""), root(""), redirection(""),
-  dir_list(false), default_file(""), upload_dir("")
+LocationConfig::LocationConfig(void) : dir_list(false)
 {
   return ;
 }
@@ -567,6 +569,8 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
     this->default_file = val; // validate path
   else if (prop == "upload_dir" && (this->_userDefined.insert(prop)).second)
     this->upload_dir = val; // validate path
+  else if (prop == "cgi_dir" && (this->_userDefined.insert(prop)).second)
+    this->cgi_dir = val; // validate path
   else
     return (false);
   return (true);

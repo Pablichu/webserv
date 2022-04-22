@@ -15,6 +15,7 @@ struct LocationConfig
 	bool									dir_list;
 	std::string						default_file;
 	std::string						upload_dir;
+	std::string						cgi_dir;
 
 	LocationConfig(void);
 

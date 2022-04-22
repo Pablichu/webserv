@@ -32,6 +32,7 @@ void  printLocation(std::vector<LocationConfig> const & loc)
     std::cout << std::boolalpha << "dir_list: " << it->dir_list << '\n';
     std::cout << "default_file: " << it->default_file << '\n';
     std::cout << "upload_dir: " << it->upload_dir << '\n';
+    std::cout << "cgi_dir: " << it->cgi_dir << '\n';
   }
   return ;
 }

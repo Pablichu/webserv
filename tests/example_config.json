@@ -33,7 +33,8 @@
         "uri": "/",
         "root": "/tmp/www/localhost",
         "methods":"GET",
-        "default_file": "index.html"
+        "default_file": "index.html",
+        "cgi_dir": "/tmp/www/localhost/cgi-bin"
       }
     }
   ]
