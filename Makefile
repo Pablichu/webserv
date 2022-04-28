@@ -8,6 +8,7 @@ SRC =	main.cpp \
 		$(ROOT)/Config.cpp \
 		$(ROOT)/Petition.cpp \
 		$(ROOT)/Response.cpp \
+		$(ROOT)/CgiResponse.cpp \
 		$(ROOT)/Server.cpp
 
 OBJ =	$(SRC:.cpp=.o)

@@ -10,12 +10,9 @@ Server::~Server(void)
 {
   std::size_t i;
 
-  if (this->_connLen)
+  for (i = 0; i < this->_connLen; ++i)
   {
-    for (i = 0; i < this->_connLen; ++i)
-    {
-      close(this->_connections[i].fd);
-    }    
+    close(this->_connections[i].fd);
   }
   delete[] this->_connections;
 }
@@ -116,14 +113,51 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
   return (true);
 }
 
+/*
+**  TODO: index should also be decreased by one so that the element
+**  that goes after the removed one does not get skipped by the for loop
+**  at start().
+*/
+
 void  Server::_removeConnection(std::size_t index)
 {
   std::size_t i;
 
   for (i = index; i < (this->_connLen - 1); ++i)
     this->_connections[i] = this->_connections[i + 1];
-  this->_connLen -= 1;
+  this->_connLen -= 1; //loopConnLen should also be decreased by one
   return ;
+}
+
+bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
+                          std::size_t connIndex)
+{
+  CgiResponse * cgi;
+
+  cgi = new CgiResponse(socket, connIndex);
+  if (!cgi->initPipes())
+  {
+    delete cgi;
+    return (false);
+  }
+  //Set non-blocking pipe fds
+  if (fcntl(cgi->getWInPipe(), F_SETFL, O_NONBLOCK)
+      || fcntl(cgi->getROutPipe(), F_SETFL, O_NONBLOCK))
+  {
+    std::cerr << "Could not set non-blocking pipe fds" << std::endl;
+    close(cgi->getWInPipe());
+    close(cgi->getROutPipe());
+    delete cgi;
+    return (false);
+  }
+  //Provisional, need to check writen bytes after each call, as it is non-blocking
+  write(cgi->getWInPipe(), "Hola Mundo!", 11);
+  close(cgi->getWInPipe());
+  //Associate read pipe fd with cgi class instance
+  this->_cgiPipes.insert(std::pair<int, CgiResponse *>(cgi->getROutPipe(), cgi));
+  //Check POLLIN event of read pipe fd with poll()
+  this->_addConn(cgi->getROutPipe(), POLLIN);
+  return (true);
 }
 
 /*
@@ -223,7 +257,7 @@ void  Server::_matchConfig(int socket)
                         sockData->locationIndex, uri);
 }
 
-bool  Server::_sendData(int socket)
+bool  Server::_sendData(int socket, std::size_t index)
 {
   ConnectionData *  sockData = &this->_connectionSockets[socket];
   std::string &     dataOut = sockData->dataOut;
@@ -233,10 +267,24 @@ bool  Server::_sendData(int socket)
   /*
   **  This is provisional. Need to parse the request, check the location
   **  configuration properly, and search in the root directory of
-  **  the location for the file
+  **  the location for the requested or default file
   */
   this->_matchConfig(socket);
-  this->_getResponse(dataOut, *sockData);
+  if (dataOut == "")
+  {
+    if (sockData->dataIn.find(".cgi") != std::string::npos) //provisional
+    {
+      if (!this->_launchCgi(socket/*, *sockData*/, index))
+        return (false);
+      /*
+      **  Do not check for events from this client socket until we receive data
+      **  from cgi program.
+      */
+      this->_connections[index].events = 0;
+      return (true);
+    }
+    this->_getResponse(dataOut, *sockData);
+  }
   totalSent = 0;
   /*
   **  DETERMINE IF INSTEAD OF A LOOP THAT BLOCKS UNTIL THE ENTIRE DATA IS SENT,
@@ -254,6 +302,46 @@ bool  Server::_sendData(int socket)
     }
     totalSent += sent;
   }
+  close(socket);
+  this->_removeConnection(index);
+  this->_connectionSockets.erase(socket);
+  return (true);
+}
+
+/*
+**  Need to check Content-length header from cgi response to know when
+**  all the data from cgi program has been read.
+*/
+
+bool  Server::_receiveCgiData(int rPipe)
+{
+  int const         connSocket = this->_cgiPipes[rPipe]->getSocket();
+  std::string &     dataOut = this->_connectionSockets[connSocket].dataOut;
+  std::size_t const buffLen = 500;
+  char              buff[buffLen + 1];
+  int               len;
+
+  std::fill(buff, buff + buffLen + 1, 0);
+  /*
+  **  DETERMINE IF INSTEAD OF A LOOP THAT BLOCKS UNTIL THE ENTIRE
+  **  DATA IS RECEIVED, IS MORE EFFICIENT TO SEND AGAIN TO poll
+  **  AND CHECK AGAIN FOR POLLIN UNTIL THE ENTIRE DATA IS RECEIVED.
+  */
+  while (1)
+  {
+    len = read(rPipe, buff, buffLen);
+    if (len == 0)
+    {
+      std::cout << "Pipe connection closed unexpectedly." << std::endl;
+      return (false);
+    }
+    if (len < 0)
+      break ;
+    dataOut.append(buff, len);
+    std::fill(buff, buff + buffLen, 0);
+  }
+  // Check again for POLLOUT event of client socket associated to cgi pipe fd
+  this->_connections[this->_cgiPipes[rPipe]->getIndex()].events = POLLOUT;
   return (true);
 }
 
@@ -297,6 +385,16 @@ void  Server::_increaseConnCap(void)
   return ;
 }
 
+void  Server::_addConn(int const fd, short const events)
+{
+  if (this->_connLen == this->_connCap)
+    this->_increaseConnCap();
+  this->_connections[this->_connLen].fd = fd;
+  this->_connections[this->_connLen].events = events;
+  this->_connLen += 1;
+  return ;
+}
+
 bool  Server::_acceptConn(int listenSocket)
 {
   std::vector< ServerConfig const * > * configs;
@@ -329,11 +427,7 @@ bool  Server::_acceptConn(int listenSocket)
       close(newConn);
       return (false);
     }
-    if (this->_connLen == this->_connCap)
-      this->_increaseConnCap();
-    this->_connections[this->_connLen].fd = newConn;
-    this->_connections[this->_connLen].events = POLLIN;
-    this->_connLen += 1;
+    this->_addConn(newConn, POLLIN);
     /*
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
@@ -351,36 +445,40 @@ bool  Server::_acceptConn(int listenSocket)
 */
 bool  Server::_handleEvent(std::size_t index)
 {
-  int   socket;
-  bool  ok;
+  int   fd;
 
-  ok = true;
-  socket = this->_connections[index].fd;
-  if (this->_listeningSockets.count(socket))
+  fd = this->_connections[index].fd;
+  if (this->_listeningSockets.count(fd))
   {
     // New client/s connected to one of listening sockets
-    if (!this->_acceptConn(socket))
+    if (!this->_acceptConn(fd))
       return (false);
+  }
+  else if (this->_cgiPipes.count(fd))
+  { // Read pipe from cgi program is ready to read
+    if (!this->_receiveCgiData(fd))
+      return (false);
+    this->_removeConnection(index); //remove pipe read fd from poll array
+    delete this->_cgiPipes[fd];
+    this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
+    close(fd); //close pipe read fd
   }
   else if (this->_connections[index].revents & POLLIN)
   {
     // Connected client socket is ready to read without blocking
-    if (!this->_receiveData(socket))
+    if (!this->_receiveData(fd))
       return (false);
     std::cout << "Data received !!!!!\n\n";
-    std::cout << this->_connectionSockets[socket].dataIn << std::endl;
+    std::cout << this->_connectionSockets[fd].dataIn << std::endl;
     this->_connections[index].events = POLLOUT;
   }
   else
   {
     // Connected client socket is ready to write without blocking
-    if (!this->_sendData(socket))
-      ok = false;
-    close(socket);
-    this->_removeConnection(index);
-    this->_connectionSockets.erase(socket);
+    if (!this->_sendData(fd, index))
+      return (false);
   }
-  return (ok);
+  return (true);
 }
 
 void  Server::_monitorListenSocketEvents(void)
@@ -406,8 +504,10 @@ bool  Server::start(void)
   this->_monitorListenSocketEvents();
   while (true)
   {
-    loopConnLen = this->_connLen; //Update number of monitored socket for next poll call
-    numEvents = poll(this->_connections, loopConnLen, -1); // TIMEOUT -1 blocks until event is received
+    //Update number of monitored sockets and pipes for next poll call
+    loopConnLen = this->_connLen;
+    // TIMEOUT -1 blocks until event is received
+    numEvents = poll(this->_connections, loopConnLen, -1);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;
@@ -420,13 +520,14 @@ bool  Server::start(void)
       continue ;
     }*/
     handlingCount = 0;
-    for (std::size_t i = 0; i < loopConnLen; ++i) // INEFFICIENT!! USE kqueue INSTEAD of poll
-    {
+    for (std::size_t i = 0; i < loopConnLen; ++i)
+    { // INEFFICIENT!! USE kqueue INSTEAD of poll
       if (this->_connections[i].revents == 0)
         continue;
       if (!this->_handleEvent(i))
         break ;
-      if (++handlingCount == numEvents) // To stop iterating when total events have been handled
+      // To stop iterating when total events have been handled
+      if (++handlingCount == numEvents)
         break ;
     }    
   } 

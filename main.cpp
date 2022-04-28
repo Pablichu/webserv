@@ -17,6 +17,7 @@ int		main(int argc, char **argv)
     std::cout << "Invalid config file." << std::endl;
     return (1);
   }
+  signal(SIGCHLD, SIG_IGN); // provisonal, should check exit code of each child process
   if (!server.prepare(config.getConfig()))
     return (1);
   if (!server.start())
