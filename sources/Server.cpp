@@ -71,9 +71,7 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 }
 
 /*
-**  Obtain one listening socket per ServerConfig.
-**
-**  This function should be called for each listening socket.
+**  Obtain one listening socket per each ServerConfig port.
 */
 
 bool  Server::prepare(std::vector<ServerConfig> const & config)
@@ -257,6 +255,13 @@ void  Server::_matchConfig(int socket)
                         sockData->locationIndex, uri);
 }
 
+/*
+**  Sends available data to a client.
+**
+**  Depending on the request, it will send the requested file
+**  or execute a cgi process and send its result.
+*/
+
 bool  Server::_sendData(int socket, std::size_t index)
 {
   ConnectionData *  sockData = &this->_connectionSockets[socket];
@@ -309,6 +314,8 @@ bool  Server::_sendData(int socket, std::size_t index)
 }
 
 /*
+**  Receive data from a cgi pipe's read end.
+**
 **  Need to check Content-length header from cgi response to know when
 **  all the data from cgi program has been read.
 */
@@ -345,6 +352,10 @@ bool  Server::_receiveCgiData(int rPipe)
   return (true);
 }
 
+/*
+**  Receive data from a client socket.
+*/
+
 bool  Server::_receiveData(int socket)
 {
   std::size_t const buffLen = 500;
@@ -373,6 +384,12 @@ bool  Server::_receiveData(int socket)
   return (true);
 }
 
+/*
+**  Increase capacity of connections array by reassigning memory
+**  to a new array and copying all elements of the previous array to
+**  the new one.
+*/
+
 void  Server::_increaseConnCap(void)
 {
   struct pollfd * aux;
@@ -385,6 +402,11 @@ void  Server::_increaseConnCap(void)
   return ;
 }
 
+/*
+**  Add an fd alonside the events that poll will track to the connections
+**  array.
+*/
+
 void  Server::_addConn(int const fd, short const events)
 {
   if (this->_connLen == this->_connCap)
@@ -394,6 +416,11 @@ void  Server::_addConn(int const fd, short const events)
   this->_connLen += 1;
   return ;
 }
+
+/*
+**  Accept client connections from any virtual server listening socket
+**  and add them to the connections array that is passed to poll.
+*/
 
 bool  Server::_acceptConn(int listenSocket)
 {
@@ -437,7 +464,8 @@ bool  Server::_acceptConn(int listenSocket)
   return (true);
 }
 
-/* Handle 2 types of events:
+/*
+**  Handle 2 types of events:
 **
 **  1. A listening socket receives new connections from clients.
 **  2. When an accepted connection is ready to receive the data
@@ -481,6 +509,10 @@ bool  Server::_handleEvent(std::size_t index)
   return (true);
 }
 
+/*
+**  Add listening sockets of serverConfigs to connections array
+*/
+
 void  Server::_monitorListenSocketEvents(void)
 {
   std::map<int, std::vector<ServerConfig const *> >::iterator it;
@@ -494,6 +526,14 @@ void  Server::_monitorListenSocketEvents(void)
   }  
   return ;
 }
+
+/*
+**  Start server and call poll() indefinitely to know when clients connect
+**  to any virtual server socket.
+**
+**  Additionally, poll is also used to know when client sockets and cgi pipes
+**  have data to receive or are ready to send data to them.
+*/
 
 bool  Server::start(void)
 {
