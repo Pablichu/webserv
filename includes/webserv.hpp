@@ -14,4 +14,5 @@
 #include "Petition.hpp"
 #include "Response.hpp"
 #include "CgiResponse.hpp"
+#include "Monitor.hpp"
 #include "Server.hpp"

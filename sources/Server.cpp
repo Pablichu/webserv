@@ -1,20 +1,13 @@
 #include "Server.hpp"
 
-Server::Server(void) : _connLen(0), _connCap(100)
+Server::Server(void)
 {
-  this->_connections = new struct pollfd [this->_connCap];
   return ;
 }
 
 Server::~Server(void)
 {
-  std::size_t i;
-
-  for (i = 0; i < this->_connLen; ++i)
-  {
-    close(this->_connections[i].fd);
-  }
-  delete[] this->_connections;
+  return ;
 }
 
 bool  Server::_initSocket(int & sock, std::size_t const port)
@@ -105,26 +98,9 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       if (!this->_initSocket(sock, it->port))
         return (false);
       this->_listeningSockets[sock].push_back(&(*it));
-      this->_connLen += 1;
     }
   }
   return (true);
-}
-
-/*
-**  TODO: index should also be decreased by one so that the element
-**  that goes after the removed one does not get skipped by the for loop
-**  at start().
-*/
-
-void  Server::_removeConnection(std::size_t index)
-{
-  std::size_t i;
-
-  for (i = index; i < (this->_connLen - 1); ++i)
-    this->_connections[i] = this->_connections[i + 1];
-  this->_connLen -= 1; //loopConnLen should also be decreased by one
-  return ;
 }
 
 bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
@@ -154,7 +130,7 @@ bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
   //Associate read pipe fd with cgi class instance
   this->_cgiPipes.insert(std::pair<int, CgiResponse *>(cgi->getROutPipe(), cgi));
   //Check POLLIN event of read pipe fd with poll()
-  this->_addConn(cgi->getROutPipe(), POLLIN);
+  this->_monitor.add(cgi->getROutPipe(), POLLIN);
   return (true);
 }
 
@@ -285,7 +261,7 @@ bool  Server::_sendData(int socket, std::size_t index)
       **  Do not check for events from this client socket until we receive data
       **  from cgi program.
       */
-      this->_connections[index].events = 0;
+      this->_monitor[index].events = 0;
       return (true);
     }
     this->_getResponse(dataOut, *sockData);
@@ -308,7 +284,7 @@ bool  Server::_sendData(int socket, std::size_t index)
     totalSent += sent;
   }
   close(socket);
-  this->_removeConnection(index);
+  this->_monitor.remove(index);
   this->_connectionSockets.erase(socket);
   return (true);
 }
@@ -348,7 +324,7 @@ bool  Server::_receiveCgiData(int rPipe)
     std::fill(buff, buff + buffLen, 0);
   }
   // Check again for POLLOUT event of client socket associated to cgi pipe fd
-  this->_connections[this->_cgiPipes[rPipe]->getIndex()].events = POLLOUT;
+  this->_monitor[this->_cgiPipes[rPipe]->getIndex()].events = POLLOUT;
   return (true);
 }
 
@@ -382,39 +358,6 @@ bool  Server::_receiveData(int socket)
     std::fill(buff, buff + buffLen, 0);
   }
   return (true);
-}
-
-/*
-**  Increase capacity of connections array by reassigning memory
-**  to a new array and copying all elements of the previous array to
-**  the new one.
-*/
-
-void  Server::_increaseConnCap(void)
-{
-  struct pollfd * aux;
-
-  aux = new struct pollfd [this->_connCap * 2];
-  std::copy(this->_connections, this->_connections + this->_connLen, aux);
-  delete[] this->_connections;
-  this->_connections = aux;
-  this->_connCap *= 2;
-  return ;
-}
-
-/*
-**  Add an fd alonside the events that poll will track to the connections
-**  array.
-*/
-
-void  Server::_addConn(int const fd, short const events)
-{
-  if (this->_connLen == this->_connCap)
-    this->_increaseConnCap();
-  this->_connections[this->_connLen].fd = fd;
-  this->_connections[this->_connLen].events = events;
-  this->_connLen += 1;
-  return ;
 }
 
 /*
@@ -454,7 +397,7 @@ bool  Server::_acceptConn(int listenSocket)
       close(newConn);
       return (false);
     }
-    this->_addConn(newConn, POLLIN);
+    this->_monitor.add(newConn, POLLIN);
     /*
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
@@ -473,9 +416,9 @@ bool  Server::_acceptConn(int listenSocket)
 */
 bool  Server::_handleEvent(std::size_t index)
 {
-  int   fd;
+  int fd;
 
-  fd = this->_connections[index].fd;
+  fd = this->_monitor[index].fd;
   if (this->_listeningSockets.count(fd))
   {
     // New client/s connected to one of listening sockets
@@ -486,19 +429,19 @@ bool  Server::_handleEvent(std::size_t index)
   { // Read pipe from cgi program is ready to read
     if (!this->_receiveCgiData(fd))
       return (false);
-    this->_removeConnection(index); //remove pipe read fd from poll array
+    this->_monitor.remove(index);
     delete this->_cgiPipes[fd];
     this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
     close(fd); //close pipe read fd
   }
-  else if (this->_connections[index].revents & POLLIN)
+  else if (this->_monitor[index].revents & POLLIN)
   {
     // Connected client socket is ready to read without blocking
     if (!this->_receiveData(fd))
       return (false);
     std::cout << "Data received !!!!!\n\n";
     std::cout << this->_connectionSockets[fd].dataIn << std::endl;
-    this->_connections[index].events = POLLOUT;
+    this->_monitor[index].events = POLLOUT;
   }
   else
   {
@@ -516,14 +459,12 @@ bool  Server::_handleEvent(std::size_t index)
 void  Server::_monitorListenSocketEvents(void)
 {
   std::map<int, std::vector<ServerConfig const *> >::iterator it;
-  std::size_t                                           i;
 
-  for (it = this->_listeningSockets.begin(), i = 0;
-          it != this->_listeningSockets.end(); ++it, ++i)
+  for (it = this->_listeningSockets.begin();
+          it != this->_listeningSockets.end(); ++it)
   {
-    this->_connections[i].fd = it->first;
-    this->_connections[i].events = POLLIN;
-  }  
+    this->_monitor.add(it->first, POLLIN);
+  }
   return ;
 }
 
@@ -537,17 +478,14 @@ void  Server::_monitorListenSocketEvents(void)
 
 bool  Server::start(void)
 {
-  std::size_t loopConnLen;
   int         numEvents;
   int         handlingCount;
 
   this->_monitorListenSocketEvents();
   while (true)
   {
-    //Update number of monitored sockets and pipes for next poll call
-    loopConnLen = this->_connLen;
     // TIMEOUT -1 blocks until event is received
-    numEvents = poll(this->_connections, loopConnLen, -1);
+    numEvents = poll(this->_monitor.getFds(), this->_monitor.len(), -1);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;
@@ -560,16 +498,17 @@ bool  Server::start(void)
       continue ;
     }*/
     handlingCount = 0;
-    for (std::size_t i = 0; i < loopConnLen; ++i)
+    for (std::size_t i = 0; i < this->_monitor.len(); ++i)
     { // INEFFICIENT!! USE kqueue INSTEAD of poll
-      if (this->_connections[i].revents == 0)
+      if (this->_monitor[i].revents == 0)
         continue;
       if (!this->_handleEvent(i))
         break ;
       // To stop iterating when total events have been handled
       if (++handlingCount == numEvents)
         break ;
-    }    
+    }
+    this->_monitor.purge();
   } 
   return (true);
 }
