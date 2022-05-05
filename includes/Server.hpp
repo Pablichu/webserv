@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h> /* superset of previous */
 #include <poll.h>
+#include <dirent.h>
 
 #include <map>
 #include <algorithm>
@@ -40,6 +41,7 @@ class	Server
 		bool	_sendData(int socket, std::size_t index);
 		bool	_launchCgi(int socket/*, ConnectionData const & conn*/,
 											std::size_t connIndex);
+		std::string	_listDir(std::string const & path) const;
 		void	_getResponse(std::string & data, ConnectionData const & conn) const;
 		void  _matchLocation(std::vector<LocationConfig> const & servers,
 												std::size_t & index, std::string const & reqUri);

@@ -134,6 +134,43 @@ bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
   return (true);
 }
 
+// Provisional
+
+std::string Server::_listDir(std::string const & path) const
+{
+  DIR *           dir;
+  struct dirent * elem;
+  std::string     res;
+
+  res = "HTTP/1.1 200 OK\n";
+  res.append("Content-type: text/html\n\n");
+  res.append("<html><head><title>Index of ");
+  res.append(path); //Pass request uri value instead of root path
+  res.append("</title></head><body><h1>Index of ");
+  res.append(path); //Pass request uri instead of root path
+  res.append("</h1><hr><pre><a href=\"../\">../</a>\n");
+  dir = opendir(path.c_str());
+  if (dir)
+  {
+    while (true)
+    {
+      elem = readdir(dir);
+      if (!elem)
+        break ;
+      if (elem->d_name[0] == '.') //Skip hidden files
+        continue ;
+      res.append("<a href=\"" + path + '/'); //Pass request uri instead of root path
+      res.append(elem->d_name);
+      res.append("\">");
+      res.append(elem->d_name);
+      res.append("</a>\n");
+    }
+    closedir(dir);
+  }
+  res.append("</pre><hr></body></html>");
+  return (res);
+}
+
 /*
 **  Provisional, need Request instance to get more info about the request.
 **
@@ -152,8 +189,13 @@ void  Server::_getResponse(std::string & data, ConnectionData const & conn) cons
   file.open(fileName.c_str());
   if (file.is_open())
     file.close();
-  else
+  else if (loc->dir_list == false)
     fileName = serv->not_found_page;
+  else
+  {
+    data = this->_listDir(loc->root);
+    return ;
+  }
   data = Response(fileName).get();
   return ;
 }
