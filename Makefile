@@ -6,7 +6,7 @@ CXXFLAGS = -Wall -Werror -Wextra -Iincludes -fsanitize=address -g3 -std=c++98 -p
 
 SRC =	main.cpp \
 		$(ROOT)/Config.cpp \
-		$(ROOT)/Petition.cpp \
+		$(ROOT)/Request.cpp \
 		$(ROOT)/Response.cpp \
 		$(ROOT)/Server.cpp
 

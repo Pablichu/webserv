@@ -1,0 +1,57 @@
+GET
+	> GET / HTTP/1.1
+	> Host: google.com
+	> User-Agent: curl/7.54.0
+
+	> GET /delete HTTP/2
+	> Host: postman-echo.com
+	> User-Agent: curl/7.64.0
+	> Accept: */*
+
+
+POST
+	> POST / HTTP/1.1
+	> Host: www.google.com
+	> User-Agent: curl/7.64.0
+	> Accept: */*
+	> Content-Length: 11
+	> Content-Type: application/x-www-form-urlencoded
+
+
+	> POST /test.html HTTP/1.1
+	> Host: example.org
+	> Content-Type: multipart/form-data;boundary="boundary"
+
+	> --boundary
+	> Content-Disposition: form-data; name="field1"
+ 
+	> value1
+	> --boundary
+	> Content-Disposition: form-data; name="field2"; filename="example.txt"
+ 
+	> value2
+
+
+	> POST / HTTP/1.1
+	> Host: foo.com
+	> Content-Type: application/x-www-form-urlencoded
+	> Content-Length: 13
+
+	> say=Hi&to=Mom
+
+
+DELETE
+	> DELETE /file.html HTTP/1.1
+	> Host: example.com
+
+	> DELETE / HTTP/1.1
+	> Host: google.com
+	> User-Agent: curl/7.64.0
+	> Accept: */*
+
+	> DELETE /delete HTTP/2
+	> Host: postman-echo.com
+	> User-Agent: curl/7.64.0
+	> Accept: */*
+	> Content-Length: 21
+	> Content-Type: application/x-www-form-urlencoded
