@@ -54,6 +54,8 @@ void  Monitor::add(int const fd, short const events)
 
 void  Monitor::remove(std::size_t index)
 {
+  if (index >= this->_len)
+    return ;
   this->_fds[index].fd = -1;
   this->_removedIndexs.push_back(index);
   return ;
