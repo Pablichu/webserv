@@ -35,6 +35,9 @@ config_multi:
 	@./config tests/multi_config.json sample_test_config.json
 	@rm sample_test_config.json config
 
+monitor:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Monitor.cpp ./tests/monitor.cpp -o monitor
+
 clean:
 	rm -rf $(NAME)
 
@@ -47,3 +50,5 @@ git: fclean
 	git add .
 	git commit -m "$(MSG)"
 	git push
+
+.PHONY: all response config config_multi monitor clean fclean re
