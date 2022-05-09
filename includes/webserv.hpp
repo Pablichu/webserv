@@ -11,7 +11,7 @@
 
 //Server
 #include "Config.hpp"
-#include "Petition.hpp"
+#include "Request.hpp"
 #include "Response.hpp"
 #include "CgiResponse.hpp"
 #include "Monitor.hpp"

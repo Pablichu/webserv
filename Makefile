@@ -6,7 +6,7 @@ CXXFLAGS = -Wall -Werror -Wextra -Iincludes -fsanitize=address -g3 -std=c++98 -p
 
 SRC =	main.cpp \
 		$(ROOT)/Config.cpp \
-		$(ROOT)/Petition.cpp \
+		$(ROOT)/Request.cpp \
 		$(ROOT)/Response.cpp \
 		$(ROOT)/CgiResponse.cpp \
 		$(ROOT)/Monitor.cpp \
@@ -25,6 +25,9 @@ $(NAME): $(OBJ)
 
 response:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Response.cpp ./tests/response.cpp -o response
+
+request:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Request.cpp ./tests/requestTest.cpp -o request
 
 config:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Config.cpp ./tests/config.cpp -o config
