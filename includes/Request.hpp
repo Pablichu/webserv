@@ -1,30 +1,18 @@
 #pragma once
 
 #include "webserv.hpp"
+#include <map>
 
 class	Request
 {
 	private:
-		//Start line
-		std::string	_method;
-		std::string	_path;
-		std::string	_protocol;
-
-		//Host
-		std::string	_host;
-
-		//User-agent --necesary?
-		//Content-lenght
-		int		_contLenght;
-
-		//Header, check what we need
+		//Everything will be stored in this map
+		std::map<std::string, std::string> _values;
 
 	public:
 		Request(std::string header);
 		~Request();
 
-		std::string	GetMethod() const;
-		std::string	GetPath() const;
-		std::string	GetProtocol() const;
-		std::string	GetHost() const;
+		const std::string	GetPetit(std::string petition);
+		std::map<std::string, std::string>	GetWholePetit();
 };

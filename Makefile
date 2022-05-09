@@ -24,6 +24,9 @@ $(NAME): $(OBJ)
 response:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Response.cpp ./tests/response.cpp -o response
 
+request:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Request.cpp ./tests/requestTest.cpp -o request
+
 config:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Config.cpp ./tests/config.cpp -o config
 

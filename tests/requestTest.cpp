@@ -10,7 +10,10 @@ std::string getFileInString()
 
 	while(!in.eof()) {
 		getline(in, s);
-		sTotal += s + "\n";
+		if (in.eof())
+			sTotal += s;
+		else
+			sTotal += s + "\n";
 	}
 
 	in.close();	
@@ -23,11 +26,11 @@ int	main()
 	std::cout << "_____ txt EXAMPLE _____" << std::endl << header << std::endl;
 
 	Request test(header);
-	std::cout << "_____ My Request  _____" << std::endl
-			  << "Method > |" << test.GetMethod() << "|" << std::endl
-			  << "Path > |" << test.GetPath() << "|" << std::endl
-			  << "Protocol > |" << test.GetProtocol() << "|" << std::endl
-			  << "Host > |" << test.GetHost() << "|" << std::endl;
+	std::cout << std::endl << "_____ Test with Map _____" << std::endl;
 
+	std::map<std::string, std::string> m = test.GetWholePetit();
+	for (std::map<std::string, std::string>::const_iterator it = m.begin(); it != m.end(); it++) {
+		std::cout << it->first << " = " << it->second << std::endl;
+	}
 	return 0;
 }
