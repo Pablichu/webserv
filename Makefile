@@ -46,6 +46,7 @@ clean:
 
 fclean: clean
 	rm -rf $(OBJ)
+	@rm -f response request config monitor
 
 re: fclean $(NAME)
 
