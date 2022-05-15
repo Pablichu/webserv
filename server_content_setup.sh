@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-SERVER_PATH=/tmp/www
+SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 
 mkdir -p $SERVER_LOCALHOST_PATH

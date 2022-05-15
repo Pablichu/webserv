@@ -3,12 +3,12 @@
     {
       "port": 8080,
       "server_name": "localhost:8080,www.hola.es",
-      "not_found_page": "/tmp/www/404.html",
+      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
       "max_body_size": 8192,
       "location": [
         {
           "uri": "/",
-          "root": "/tmp/www/localhost",
+          "root": "WEBSERV_PATH/tests/www/localhost",
           "methods": "GET",
           "redirection": "",
           "dir_list": 0,
@@ -16,25 +16,25 @@
         },
         {
           "uri": "/gallery",
-          "root": "/tmp/www/localhost/gallery",
+          "root": "WEBSERV_PATH/tests/www/localhost/gallery",
           "methods": "GET,POST,DELETE",
           "redirection": "",
           "dir_list": 1,
           "default_file": "gallery.html",
-          "upload_dir": "/tmp/www/localhost/media"
+          "upload_dir": "WEBSERV_PATH/tests/www/localhost/media"
         }
       ]
     },
     {
       "port": 9000,
       "server_name": "localhost:9000",
-      "not_found_page": "/tmp/www/404.html",
+      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
       "location": {
         "uri": "/",
-        "root": "/tmp/www/localhost",
+        "root": "WEBSERV_PATH/tests/www/localhost",
         "methods":"GET",
         "default_file": "index.html",
-        "cgi_dir": "/tmp/www/localhost/cgi-bin"
+        "cgi_dir": "WEBSERV_PATH/tests/www/localhost/cgi-bin"
       }
     }
   ]

@@ -23,6 +23,12 @@ all: $(NAME)
 $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 
+start:
+	@sh server_content_setup.sh
+	@cp tests/example_config.json tests/tmp_config.json
+	@sed -i s#WEBSERV_PATH#$(PWD)#g tests/tmp_config.json
+	./webserv tests/tmp_config.json
+
 response:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Response.cpp ./tests/response.cpp -o response
 
@@ -46,7 +52,8 @@ clean:
 
 fclean: clean
 	rm -rf $(OBJ)
-	@rm -f response request config monitor
+	@rm -f response request config monitor tests/tmp_config.json
+	@rm -rf tests/www
 
 re: fclean $(NAME)
 
@@ -55,4 +62,4 @@ git: fclean
 	git commit -m "$(MSG)"
 	git push
 
-.PHONY: all response request config config_multi monitor clean fclean re
+.PHONY: all start response request config config_multi monitor clean fclean re
