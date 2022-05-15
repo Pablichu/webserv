@@ -44,6 +44,7 @@ class	Server
 		Monitor																							_monitor;
 
 		bool	_initSocket(int & sock, std::size_t const port);
+		void	_endConnection(int fd, size_t connIndex);
 		bool	_sendData(int socket, std::size_t index);
 		bool	_launchCgi(int socket, ConnectionData & conn,
 											std::size_t connIndex);
@@ -56,8 +57,8 @@ class	Server
 		void	_matchConfig(int socket);
 		bool	_receiveCgiData(int rPipe);
 		bool	_receiveData(int socket);
-		bool	_acceptConn(int	socket);
-		bool	_handleEvent(std::size_t index);
+		void	_acceptConn(int	socket);
+		void	_handleEvent(std::size_t index);
 		void	_monitorListenSocketEvents(void);
 
 	public:

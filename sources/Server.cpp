@@ -127,6 +127,14 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
   return (true);
 }
 
+void  Server::_endConnection(int fd, size_t connIndex)
+{
+  close(fd);
+  this->_monitor.remove(connIndex);
+  this->_connectionSockets.erase(fd);
+  return ;
+}
+
 bool  Server::_launchCgi(int socket, ConnectionData & conn,
                           std::size_t connIndex)
 {
@@ -349,9 +357,7 @@ bool  Server::_sendData(int socket, std::size_t index)
     }
     totalSent += sent;
   }
-  close(socket);
-  this->_monitor.remove(index);
-  this->_connectionSockets.erase(socket);
+  this->_endConnection(socket, index);
   return (true);
 }
 
@@ -433,7 +439,7 @@ bool  Server::_receiveData(int socket)
 **  and add them to the connections array that is passed to poll.
 */
 
-bool  Server::_acceptConn(int listenSocket)
+void  Server::_acceptConn(int listenSocket)
 {
   std::vector< ServerConfig const * > * configs;
   struct sockaddr_in                    address;
@@ -455,7 +461,7 @@ bool  Server::_acceptConn(int listenSocket)
       if (errno != EWOULDBLOCK)
       {
         std::cerr << "accept() error" << std::endl;
-        return (false);
+        continue ;
       }
       break ;
     }
@@ -463,7 +469,7 @@ bool  Server::_acceptConn(int listenSocket)
     {
       std::cerr << "Could not set non-blocking data socket" << std::endl;
       close(newConn);
-      return (false);
+      continue ;
     }
     this->_monitor.add(newConn, POLLIN);
     /*
@@ -472,7 +478,6 @@ bool  Server::_acceptConn(int listenSocket)
     */
     this->_connectionSockets[newConn].portConfigs = configs;
   }
-  return (true);
 }
 
 /*
@@ -482,7 +487,7 @@ bool  Server::_acceptConn(int listenSocket)
 **  2. When an accepted connection is ready to receive the data
 **      and then send data to it.
 */
-bool  Server::_handleEvent(std::size_t index)
+void  Server::_handleEvent(std::size_t index)
 {
   int fd;
 
@@ -490,13 +495,12 @@ bool  Server::_handleEvent(std::size_t index)
   if (this->_listeningSockets.count(fd))
   {
     // New client/s connected to one of listening sockets
-    if (!this->_acceptConn(fd))
-      return (false);
+    this->_acceptConn(fd);
   }
   else if (this->_cgiPipes.count(fd))
   { // Read pipe from cgi program is ready to read
     if (!this->_receiveCgiData(fd))
-      return (false);
+      return ; //Handle Error
     this->_monitor.remove(index);
     delete this->_cgiPipes[fd];
     this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
@@ -506,7 +510,7 @@ bool  Server::_handleEvent(std::size_t index)
   {
     // Connected client socket is ready to read without blocking
     if (!this->_receiveData(fd))
-      return (false);
+      this->_endConnection(fd, index); //TODO: Handle Error
     std::cout << "Data received for "
               << this->_connectionSockets[fd].req.getPetit("Host")
               << std::endl;
@@ -516,9 +520,8 @@ bool  Server::_handleEvent(std::size_t index)
   {
     // Connected client socket is ready to write without blocking
     if (!this->_sendData(fd, index))
-      return (false);
+      this->_endConnection(fd, index); //TODO: Handle Error
   }
-  return (true);
 }
 
 /*
@@ -571,8 +574,7 @@ bool  Server::start(void)
     { // INEFFICIENT!! USE kqueue INSTEAD of poll
       if (this->_monitor[i].revents == 0)
         continue;
-      if (!this->_handleEvent(i))
-        break ;
+      this->_handleEvent(i);
       // To stop iterating when total events have been handled
       if (++handlingCount == numEvents)
         break ;
