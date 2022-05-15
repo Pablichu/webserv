@@ -24,8 +24,14 @@ struct	ConnectionData
 	std::vector<ServerConfig const *> *	portConfigs;
 	std::size_t													serverIndex;
 	std::size_t													locationIndex;
-	std::string													dataIn;
+	Request															req;
 	std::string													dataOut;
+
+	ConnectionData(void);
+	~ConnectionData(void);
+
+	ServerConfig const *		getServer(void);
+	LocationConfig					getLocation(void);
 };
 
 class	Server
@@ -39,10 +45,10 @@ class	Server
 
 		bool	_initSocket(int & sock, std::size_t const port);
 		bool	_sendData(int socket, std::size_t index);
-		bool	_launchCgi(int socket/*, ConnectionData const & conn*/,
+		bool	_launchCgi(int socket, ConnectionData & conn,
 											std::size_t connIndex);
 		std::string	_listDir(std::string const & path) const;
-		void	_getResponse(std::string & data, ConnectionData const & conn) const;
+		void	_getResponse(ConnectionData & conn) const;
 		void  _matchLocation(std::vector<LocationConfig> const & servers,
 												std::size_t & index, std::string const & reqUri);
 		void  _matchServer(std::vector<ServerConfig const *> & servers,

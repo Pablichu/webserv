@@ -45,19 +45,27 @@ int CgiResponse::getWOutPipe(void) const
 
 // Provisional
 
-void  CgiResponse::_execProgram(void)
+void  CgiResponse::_execProgram(ConnectionData & connData)
 {
-  char  progPath[] = "/tmp/www/localhost/cgi-bin/reply.cgi";
-  char  *argv[2] = {progPath, 0};
+  std::string const path = connData.req.getPetit("Path");
+  std::string       programPath;
+  char **           argv;
 
+  programPath = connData.getLocation().cgi_dir + '/';
+  programPath.append(path.substr(path.find_last_of("/") + 1,
+                      path.length() - path.find_last_of("/") + 1));
+  argv = new char *[1 + 1];
+  argv[1] = 0;
+  argv[0] = const_cast<char *>(programPath.c_str());
   dup2(this->_inPipe[0], STDIN_FILENO);
   close(this->_inPipe[0]);
   dup2(this->_outPipe[1], STDOUT_FILENO);
   close(this->_outPipe[1]);
-  execve(progPath, argv, NULL); //Thid argument must be the cgi env variables
+  execve(programPath.c_str(), argv, NULL); //Third argument must be the cgi env variables
+  delete [] argv;
 }
 
-bool  CgiResponse::initPipes(void)
+bool  CgiResponse::initPipes(ConnectionData & connData)
 {
   pid_t child;
 
@@ -71,7 +79,7 @@ bool  CgiResponse::initPipes(void)
   { //Child process
     close(this->_inPipe[1]);
     close(this->_outPipe[0]);
-    this->_execProgram();
+    this->_execProgram(connData);
     std::cout << "exec failed" << std::endl;
     exit(EXIT_FAILURE);
   }
