@@ -510,7 +510,7 @@ void  Server::_handleEvent(std::size_t index)
   {
     // Connected client socket is ready to read without blocking
     if (!this->_receiveData(fd))
-      this->_endConnection(fd, index); //TODO: Handle Error
+      return this->_endConnection(fd, index); //TODO: Handle Error
     std::cout << "Data received for "
               << this->_connectionSockets[fd].req.getPetit("Host")
               << std::endl;
