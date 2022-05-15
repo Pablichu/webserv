@@ -38,3 +38,5 @@ print("Content-type: text/plain")
 print("")
 print(sys.stdin.read())
 EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
