@@ -4,9 +4,9 @@ SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 
 mkdir -p $SERVER_LOCALHOST_PATH
-mkdir $SERVER_LOCALHOST_PATH/gallery
-mkdir $SERVER_LOCALHOST_PATH/media
-mkdir $SERVER_LOCALHOST_PATH/cgi-bin
+mkdir -p $SERVER_LOCALHOST_PATH/gallery
+mkdir -p $SERVER_LOCALHOST_PATH/media
+mkdir -p $SERVER_LOCALHOST_PATH/cgi-bin
 
 cat << EOF > $SERVER_LOCALHOST_PATH/index.html
 <!DOCTYPE html>
