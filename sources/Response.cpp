@@ -4,7 +4,11 @@ Response::Response(std::string file_route)
 {
 	protocol = "HTTP/1.1";
 	status = 200;
+	if (file_route.find("404") != std::string::npos)
+		status = 404;
 	status_msg = "OK";
+	if (status != 200)
+		status_msg = "Not Found";
 
 	std::string		doctype
 	(
