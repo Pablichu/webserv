@@ -513,6 +513,8 @@ void  Server::_handleEvent(std::size_t index)
       return this->_endConnection(fd, index); //TODO: Handle Error
     std::cout << "Data received for "
               << this->_connectionSockets[fd].req.getPetit("Host")
+              << " with path "
+              << this->_connectionSockets[fd].req.getPetit("Path")
               << std::endl;
     this->_monitor[index].events = POLLOUT;
   }
