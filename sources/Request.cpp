@@ -35,7 +35,7 @@ void  Request::process(std::string reqData)
     //This ending is provisional, a body might come next
 		if (rpos == std::string::npos)
 			break;
-		this->_values[buff] = reqData.substr(pos, rpos - pos);
+		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
 }
 
