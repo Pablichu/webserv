@@ -25,7 +25,7 @@ int	main()
 	std::string header = getFileInString();
 	std::cout << "_____ txt EXAMPLE _____" << std::endl << header << std::endl;
 
-	Request test(header);
+	Request test(header); //Aqui entra el header en el objeto. Las pruebas se pueden hacer desde aqui
 	std::cout << std::endl << "_____ Test with Map _____" << std::endl;
 
 	std::map<std::string, std::string> m = test.GetWholePetit();
