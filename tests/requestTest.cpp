@@ -1,4 +1,4 @@
-#include "Request.hpp"
+#include "webserv.hpp"
 
 std::string getFileInString()
 {
@@ -22,14 +22,16 @@ std::string getFileInString()
 
 int	main()
 {
+  std::map<std::string, std::string>::iterator  it;
+	Request                                       req;
+
 	std::string header = getFileInString();
 	std::cout << "_____ txt EXAMPLE _____" << std::endl << header << std::endl;
 
-	Request test(header); //Aqui entra el header en el objeto. Las pruebas se pueden hacer desde aqui
+	req.process(header);
 	std::cout << std::endl << "_____ Test with Map _____" << std::endl;
 
-	std::map<std::string, std::string> m = test.GetWholePetit();
-	for (std::map<std::string, std::string>::const_iterator it = m.begin(); it != m.end(); it++) {
+	for (it = req.begin(); it != req.end(); it++) {
 		std::cout << it->first << " = " << it->second << std::endl;
 	}
 	return 0;

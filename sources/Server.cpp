@@ -1,5 +1,29 @@
 #include "Server.hpp"
 
+ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0)
+{
+  return ;
+}
+
+ConnectionData::~ConnectionData(void)
+{
+  return ;
+}
+
+ServerConfig const *  ConnectionData::getServer(void)
+{
+  if (!this->portConfigs->size())
+    return (0);
+  return ((*this->portConfigs)[this->serverIndex]);
+}
+
+LocationConfig  ConnectionData::getLocation(void)
+{
+  if (!this->portConfigs->size())
+    return (LocationConfig());
+  return (this->getServer()->location[this->locationIndex]);
+}
+
 Server::Server(void)
 {
   return ;
@@ -103,13 +127,21 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
   return (true);
 }
 
-bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
+void  Server::_endConnection(int fd, size_t connIndex)
+{
+  close(fd);
+  this->_monitor.remove(connIndex);
+  this->_connectionSockets.erase(fd);
+  return ;
+}
+
+bool  Server::_launchCgi(int socket, ConnectionData & conn,
                           std::size_t connIndex)
 {
   CgiResponse * cgi;
 
   cgi = new CgiResponse(socket, connIndex);
-  if (!cgi->initPipes())
+  if (!cgi->initPipes(conn))
   {
     delete cgi;
     return (false);
@@ -134,9 +166,10 @@ bool  Server::_launchCgi(int socket/*, ConnectionData const & conn*/,
   return (true);
 }
 
-// Provisional
+// Provisional listDir belongs to Response class
 
-std::string Server::_listDir(std::string const & path) const
+std::string Server::_listDir(std::string const & uri,
+                              std::string const & root) const
 {
   DIR *           dir;
   struct dirent * elem;
@@ -145,11 +178,11 @@ std::string Server::_listDir(std::string const & path) const
   res = "HTTP/1.1 200 OK\n";
   res.append("Content-type: text/html\n\n");
   res.append("<html><head><title>Index of ");
-  res.append(path); //Pass request uri value instead of root path
+  res.append(uri);
   res.append("</title></head><body><h1>Index of ");
-  res.append(path); //Pass request uri instead of root path
+  res.append(uri);
   res.append("</h1><hr><pre><a href=\"../\">../</a>\n");
-  dir = opendir(path.c_str());
+  dir = opendir(root.c_str());
   if (dir)
   {
     while (true)
@@ -159,7 +192,7 @@ std::string Server::_listDir(std::string const & path) const
         break ;
       if (elem->d_name[0] == '.') //Skip hidden files
         continue ;
-      res.append("<a href=\"" + path + '/'); //Pass request uri instead of root path
+      res.append("<a href=\"" + uri + '/');
       res.append(elem->d_name);
       res.append("\">");
       res.append(elem->d_name);
@@ -172,31 +205,38 @@ std::string Server::_listDir(std::string const & path) const
 }
 
 /*
-**  Provisional, need Request instance to get more info about the request.
+**  Provisional, this should be handled in Response class.
 **
 **  A hash table could be implemented to avoid some file I/O and
 **  increase response efficiency.
 */
 
-void  Server::_getResponse(std::string & data, ConnectionData const & conn) const
+void  Server::_getResponse(ConnectionData & conn) const
 {
   ServerConfig const *    serv = (*conn.portConfigs)[conn.serverIndex];
   LocationConfig const *  loc = &serv->location[conn.locationIndex];
+  std::string const       path = conn.req.getPetit("Path");
   std::string             fileName;
   std::ifstream           file;
 
-  fileName = loc->root + '/' + loc->default_file;
+  fileName = loc->root + '/';
+  //TODO: Save find result to avoid repeating operation after
+  if (path.find(".") != std::string::npos)
+    fileName.append(path.substr(path.find_last_of("/") + 1,
+                    path.length() - path.find_last_of("/") + 1));
+  else
+    fileName.append(loc->default_file);
   file.open(fileName.c_str());
   if (file.is_open())
     file.close();
-  else if (loc->dir_list == false)
-    fileName = serv->not_found_page;
-  else
+  else if (loc->dir_list == true && path.find(".") == std::string::npos)
   {
-    data = this->_listDir(loc->root);
+    conn.dataOut = this->_listDir(path, loc->root);
     return ;
   }
-  data = Response(fileName).get();
+  else
+    fileName = serv->not_found_page;
+  conn.dataOut = Response(fileName).get();
   return ;
 }
 
@@ -257,20 +297,13 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 void  Server::_matchConfig(int socket)
 {
   ConnectionData *  sockData = &this->_connectionSockets[socket];
-  std::size_t       needle;
-  std::string       host;
-  std::string       uri;
 
-  needle = sockData->dataIn.find("Host:") + 6;
-  host = sockData->dataIn.substr(needle,
-          sockData->dataIn.find("\n", needle) - needle);
-  this->_matchServer(*(sockData->portConfigs),
-                        sockData->serverIndex, host);
-  needle = sockData->dataIn.find(" ") + 1;
-  uri = sockData->dataIn.substr(needle,
-          sockData->dataIn.find(" ", needle) - needle);
-  this->_matchLocation((*sockData->portConfigs)[sockData->serverIndex]->location,
-                        sockData->locationIndex, uri);
+  this->_matchServer(
+    *(sockData->portConfigs),
+    sockData->serverIndex,sockData->req.getPetit("Host"));
+  this->_matchLocation(
+    (*sockData->portConfigs)[sockData->serverIndex]->location,
+    sockData->locationIndex, sockData->req.getPetit("Path"));
 }
 
 /*
@@ -295,9 +328,10 @@ bool  Server::_sendData(int socket, std::size_t index)
   this->_matchConfig(socket);
   if (dataOut == "")
   {
-    if (sockData->dataIn.find(".cgi") != std::string::npos) //provisional
+    if (sockData->req.getPetit("Path").find(".cgi")
+        != std::string::npos) //provisional
     {
-      if (!this->_launchCgi(socket/*, *sockData*/, index))
+      if (!this->_launchCgi(socket, *sockData, index))
         return (false);
       /*
       **  Do not check for events from this client socket until we receive data
@@ -306,7 +340,7 @@ bool  Server::_sendData(int socket, std::size_t index)
       this->_monitor[index].events = 0;
       return (true);
     }
-    this->_getResponse(dataOut, *sockData);
+    this->_getResponse(*sockData);
   }
   totalSent = 0;
   /*
@@ -325,9 +359,7 @@ bool  Server::_sendData(int socket, std::size_t index)
     }
     totalSent += sent;
   }
-  close(socket);
-  this->_monitor.remove(index);
-  this->_connectionSockets.erase(socket);
+  this->_endConnection(socket, index);
   return (true);
 }
 
@@ -376,6 +408,7 @@ bool  Server::_receiveCgiData(int rPipe)
 
 bool  Server::_receiveData(int socket)
 {
+  std::string       reqData;
   std::size_t const buffLen = 500;
   char              buff[buffLen + 1];
   int               len;
@@ -396,9 +429,10 @@ bool  Server::_receiveData(int socket)
     }
     if (len < 0)
       break ;
-    this->_connectionSockets[socket].dataIn.append(buff, len);
+    reqData.append(buff, len);
     std::fill(buff, buff + buffLen, 0);
   }
+  this->_connectionSockets[socket].req.process(reqData);
   return (true);
 }
 
@@ -407,7 +441,7 @@ bool  Server::_receiveData(int socket)
 **  and add them to the connections array that is passed to poll.
 */
 
-bool  Server::_acceptConn(int listenSocket)
+void  Server::_acceptConn(int listenSocket)
 {
   std::vector< ServerConfig const * > * configs;
   struct sockaddr_in                    address;
@@ -429,7 +463,7 @@ bool  Server::_acceptConn(int listenSocket)
       if (errno != EWOULDBLOCK)
       {
         std::cerr << "accept() error" << std::endl;
-        return (false);
+        continue ;
       }
       break ;
     }
@@ -437,7 +471,7 @@ bool  Server::_acceptConn(int listenSocket)
     {
       std::cerr << "Could not set non-blocking data socket" << std::endl;
       close(newConn);
-      return (false);
+      continue ;
     }
     this->_monitor.add(newConn, POLLIN);
     /*
@@ -446,7 +480,6 @@ bool  Server::_acceptConn(int listenSocket)
     */
     this->_connectionSockets[newConn].portConfigs = configs;
   }
-  return (true);
 }
 
 /*
@@ -456,7 +489,7 @@ bool  Server::_acceptConn(int listenSocket)
 **  2. When an accepted connection is ready to receive the data
 **      and then send data to it.
 */
-bool  Server::_handleEvent(std::size_t index)
+void  Server::_handleEvent(std::size_t index)
 {
   int fd;
 
@@ -464,13 +497,12 @@ bool  Server::_handleEvent(std::size_t index)
   if (this->_listeningSockets.count(fd))
   {
     // New client/s connected to one of listening sockets
-    if (!this->_acceptConn(fd))
-      return (false);
+    this->_acceptConn(fd);
   }
   else if (this->_cgiPipes.count(fd))
   { // Read pipe from cgi program is ready to read
     if (!this->_receiveCgiData(fd))
-      return (false);
+      return ; //Handle Error
     this->_monitor.remove(index);
     delete this->_cgiPipes[fd];
     this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
@@ -480,18 +512,20 @@ bool  Server::_handleEvent(std::size_t index)
   {
     // Connected client socket is ready to read without blocking
     if (!this->_receiveData(fd))
-      return (false);
-    std::cout << "Data received !!!!!\n\n";
-    std::cout << this->_connectionSockets[fd].dataIn << std::endl;
+      return this->_endConnection(fd, index); //TODO: Handle Error
+    std::cout << "Data received for "
+              << this->_connectionSockets[fd].req.getPetit("Host")
+              << " with path "
+              << this->_connectionSockets[fd].req.getPetit("Path")
+              << std::endl;
     this->_monitor[index].events = POLLOUT;
   }
   else
   {
     // Connected client socket is ready to write without blocking
     if (!this->_sendData(fd, index))
-      return (false);
+      this->_endConnection(fd, index); //TODO: Handle Error
   }
-  return (true);
 }
 
 /*
@@ -544,8 +578,7 @@ bool  Server::start(void)
     { // INEFFICIENT!! USE kqueue INSTEAD of poll
       if (this->_monitor[i].revents == 0)
         continue;
-      if (!this->_handleEvent(i))
-        break ;
+      this->_handleEvent(i);
       // To stop iterating when total events have been handled
       if (++handlingCount == numEvents)
         break ;

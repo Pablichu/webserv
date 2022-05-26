@@ -1,47 +1,59 @@
 #include "Request.hpp"
 
-Request::Request(std::string header)
+Request::Request() {}
+
+Request::~Request() {}
+
+/**
+*  To avoid generating a copy of reqData, consider passing
+*  std::string const & reqData, but to do this, reqData.erase() cannot be used.
+*/
+void  Request::process(std::string reqData)
 {
-	std::string	buff;
+  std::string	buff;
 	size_t		pos;
 	size_t		rpos;
 
 	//First line
-	pos = header.find(" ");
-	this->_values["Method"] = header.substr(0, pos);
+	pos = reqData.find(" ");
+	this->_values["Method"] = reqData.substr(0, pos);
 	pos++;
-	rpos = header.find("H") - 1;
-	this->_values["Path"] = header.substr(pos, rpos - pos);
+	rpos = reqData.find("H") - 1;
+	this->_values["Path"] = reqData.substr(pos, rpos - pos);
+	pos = this->_values["Path"].rfind("/");
+	this->_values["File"] = this->_values["Path"].substr(pos, rpos - pos);
 	pos = rpos + 1;
-	rpos = header.find("\n");
-	this->_values["Protocol"] = header.substr(pos, rpos - pos);
+	rpos = reqData.find("\n");
+	this->_values["Protocol"] = reqData.substr(pos, rpos - pos);
 
-	//Get rest of header
+	//Get rest of reqData
 	while(true)
 	{
-		header.erase(0, rpos + 1);
-		pos = header.find(":");
-		buff = header.substr(0, pos);
+		reqData.erase(0, rpos + 1);
+		pos = reqData.find(":");
+		buff = reqData.substr(0, pos);
 		pos += 2;
-		rpos = header.find("\n");
+		rpos = reqData.find("\n");
+    //This ending is provisional, a body might come next
 		if (rpos == std::string::npos)
-		{
-			rpos = header.length();
-			this->_values[buff] = header.substr(pos, rpos - pos);
 			break;
-		}
-		this->_values[buff] = header.substr(pos, rpos - pos);
+		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
 }
 
-Request::~Request() {}
-
-const std::string Request::GetPetit(std::string petition)
+const std::string Request::getPetit(std::string petition)
 {
-	return this->_values[petition];
+  if (this->_values.count(petition))
+	  return this->_values[petition];
+  return ("");
 }
 
-std::map<std::string, std::string>	Request::GetWholePetit()
+std::map<std::string, std::string>::iterator	Request::begin()
 {
-	return this->_values;
+	return this->_values.begin();
+}
+
+std::map<std::string, std::string>::iterator	Request::end()
+{
+	return this->_values.end();
 }

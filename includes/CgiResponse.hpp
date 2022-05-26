@@ -2,6 +2,8 @@
 
 #include "webserv.hpp"
 
+struct ConnectionData;
+
 class CgiResponse
 {
 private:
@@ -13,7 +15,7 @@ private:
 
   CgiResponse(void);
 
-  void  _execProgram(void);
+  void  _execProgram(ConnectionData & connData);
 
 public:
 
@@ -28,6 +30,6 @@ public:
   int getROutPipe(void) const;
   int getWOutPipe(void) const;
 
-  bool  initPipes(void);
+  bool  initPipes(ConnectionData & connData);
 
 };

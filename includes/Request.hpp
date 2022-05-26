@@ -1,6 +1,6 @@
 #pragma once
 
-#include "webserv.hpp"
+#include <iostream>
 #include <map>
 
 class	Request
@@ -10,9 +10,11 @@ class	Request
 		std::map<std::string, std::string> _values;
 
 	public:
-		Request(std::string header);
+		Request();
 		~Request();
 
-		const std::string	GetPetit(std::string petition);
-		std::map<std::string, std::string>	GetWholePetit();
+    void  process(std::string reqData);
+		const std::string	getPetit(std::string petition);
+		std::map<std::string, std::string>::iterator	begin();
+		std::map<std::string, std::string>::iterator	end();
 };
