@@ -48,7 +48,8 @@ class	Server
 		bool	_sendData(int socket, std::size_t index);
 		bool	_launchCgi(int socket, ConnectionData & conn,
 											std::size_t connIndex);
-		std::string	_listDir(std::string const & path) const;
+		std::string	_listDir(std::string const & uri,
+                          std::string const & root) const;
 		void	_getResponse(ConnectionData & conn) const;
 		void  _matchLocation(std::vector<LocationConfig> const & servers,
 												std::size_t & index, std::string const & reqUri);

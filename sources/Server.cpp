@@ -166,9 +166,10 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   return (true);
 }
 
-// Provisional
+// Provisional listDir belongs to Response class
 
-std::string Server::_listDir(std::string const & path) const
+std::string Server::_listDir(std::string const & uri,
+                              std::string const & root) const
 {
   DIR *           dir;
   struct dirent * elem;
@@ -177,11 +178,11 @@ std::string Server::_listDir(std::string const & path) const
   res = "HTTP/1.1 200 OK\n";
   res.append("Content-type: text/html\n\n");
   res.append("<html><head><title>Index of ");
-  res.append(path); //Pass request uri value instead of root path
+  res.append(uri);
   res.append("</title></head><body><h1>Index of ");
-  res.append(path); //Pass request uri instead of root path
+  res.append(uri);
   res.append("</h1><hr><pre><a href=\"../\">../</a>\n");
-  dir = opendir(path.c_str());
+  dir = opendir(root.c_str());
   if (dir)
   {
     while (true)
@@ -191,7 +192,7 @@ std::string Server::_listDir(std::string const & path) const
         break ;
       if (elem->d_name[0] == '.') //Skip hidden files
         continue ;
-      res.append("<a href=\"" + path + '/'); //Pass request uri instead of root path
+      res.append("<a href=\"" + uri + '/');
       res.append(elem->d_name);
       res.append("\">");
       res.append(elem->d_name);
@@ -204,7 +205,7 @@ std::string Server::_listDir(std::string const & path) const
 }
 
 /*
-**  Provisional, need Request instance to get more info about the request.
+**  Provisional, this should be handled in Response class.
 **
 **  A hash table could be implemented to avoid some file I/O and
 **  increase response efficiency.
@@ -219,6 +220,7 @@ void  Server::_getResponse(ConnectionData & conn) const
   std::ifstream           file;
 
   fileName = loc->root + '/';
+  //TODO: Save find result to avoid repeating operation after
   if (path.find(".") != std::string::npos)
     fileName.append(path.substr(path.find_last_of("/") + 1,
                     path.length() - path.find_last_of("/") + 1));
@@ -227,13 +229,13 @@ void  Server::_getResponse(ConnectionData & conn) const
   file.open(fileName.c_str());
   if (file.is_open())
     file.close();
-  else if (loc->dir_list == false)
-    fileName = serv->not_found_page;
-  else
+  else if (loc->dir_list == true && path.find(".") == std::string::npos)
   {
-    conn.dataOut = this->_listDir(loc->root);
+    conn.dataOut = this->_listDir(path, loc->root);
     return ;
   }
+  else
+    fileName = serv->not_found_page;
   conn.dataOut = Response(fileName).get();
   return ;
 }
