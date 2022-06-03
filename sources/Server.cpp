@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
-ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0)
+ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
+  fileFd(-1), fileSize(0), totalBytesRead(0), totalBytesSent(0), rspSize(0)
 {
   return ;
 }
@@ -166,6 +167,48 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   return (true);
 }
 
+/*
+**  Calls the appropiate Response's readFile method.
+*/
+
+bool  Server::_fillFileResponse(int const fd, int const index)
+{
+  std::pair<int, std::size_t> sockPair = this->_fileFds[fd];
+  ConnectionData &            sockData =
+    this->_connectionSockets[sockPair.first];
+
+  if (!sockData.totalBytesRead)
+  {
+    if (!this->_response.readFile(sockData.filePath, fd, sockData.rsp,
+                              sockData.totalBytesRead, sockData.fileSize))
+    {
+      this->_endConnection(sockPair.first, sockPair.second);
+      return (false);
+    }
+    sockData.rspSize = sockData.rsp.size() - sockData.totalBytesRead +
+                        sockData.fileSize;
+  }
+  else
+  {
+    if (!this->_response.readFile(fd, sockData.rsp, sockData.totalBytesRead))
+    {
+      close(fd);
+      this->_monitor.remove(index);
+      this->_fileFds.erase(fd);
+      this->_endConnection(sockPair.first, sockPair.second);
+      return (false);
+    }
+  }
+  if (static_cast<long>(sockData.totalBytesRead) == sockData.fileSize)
+  {
+    close(fd);
+    this->_monitor.remove(index);
+    this->_fileFds.erase(fd);
+  }
+  this->_monitor[sockPair.second].events = POLLOUT;
+  return (true);
+}
+
 // Provisional listDir belongs to Response class
 
 std::string Server::_listDir(std::string const & uri,
@@ -211,32 +254,32 @@ std::string Server::_listDir(std::string const & uri,
 **  increase response efficiency.
 */
 
-void  Server::_getResponse(ConnectionData & conn) const
+void  Server::_getFilePath(ConnectionData & conn) const
 {
   ServerConfig const *    serv = (*conn.portConfigs)[conn.serverIndex];
   LocationConfig const *  loc = &serv->location[conn.locationIndex];
   std::string const       path = conn.req.getPetit("Path");
-  std::string             fileName;
   std::ifstream           file;
 
-  fileName = loc->root + '/';
+  conn.filePath = loc->root + '/';
   //TODO: Save find result to avoid repeating operation after
   if (path.find(".") != std::string::npos)
-    fileName.append(path.substr(path.find_last_of("/") + 1,
+    conn.filePath.append(path.substr(path.find_last_of("/") + 1,
                     path.length() - path.find_last_of("/") + 1));
   else
-    fileName.append(loc->default_file);
-  file.open(fileName.c_str());
+    conn.filePath.append(loc->default_file);
+  file.open(conn.filePath.c_str());
   if (file.is_open())
     file.close();
   else if (loc->dir_list == true && path.find(".") == std::string::npos)
   {
-    conn.dataOut = this->_listDir(path, loc->root);
+    conn.rsp = this->_listDir(path, loc->root);
+    conn.rspSize = conn.rsp.size();
+    conn.filePath.clear();
     return ;
   }
   else
-    fileName = serv->not_found_page;
-  conn.dataOut = Response(fileName).get();
+    conn.filePath = serv->not_found_page;
   return ;
 }
 
@@ -272,7 +315,6 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
   std::size_t                                 i;
 
   match = -1;
-  // Match server
   for (it = servers.begin(), i = 0; it != servers.end(); ++it, ++i)
   {
     if ((*it)->server_name.empty() && match == -1)
@@ -296,14 +338,54 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 
 void  Server::_matchConfig(int socket)
 {
-  ConnectionData *  sockData = &this->_connectionSockets[socket];
+  ConnectionData &  sockData = this->_connectionSockets[socket];
 
   this->_matchServer(
-    *(sockData->portConfigs),
-    sockData->serverIndex,sockData->req.getPetit("Host"));
+    *(sockData.portConfigs),
+    sockData.serverIndex,sockData.req.getPetit("Host"));
   this->_matchLocation(
-    (*sockData->portConfigs)[sockData->serverIndex]->location,
-    sockData->locationIndex, sockData->req.getPetit("Path"));
+    (*sockData.portConfigs)[sockData.serverIndex]->location,
+    sockData.locationIndex, sockData.req.getPetit("Path"));
+}
+
+/*
+**  Depending on the request path, it will:
+**
+**  1. Open the file that has to be sent.
+**  2. Create the pipe that connects a cgi program to the server.
+**  3. Create an html listing directory contents.
+*/
+
+bool  Server::_prepareResponse(int socket, std::size_t index)
+{
+  ConnectionData &  sockData = this->_connectionSockets[socket];
+
+  this->_matchConfig(socket);
+  if (sockData.req.getPetit("Path").find(".cgi")
+      != std::string::npos) //provisional
+  {
+    if (!this->_launchCgi(socket, sockData, index))
+      return (false);
+  }
+  else
+  {
+    this->_getFilePath(sockData);
+    if (sockData.filePath.empty()) //Send directory list
+    {
+      this->_monitor[index].events = POLLOUT;
+      return (true);
+    }
+    if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
+      return (false);
+    this->_monitor.add(sockData.fileFd, POLLIN);
+    this->_fileFds[sockData.fileFd] = std::pair<int,std::size_t>(socket, index);
+  }
+  /*
+  **  Do not check for events from this client socket until we receive data
+  **  from file or cgi program.
+  */
+  this->_monitor[index].events = 0;
+  return (true);
 }
 
 /*
@@ -311,56 +393,27 @@ void  Server::_matchConfig(int socket)
 **
 **  Depending on the request, it will send the requested file
 **  or execute a cgi process and send its result.
+**
+**  It may be called more than once for a single response.
 */
 
-bool  Server::_sendData(int socket, std::size_t index)
+void  Server::_sendData(int socket, std::size_t index)
 {
-  ConnectionData *  sockData = &this->_connectionSockets[socket];
-  std::string &     dataOut = sockData->dataOut;
-  int               sent;
-  std::size_t       totalSent;
+  ConnectionData &  sockData = this->_connectionSockets[socket];
 
-  /*
-  **  This is provisional. Need to parse the request, check the location
-  **  configuration properly, and search in the root directory of
-  **  the location for the requested or default file
-  */
-  this->_matchConfig(socket);
-  if (dataOut == "")
+  if (!this->_response.sendFile(socket, sockData.rsp,
+      sockData.totalBytesSent))
   {
-    if (sockData->req.getPetit("Path").find(".cgi")
-        != std::string::npos) //provisional
+    if (this->_fileFds.count(sockData.fileFd))
     {
-      if (!this->_launchCgi(socket, *sockData, index))
-        return (false);
-      /*
-      **  Do not check for events from this client socket until we receive data
-      **  from cgi program.
-      */
-      this->_monitor[index].events = 0;
-      return (true);
+      close(sockData.fileFd);
+      this->_fileFds.erase(sockData.fileFd);
+      //TODO: delete fileFd from _monitor
     }
-    this->_getResponse(*sockData);
+    this->_endConnection(socket, index);
   }
-  totalSent = 0;
-  /*
-  **  DETERMINE IF INSTEAD OF A LOOP THAT BLOCKS UNTIL THE ENTIRE DATA IS SENT,
-  **  IS MORE EFFICIENT TO SEND AGAIN TO poll AND CHECK AGAIN FOR POLLOUT UNTIL
-  **  THE ENTIRE DATA IS SENT.
-  */
-  while (totalSent != dataOut.length()) // send might not send all dataOut in one call
-  {
-    sent = send(socket, dataOut.c_str() + totalSent,
-                  dataOut.length() - totalSent, 0);
-    if (sent < 0)
-    {
-      std::cout << "Could not send data to client." << std::endl;
-      return (false);
-    }
-    totalSent += sent;
-  }
-  this->_endConnection(socket, index);
-  return (true);
+  if (sockData.totalBytesSent == sockData.rspSize)
+    this->_endConnection(socket, index);
 }
 
 /*
@@ -373,16 +426,14 @@ bool  Server::_sendData(int socket, std::size_t index)
 bool  Server::_receiveCgiData(int rPipe)
 {
   int const         connSocket = this->_cgiPipes[rPipe]->getSocket();
-  std::string &     dataOut = this->_connectionSockets[connSocket].dataOut;
+  ConnectionData &  connData = this->_connectionSockets[connSocket];
   std::size_t const buffLen = 500;
   char              buff[buffLen + 1];
   int               len;
 
   std::fill(buff, buff + buffLen + 1, 0);
   /*
-  **  DETERMINE IF INSTEAD OF A LOOP THAT BLOCKS UNTIL THE ENTIRE
-  **  DATA IS RECEIVED, IS MORE EFFICIENT TO SEND AGAIN TO poll
-  **  AND CHECK AGAIN FOR POLLIN UNTIL THE ENTIRE DATA IS RECEIVED.
+  **  TODO: Handle this read in a truly non-blocking way.
   */
   while (1)
   {
@@ -394,9 +445,14 @@ bool  Server::_receiveCgiData(int rPipe)
     }
     if (len < 0)
       break ;
-    dataOut.append(buff, len);
+    connData.rsp.append(buff, len);
     std::fill(buff, buff + buffLen, 0);
   }
+  /*
+  **  Provisional. rspSize must be obtained by parsing the Content-length
+  **  header sent by cgi program
+  */
+  connData.rspSize = connData.rsp.size();
   // Check again for POLLOUT event of client socket associated to cgi pipe fd
   this->_monitor[this->_cgiPipes[rPipe]->getIndex()].events = POLLOUT;
   return (true);
@@ -415,9 +471,7 @@ bool  Server::_receiveData(int socket)
 
   std::fill(buff, buff + buffLen + 1, 0);
   /*
-  **  DETERMINE IF INSTEAD OF A LOOP THAT BLOCKS UNTIL THE ENTIRE
-  **  DATA IS RECEIVED, IS MORE EFFICIENT TO SEND AGAIN TO poll
-  **  AND CHECK AGAIN FOR POLLIN UNTIL THE ENTIRE DATA IS RECEIVED.
+  **  TODO: Handle this recv in a truly non-blocking way.
   */
   while (1)
   {
@@ -483,12 +537,9 @@ void  Server::_acceptConn(int listenSocket)
 }
 
 /*
-**  Handle 2 types of events:
-**
-**  1. A listening socket receives new connections from clients.
-**  2. When an accepted connection is ready to receive the data
-**      and then send data to it.
+**  Handle events from poll fds.
 */
+
 void  Server::_handleEvent(std::size_t index)
 {
   int fd;
@@ -500,13 +551,20 @@ void  Server::_handleEvent(std::size_t index)
     this->_acceptConn(fd);
   }
   else if (this->_cgiPipes.count(fd))
-  { // Read pipe from cgi program is ready to read
+  {
+    // Read pipe from cgi program is ready to read
     if (!this->_receiveCgiData(fd))
       return ; //Handle Error
     this->_monitor.remove(index);
     delete this->_cgiPipes[fd];
     this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
     close(fd); //close pipe read fd
+  }
+  else if (this->_fileFds.count(fd))
+  {
+    // A file fd is ready to read.
+    if (!this->_fillFileResponse(fd, index))
+      std::cout << "Error reading file" << std::endl;
   }
   else if (this->_monitor[index].revents & POLLIN)
   {
@@ -518,13 +576,13 @@ void  Server::_handleEvent(std::size_t index)
               << " with path "
               << this->_connectionSockets[fd].req.getPetit("Path")
               << std::endl;
-    this->_monitor[index].events = POLLOUT;
+    if (!this->_prepareResponse(fd, index))
+      this->_endConnection(fd, index);
   }
   else
   {
     // Connected client socket is ready to write without blocking
-    if (!this->_sendData(fd, index))
-      this->_endConnection(fd, index); //TODO: Handle Error
+    this->_sendData(fd, index);
   }
 }
 
@@ -548,8 +606,8 @@ void  Server::_monitorListenSocketEvents(void)
 **  Start server and call poll() indefinitely to know when clients connect
 **  to any virtual server socket.
 **
-**  Additionally, poll is also used to know when client sockets and cgi pipes
-**  have data to receive or are ready to send data to them.
+**  Additionally, poll is also used to know when client sockets, cgi pipes
+**  and file fds have data to receive or are ready to send data to them.
 */
 
 bool  Server::start(void)

@@ -1,10 +1,46 @@
 #include "Response.hpp"
 
-Response::Response(std::string file_route)
+std::string const Response::protocol = "HTTP/1.1";
+
+Response::Response(void)
 {
-	protocol = "HTTP/1.1";
+	std::fill(this->buff, this->buff + this->buffSize + 1, 0);
+	return ;
+}
+
+Response::~Response(void) {}
+
+// Open file and set non-blocking fd
+
+bool	Response::openFile(std::string const & filePath, int & fd)
+{
+	fd = open(filePath.c_str(), O_RDONLY);
+	if (fd == -1)
+		return (false);
+	//Set non-blocking fd
+  if (fcntl(fd, F_SETFL, O_NONBLOCK))
+  {
+    std::cerr << "Could not set non-blocking Response fd" << std::endl;
+    close(fd);
+    return (false);
+  }
+	return (true);
+}
+
+/*
+**	Read file for the first time, adding headers before file content in rsp.
+**
+**	Provisional
+*/
+
+bool	Response::readFile(std::string const & filePath, int const fd,
+												std::string	& rsp, std::size_t & totalBytesRead,
+												long & fileSize) //Too many args
+{
+	std::stringstream	content;
+
 	status = 200;
-	if (file_route.find("404") != std::string::npos)
+	if (filePath.find("404") != std::string::npos)
 		status = 404;
 	status_msg = "OK";
 	if (status != 200)
@@ -12,33 +48,82 @@ Response::Response(std::string file_route)
 
 	std::string		doctype
 	(
-		file_route.substr
+		filePath.substr
 		(
-			file_route.find_last_of('.') + 1,
-			file_route.size() - file_route.find_last_of('.') + 1
+			filePath.find_last_of('.') + 1,
+			filePath.size() - filePath.find_last_of('.') + 1
 		)
 	);
-	std::ifstream	file(file_route.c_str());
-
 	cnt_type = "text/" + doctype + "; charset=utf-8"; //TODO: cambiar en futuro
-
-	body = std::string((std::istreambuf_iterator<char>(file)),
-						std::istreambuf_iterator<char>());
-
-	cnt_length = body.size();
+	fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
+	if (fileSize == -1)
+	{
+		close(fd);
+		return (false);
+	}
+	if (lseek(fd, 0, SEEK_SET) == -1)
+	{
+		close(fd);
+		return (false);
+	}
+	content << protocol << " " << status << " " << status_msg << '\n';
+	content << "Content-length: " << fileSize << '\n';
+	content << "Content-type: " << cnt_type << "\n\n";
+	this->bytesRead = read(fd, this->buff, Response::buffSize);
+	if (this->bytesRead <= 0)
+	{
+		close(fd);
+		return (false);
+	}
+	content << this->buff;
+	totalBytesRead = this->bytesRead;
+	std::fill(buff, buff + buffSize, 0);
+	rsp = content.str();
+	return (true);
 }
 
-Response::~Response() {}
+/*
+**	Subsequent file reads. This function gets called if read buffer size
+**	is less than file size.
+**
+**	The fd is closed outside when returns false or file was read completely.
+*/
 
-std::string		Response::get()
+bool	Response::readFile(int const fd, std::string & rsp,
+											std::size_t & totalBytesRead)
 {
-	std::stringstream	rsp;
+	this->bytesRead = read(fd, this->buff, Response::buffSize);
+	if (bytesRead <= 0)
+		return (false);
+	/*
+	**	Using append instead of =, in case there was something left in rsp
+	**	that could not be sent in the previous Server's _sendData call.
+	*/
+	rsp.append(this->buff);
+	totalBytesRead += this->bytesRead;
+	std::fill(buff, buff + buffSize, 0);
+	return (true);
+}
 
-	rsp << protocol << " " << status << " " << status_msg << std::endl;
-	rsp << "Content-length: " << cnt_length << std::endl;
-	rsp << "Content-type: " << cnt_type << std::endl;
-	rsp << std::endl;
-	rsp << body;
+/*
+**	Sends read file content to client socket. It may be called more than once
+**	if file size is bigger than read buffer size.
+*/
 
-	return rsp.str();
+bool	Response::sendFile(int const sockFd, std::string & rsp,
+													std::size_t & totalBytesSent)
+{
+	this->bytesSent = send(sockFd, rsp.c_str(), rsp.size(), 0);
+	if (this->bytesSent <= 0)
+	{
+		std::cout << "Could not send data to client." << std::endl;
+		return (false);
+	}
+	totalBytesSent += this->bytesSent;
+	/*
+	**	Using erase instead of clear in case the total contents of rsp
+	**	are not sent, as sockFd is non-blocking.
+	*/
+	rsp.erase(0, this->bytesSent);
+	return (true);
 }
