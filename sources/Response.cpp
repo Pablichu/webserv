@@ -10,7 +10,7 @@ Response::Response(void)
 
 Response::~Response(void) {}
 
-// Open file and set non-blocking fd
+// Open file
 
 bool	Response::openFile(std::string const & filePath, int & fd)
 {
