@@ -14,16 +14,13 @@ Response::~Response(void) {}
 
 bool	Response::openFile(std::string const & filePath, int & fd)
 {
+	/*
+	**	NOT SETTING THIS fd AS NON-BLOCKING, BECAUSE IT HAS NO EFFECT
+	**	ON REGULAR FILES.
+	*/
 	fd = open(filePath.c_str(), O_RDONLY);
 	if (fd == -1)
 		return (false);
-	//Set non-blocking fd
-  if (fcntl(fd, F_SETFL, O_NONBLOCK))
-  {
-    std::cerr << "Could not set non-blocking Response fd" << std::endl;
-    close(fd);
-    return (false);
-  }
 	return (true);
 }
 
