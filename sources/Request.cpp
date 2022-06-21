@@ -30,11 +30,17 @@ void  Request::process(std::string reqData)
 	while(true)
 	{
 		reqData.erase(0, rpos + 1);
+		//This takes the body in case there is
+		if (reqData[0] == '\n')
+		{
+			reqData.erase(0, 1);
+			this->_values["Body"] = reqData;
+			break ;
+		}
 		pos = reqData.find(":");
 		buff = reqData.substr(0, pos);
 		pos += 2;
 		rpos = reqData.find("\n");
-    //This ending is provisional, a body might come next
 		if (rpos == std::string::npos)
 			break;
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
