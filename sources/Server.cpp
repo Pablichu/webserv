@@ -387,8 +387,8 @@ void  Server::_sendData(int socket, std::size_t index)
     }
     this->_endConnection(socket, index);
   }
-  if (sockData.totalBytesSent == sockData.rspSize)
-    this->_endConnection(socket, index);
+  /*if (sockData.totalBytesSent == sockData.rspSize)
+    this->_endConnection(socket, index);*/
 }
 
 /*
@@ -526,6 +526,9 @@ void  Server::_handleEvent(std::size_t index)
     // Connected client socket is ready to write without blocking
     if (this->_connectionSockets[fd].rspBuffSize)
       this->_sendData(fd, index);
+    if (this->_connectionSockets[fd].totalBytesSent
+        == this->_connectionSockets[fd].rspSize)
+      this->_endConnection(fd, index);
   }
 }
 
