@@ -2,11 +2,7 @@
 
 std::string const Response::protocol = "HTTP/1.1";
 
-Response::Response(void)
-{
-	std::fill(this->buff, this->buff + this->buffSize + 1, 0);
-	return ;
-}
+Response::Response(void) {}
 
 Response::~Response(void) {}
 
@@ -30,14 +26,13 @@ bool	Response::openFile(std::string const & filePath, int & fd)
 **	Provisional
 */
 
-bool	Response::readFile(std::string const & filePath, int const fd,
-												std::string	& rsp, std::size_t & totalBytesRead,
-												long & fileSize) //Too many args
+bool	Response::readFileFirst(int const fd, ConnectionData & connData)
 {
-	std::stringstream	content;
+	std::stringstream	headers;
+	std::size_t				headersSize;
 
 	status = 200;
-	if (filePath.find("404") != std::string::npos)
+	if (connData.filePath.find("404") != std::string::npos)
 		status = 404;
 	status_msg = "OK";
 	if (status != 200)
@@ -45,15 +40,15 @@ bool	Response::readFile(std::string const & filePath, int const fd,
 
 	std::string		doctype
 	(
-		filePath.substr
+		connData.filePath.substr
 		(
-			filePath.find_last_of('.') + 1,
-			filePath.size() - filePath.find_last_of('.') + 1
+			connData.filePath.find_last_of('.') + 1,
+			connData.filePath.size() - connData.filePath.find_last_of('.') + 1
 		)
 	);
 	cnt_type = "text/" + doctype + "; charset=utf-8"; //TODO: cambiar en futuro
-	fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
-	if (fileSize == -1)
+	connData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
+	if (connData.fileSize == -1)
 	{
 		close(fd);
 		return (false);
@@ -63,19 +58,21 @@ bool	Response::readFile(std::string const & filePath, int const fd,
 		close(fd);
 		return (false);
 	}
-	content << protocol << " " << status << " " << status_msg << '\n';
-	content << "Content-length: " << fileSize << '\n';
-	content << "Content-type: " << cnt_type << "\n\n";
-	this->bytesRead = read(fd, this->buff, Response::buffSize);
+	headers << protocol << " " << status << " " << status_msg << '\n';
+	headers << "Content-length: " << connData.fileSize << '\n';
+	headers << "Content-type: " << cnt_type << "\n\n";
+	headersSize = headers.str().size();
+	connData.rspBuff.replace(0, headersSize, headers.str());
+	this->bytesRead = read(fd, &connData.rspBuff[headersSize],
+													ConnectionData::rspBuffCapacity - headersSize);
 	if (this->bytesRead <= 0)
 	{
 		close(fd);
 		return (false);
 	}
-	content << this->buff;
-	totalBytesRead = this->bytesRead;
-	std::fill(buff, buff + buffSize, 0);
-	rsp = content.str();
+	connData.rspBuffSize = this->bytesRead + headersSize;
+	connData.totalBytesRead = this->bytesRead;
+	connData.rspSize = headersSize + connData.fileSize;
 	return (true);
 }
 
@@ -86,19 +83,31 @@ bool	Response::readFile(std::string const & filePath, int const fd,
 **	The fd is closed outside when returns false or file was read completely.
 */
 
-bool	Response::readFile(int const fd, std::string & rsp,
-											std::size_t & totalBytesRead)
+bool	Response::readFileNext(int const fd, ConnectionData & connData)
 {
-	this->bytesRead = read(fd, this->buff, Response::buffSize);
+	std::size_t	endContent;
+
+	endContent = connData.rspBuffSize;
+	if (connData.rspBuffOffset)
+	{
+		//Move the content after offset to the front
+		connData.rspBuff.replace(connData.rspBuff.begin(),
+			connData.rspBuff.begin() + connData.rspBuffOffset,
+			&connData.rspBuff[connData.rspBuffOffset]);
+		//Fill the content that is duplicated at the back with NULL
+		connData.rspBuff.replace(endContent - connData.rspBuffOffset,
+			connData.rspBuffOffset, 0);
+		//Update endContent
+		endContent = endContent - connData.rspBuffOffset;
+		//Reset offset
+		connData.rspBuffOffset = 0;
+	}
+	this->bytesRead = read(fd, &connData.rspBuff[endContent],
+													ConnectionData::rspBuffCapacity - endContent);
 	if (bytesRead <= 0)
 		return (false);
-	/*
-	**	Using append instead of =, in case there was something left in rsp
-	**	that could not be sent in the previous Server's _sendData call.
-	*/
-	rsp.append(this->buff);
-	totalBytesRead += this->bytesRead;
-	std::fill(buff, buff + buffSize, 0);
+	connData.rspBuffSize = endContent + this->bytesRead;
+	connData.totalBytesRead += this->bytesRead;
 	return (true);
 }
 
@@ -107,20 +116,21 @@ bool	Response::readFile(int const fd, std::string & rsp,
 **	if file size is bigger than read buffer size.
 */
 
-bool	Response::sendFile(int const sockFd, std::string & rsp,
-													std::size_t & totalBytesSent)
+bool	Response::sendFile(int const sockFd, ConnectionData & connData)
 {
-	this->bytesSent = send(sockFd, rsp.c_str(), rsp.size(), 0);
+	this->bytesSent = send(sockFd, &connData.rspBuff[0], connData.rspBuffSize, 0);
 	if (this->bytesSent <= 0)
 	{
 		std::cout << "Could not send data to client." << std::endl;
 		return (false);
 	}
-	totalBytesSent += this->bytesSent;
-	/*
-	**	Using erase instead of clear in case the total contents of rsp
-	**	are not sent, as sockFd is non-blocking.
-	*/
-	rsp.erase(0, this->bytesSent);
+	connData.totalBytesSent += this->bytesSent;
+	if (this->bytesSent == connData.rspBuffSize)
+	{
+		connData.rspBuff.replace(0, connData.rspBuffSize, 1, '\0');
+		connData.rspBuffSize = 0;
+	}
+	else
+		connData.rspBuffOffset = this->bytesRead;
 	return (true);
 }

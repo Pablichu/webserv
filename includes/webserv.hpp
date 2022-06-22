@@ -6,6 +6,7 @@
 #include <streambuf>
 #include <sstream>
 #include <unistd.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <signal.h>
 
@@ -13,6 +14,6 @@
 #include "Config.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "CgiResponse.hpp"
+#include "CgiHandler.hpp"
 #include "Monitor.hpp"
-#include "Server.hpp"
+#include "Data.hpp"

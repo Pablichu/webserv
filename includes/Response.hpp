@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 
+#include "Data.hpp"
+
+struct	ConnectionData;
+
 class	Response
 {
 private:
@@ -19,9 +23,6 @@ private:
 	std::string	cnt_type; //	Usually text/html; charset=utf-8
 	std::size_t	cnt_length;
 
-	static std::size_t const	buffSize = 8192;
-
-	char											buff[Response::buffSize + 1]; // Povisional
 	std::size_t								bytesRead;
 	std::size_t								bytesSent;
 
@@ -30,10 +31,7 @@ public:
 	~Response();
 
 	bool	openFile(std::string const & filePath, int & fd);
-	bool	readFile(std::string const & filePath, int const fd,
-									std::string & rsp, std::size_t & totalBytesRead,
-									long & fileSize); //Too many args
-	bool	readFile(int const fd, std::string & rsp, std::size_t & totalBytesRead);
-	bool	sendFile(int const sockFd, std::string & rsp,
-									std::size_t & totalBytesSent);
+	bool	readFileFirst(int const fd, ConnectionData & connData);
+	bool	readFileNext(int const fd, ConnectionData & connData);
+	bool	sendFile(int const sockFd, ConnectionData & connData);
 };

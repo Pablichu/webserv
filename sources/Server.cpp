@@ -1,30 +1,5 @@
 #include "Server.hpp"
 
-ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
-  fileFd(-1), fileSize(0), totalBytesRead(0), totalBytesSent(0), rspSize(0)
-{
-  return ;
-}
-
-ConnectionData::~ConnectionData(void)
-{
-  return ;
-}
-
-ServerConfig const *  ConnectionData::getServer(void)
-{
-  if (!this->portConfigs->size())
-    return (0);
-  return ((*this->portConfigs)[this->serverIndex]);
-}
-
-LocationConfig  ConnectionData::getLocation(void)
-{
-  if (!this->portConfigs->size())
-    return (LocationConfig());
-  return (this->getServer()->location[this->locationIndex]);
-}
-
 Server::Server(void)
 {
   return ;
@@ -139,31 +114,35 @@ void  Server::_endConnection(int fd, size_t connIndex)
 bool  Server::_launchCgi(int socket, ConnectionData & conn,
                           std::size_t connIndex)
 {
-  CgiResponse * cgi;
-
-  cgi = new CgiResponse(socket, connIndex);
-  if (!cgi->initPipes(conn))
+  CgiData * cgiData;
+  /*
+  **  ADD CGI write and read pipe fds to this->_monitor
+  **  and to this->_cgiPipes (Future fd direct address table)
+  */
+  cgiData = new CgiData(socket, connIndex);
+  if (!this->_cgiHandler.initPipes(*cgiData, conn))
   {
-    delete cgi;
+    delete cgiData;
     return (false);
   }
   //Set non-blocking pipe fds
-  if (fcntl(cgi->getWInPipe(), F_SETFL, O_NONBLOCK)
-      || fcntl(cgi->getROutPipe(), F_SETFL, O_NONBLOCK))
+  if (fcntl(cgiData->getWInPipe(), F_SETFL, O_NONBLOCK)
+      || fcntl(cgiData->getROutPipe(), F_SETFL, O_NONBLOCK))
   {
     std::cerr << "Could not set non-blocking pipe fds" << std::endl;
-    close(cgi->getWInPipe());
-    close(cgi->getROutPipe());
-    delete cgi;
+    close(cgiData->getWInPipe());
+    close(cgiData->getROutPipe());
+    delete cgiData;
     return (false);
   }
   //Provisional, need to check writen bytes after each call, as it is non-blocking
-  write(cgi->getWInPipe(), "Hola Mundo!", 11);
-  close(cgi->getWInPipe());
+  write(cgiData->getWInPipe(), "Hola Mundo!", 11);
+  close(cgiData->getWInPipe());
   //Associate read pipe fd with cgi class instance
-  this->_cgiPipes.insert(std::pair<int, CgiResponse *>(cgi->getROutPipe(), cgi));
+  this->_cgiPipes.insert(std::pair<int, CgiData *>(cgiData->getROutPipe(),
+    cgiData));
   //Check POLLIN event of read pipe fd with poll()
-  this->_monitor.add(cgi->getROutPipe(), POLLIN);
+  this->_monitor.add(cgiData->getROutPipe(), POLLIN);
   return (true);
 }
 
@@ -179,18 +158,15 @@ bool  Server::_fillFileResponse(int const fd, int const index)
 
   if (!sockData.totalBytesRead)
   {
-    if (!this->_response.readFile(sockData.filePath, fd, sockData.rsp,
-                              sockData.totalBytesRead, sockData.fileSize))
+    if (!this->_response.readFileFirst(fd, sockData))
     {
       this->_endConnection(sockPair.first, sockPair.second);
       return (false);
     }
-    sockData.rspSize = sockData.rsp.size() - sockData.totalBytesRead +
-                        sockData.fileSize;
   }
   else
   {
-    if (!this->_response.readFile(fd, sockData.rsp, sockData.totalBytesRead))
+    if (!this->_response.readFileNext(fd, sockData))
     {
       close(fd);
       this->_monitor.remove(index);
@@ -273,8 +249,8 @@ void  Server::_getFilePath(ConnectionData & conn) const
     file.close();
   else if (loc->dir_list == true && path.find(".") == std::string::npos)
   {
-    conn.rsp = this->_listDir(path, loc->root);
-    conn.rspSize = conn.rsp.size();
+    conn.rspBuff = this->_listDir(path, loc->root);
+    conn.rspSize = conn.rspBuff.size();
     conn.filePath.clear();
     return ;
   }
@@ -401,8 +377,7 @@ void  Server::_sendData(int socket, std::size_t index)
 {
   ConnectionData &  sockData = this->_connectionSockets[socket];
 
-  if (!this->_response.sendFile(socket, sockData.rsp,
-      sockData.totalBytesSent))
+  if (!this->_response.sendFile(socket, sockData))
   {
     if (this->_fileFds.count(sockData.fileFd))
     {
@@ -414,48 +389,6 @@ void  Server::_sendData(int socket, std::size_t index)
   }
   if (sockData.totalBytesSent == sockData.rspSize)
     this->_endConnection(socket, index);
-}
-
-/*
-**  Receive data from a cgi pipe's read end.
-**
-**  Need to check Content-length header from cgi response to know when
-**  all the data from cgi program has been read.
-*/
-
-bool  Server::_receiveCgiData(int rPipe)
-{
-  int const         connSocket = this->_cgiPipes[rPipe]->getSocket();
-  ConnectionData &  connData = this->_connectionSockets[connSocket];
-  std::size_t const buffLen = 500;
-  char              buff[buffLen + 1];
-  int               len;
-
-  std::fill(buff, buff + buffLen + 1, 0);
-  /*
-  **  TODO: Handle this read in a truly non-blocking way.
-  */
-  while (1)
-  {
-    len = read(rPipe, buff, buffLen);
-    if (len == 0)
-    {
-      std::cout << "Pipe connection closed unexpectedly." << std::endl;
-      return (false);
-    }
-    if (len < 0)
-      break ;
-    connData.rsp.append(buff, len);
-    std::fill(buff, buff + buffLen, 0);
-  }
-  /*
-  **  Provisional. rspSize must be obtained by parsing the Content-length
-  **  header sent by cgi program
-  */
-  connData.rspSize = connData.rsp.size();
-  // Check again for POLLOUT event of client socket associated to cgi pipe fd
-  this->_monitor[this->_cgiPipes[rPipe]->getIndex()].events = POLLOUT;
-  return (true);
 }
 
 /*
@@ -553,12 +486,21 @@ void  Server::_handleEvent(std::size_t index)
   else if (this->_cgiPipes.count(fd))
   {
     // Read pipe from cgi program is ready to read
-    if (!this->_receiveCgiData(fd))
+    if (!this->_cgiHandler.receiveData(fd,
+        this->_connectionSockets[this->_cgiPipes[fd]->socket]))
       return ; //Handle Error
-    this->_monitor.remove(index);
-    delete this->_cgiPipes[fd];
-    this->_cgiPipes.erase(fd); //remove cgi class instance of read pipe fd
-    close(fd); //close pipe read fd
+    if (this->_connectionSockets[this->_cgiPipes[fd]->socket].rspSize
+        == this->_connectionSockets[this->_cgiPipes[fd]->socket].totalBytesRead)
+    { //All data was received
+      this->_monitor.remove(index);
+      delete this->_cgiPipes[fd];
+      this->_cgiPipes.erase(fd); //remove cgiData instance of read pipe fd
+      close(fd); //close pipe read fd
+      return ;
+    }
+    // Check again for POLLOUT event of client socket associated to cgi pipe fd
+    if (!this->_connectionSockets[this->_cgiPipes[fd]->socket].totalBytesSent)
+      this->_monitor[this->_cgiPipes[fd]->connIndex].events = POLLOUT;
   }
   else if (this->_fileFds.count(fd))
   {
@@ -582,7 +524,8 @@ void  Server::_handleEvent(std::size_t index)
   else
   {
     // Connected client socket is ready to write without blocking
-    this->_sendData(fd, index);
+    if (this->_connectionSockets[fd].rspBuffSize)
+      this->_sendData(fd, index);
   }
 }
 

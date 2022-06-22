@@ -12,35 +12,14 @@
 
 #include "webserv.hpp"
 
-struct	ServerConfig;
-struct	LocationConfig;
-
-class		CgiResponse;
-
 #define MAX_REQUEST 5 //TRY WITH 10?
 
-// One ConnectionData per client (connection) socket
-
-struct	ConnectionData
+/*enum		FdType
 {
-	std::vector<ServerConfig const *> *	portConfigs;
-	std::size_t													serverIndex;
-	std::size_t													locationIndex;
-	Request															req;
-	int																	fileFd;
-	std::string													filePath;
-	long																fileSize;
-	std::size_t													totalBytesRead;
-	std::size_t													totalBytesSent;
-	std::size_t													rspSize;
-	std::string													rsp;
-
-	ConnectionData(void);
-	~ConnectionData(void);
-
-	ServerConfig const *		getServer(void);
-	LocationConfig					getLocation(void);
-};
+	Socket,
+	File,
+	Pipe
+}				fdType;*/
 
 class	Server
 {
@@ -49,9 +28,10 @@ class	Server
 		std::map<int, std::vector<ServerConfig const *> >		_listeningSockets;
 		std::map<int, ConnectionData >											_connectionSockets;
 		std::map<int, std::pair< int, std::size_t> >				_fileFds;
-		std::map<int, CgiResponse *>												_cgiPipes;
+		std::map<int, CgiData *>														_cgiPipes;
 		Monitor																							_monitor;
 		Response																						_response;
+		CgiHandler																					_cgiHandler;
 
 		bool	_initSocket(int & sock, std::size_t const port);
 		void	_endConnection(int fd, size_t connIndex);
@@ -68,7 +48,6 @@ class	Server
 												std::size_t & index, std::string const & reqHost);
 		void	_matchConfig(int socket);
 		bool  _prepareResponse(int socket, std::size_t index);
-		bool	_receiveCgiData(int rPipe);
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);
