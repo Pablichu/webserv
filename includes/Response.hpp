@@ -21,7 +21,7 @@ private:
 	//Headers
 	//std::string	cnt_encoding;
 	std::string	cnt_type; //	Usually text/html; charset=utf-8
-	std::size_t	cnt_length;
+	//std::size_t	cnt_length;
 
 	std::size_t								bytesRead;
 	std::size_t								bytesSent;
