@@ -396,8 +396,6 @@ void  Server::_sendData(int socket, std::size_t index)
     }
     this->_endConnection(socket, index);
   }
-  /*if (sockData.totalBytesSent == sockData.rspSize)
-    this->_endConnection(socket, index);*/
 }
 
 /*
