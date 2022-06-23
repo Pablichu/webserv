@@ -195,7 +195,7 @@ std::string Server::_listDir(std::string const & uri,
   std::string     res;
 
   res = "HTTP/1.1 200 OK\n";
-  res.append("Content-type: text/html\n\n");
+  res.append("Content-type: text/html; charset=utf-8\n\n");
   res.append("<html><head><title>Index of ");
   res.append(uri);
   res.append("</title></head><body><h1>Index of ");
@@ -216,6 +216,12 @@ std::string Server::_listDir(std::string const & uri,
       res.append("\">");
       res.append(elem->d_name);
       res.append("</a>\n");
+      //Check to ensure the closing html tags will fit in the buffer
+      if (res.size() >= ConnectionData::rspBuffCapacity - 25)
+      {
+        res.erase(res.rfind("<a href"), std::string::npos);
+        break ;
+      }
     }
     closedir(dir);
   }
@@ -236,6 +242,7 @@ void  Server::_getFilePath(ConnectionData & conn) const
   LocationConfig const *  loc = &serv->location[conn.locationIndex];
   std::string const       path = conn.req.getPetit("Path");
   std::ifstream           file;
+  std::string             aux;
 
   conn.filePath = loc->root + '/';
   //TODO: Save find result to avoid repeating operation after
@@ -249,8 +256,10 @@ void  Server::_getFilePath(ConnectionData & conn) const
     file.close();
   else if (loc->dir_list == true && path.find(".") == std::string::npos)
   {
-    conn.rspBuff = this->_listDir(path, loc->root);
-    conn.rspSize = conn.rspBuff.size();
+    aux = this->_listDir(path, loc->root);
+    conn.rspBuff.replace(0, aux.size(), aux);
+    conn.rspBuffSize = conn.rspBuff.find('\0');
+    conn.rspSize = conn.rspBuffSize;
     conn.filePath.clear();
     return ;
   }
