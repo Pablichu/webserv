@@ -2,6 +2,12 @@
 
 SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
+PYTHON_INTERPRETER=python3
+
+if ! type python3 &> /dev/null
+then
+  PYTHON_INTERPRETER=python
+fi
 
 mkdir -p $SERVER_LOCALHOST_PATH
 mkdir -p $SERVER_LOCALHOST_PATH/gallery
@@ -29,7 +35,7 @@ sed s/INDEX/NOT_FOUND/g $SERVER_LOCALHOST_PATH/index.html \
   > $SERVER_PATH/404.html
 
 cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
-#!/usr/bin/python3
+#!/usr/bin/$PYTHON_INTERPRETER
 
 import sys
 
