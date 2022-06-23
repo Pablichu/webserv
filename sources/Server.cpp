@@ -67,12 +67,13 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 **  Obtain one listening socket per each ServerConfig port.
 */
 
-bool  Server::prepare(std::vector<ServerConfig> const & config)
+bool  Server::prepare(std::vector<ServerConfig> & config)
 {
-  std::vector<ServerConfig>::const_iterator                   it;
+  std::vector<ServerConfig>::iterator                   it;
   std::set<std::size_t>                                       addedPorts;
-  std::map<int, std::vector<ServerConfig const *> >::iterator jt;
+  //std::map<int, std::vector<ServerConfig const *> >::iterator jt;
   int                                                         sock;
+  std::vector<ServerConfig const *>                    serverConfigs;
 
   for (it = config.begin(); it != config.end(); ++it)
   {
@@ -82,12 +83,14 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       **  If port is already bound to a socket, add ServerConfig
       **  as another value to that socket key in ServerConfig.
       */
-      for (jt = this->_listeningSockets.begin();
+      /*for (jt = this->_listeningSockets.begin();
               jt != this->_listeningSockets.end(); ++jt)
-      {
-        if (it->port == jt->second.front()->port)
-          jt->second.push_back(&(*it));
-      }
+      {*/
+        //if (it->port == jt->second.front()->port)
+      //}
+      //reinterpret_cast< HOLA *>(this->_fdList[sock].second);//.push_back(&(*it));
+      //Serialize way
+      deserialize(this->_fdList.at(sock).second)->push_back(&(*it));
     }
     else
     {
@@ -97,7 +100,24 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       */
       if (!this->_initSocket(sock, it->port))
         return (false);
-      this->_listeningSockets[sock].push_back(&(*it));
+      //this->_listeningSockets[sock].push_back(&(*it));
+      serverConfigs.push_back(&(*it));
+      try
+      {
+        this->_fdList.at(sock).first = FdType::ListenSock;
+        //this->_fdList.at(sock).second = dynamic_cast<void *>(&(*it));
+        //Serialize way
+
+        this->_fdList.at(sock).second = serialize(new std::vector<ServerConfig const *>(1, &(*it)));
+      }
+      catch (std::exception err)
+      {
+        std::cout << err.what() << std::endl;
+        this->_fdList.reserve(sock + 10);
+        this->_fdList.at(sock).first = FdType::ListenSock;
+        //this->_fdList.at(sock).second = reinterpret_cast<void *>(&(*it));
+        this->_fdList.at(sock).second = serialize(new std::vector<ServerConfig const *>(1, &(*it)));
+      }
     }
   }
   return (true);
