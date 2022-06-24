@@ -4,7 +4,7 @@ SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 PYTHON_INTERPRETER=python3
 
-if ! type python3 &> /dev/null
+if ! type python3 > /dev/null
 then
   PYTHON_INTERPRETER=python
 fi
