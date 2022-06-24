@@ -14,31 +14,17 @@
 
 #define MAX_REQUEST 5 //TRY WITH 10?
 
-typedef	std::vector< ServerConfig const * > SERVE;
-
-enum		FdType
-{
-	ListenSock,
-	ConnSock,
-	File,
-	Pipe,
-	Null
-};
-
 class	Server
 {
 	private:
 
-		std::map<int, std::vector<ServerConfig const *> >		_listeningSockets;
-		std::map<int, ConnectionData >											_connectionSockets;
-		std::map<int, std::pair< int, std::size_t> >				_fileFds;
-		std::map<int, CgiData *>														_cgiPipes;
-		//std::vector< std::pair<	FdType, void * > >					_fdList;
-		//Serialize way
-		std::vector< std::pair<	FdType, uintptr_t > >				_fdList;
-		Monitor																							_monitor;
-		Response																						_response;
-		CgiHandler																					_cgiHandler;
+		std::map<int, ConnectionData >								_connectionSockets;
+		std::map<int, std::pair< int, std::size_t> >	_fileFds;
+		std::map<int, CgiData *>											_cgiPipes;
+		FdTable																				_fdTable;
+		Monitor																				_monitor;
+		Response																			_response;
+		CgiHandler																		_cgiHandler;
 
 		bool	_initSocket(int & sock, std::size_t const port);
 		void	_endConnection(int fd, size_t connIndex);
@@ -65,17 +51,5 @@ class	Server
 		~Server();
 
 		bool	start(void);
-		bool	prepare(std::vector<ServerConfig> & config);
+		bool	prepare(std::vector<ServerConfig> const & config);
 };
-
-//Implementación del serialize
-
-uintptr_t serialize(std::vector< ServerConfig const * > *  ptr)
-{
-	return reinterpret_cast<uintptr_t>(ptr);
-}
-
-std::vector< ServerConfig const * > * deserialize(uintptr_t raw)
-{
-	return reinterpret_cast<std::vector< ServerConfig const * > * >(raw);
-}

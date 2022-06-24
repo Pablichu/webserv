@@ -7,6 +7,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <signal.h>
 
@@ -15,5 +16,6 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "CgiHandler.hpp"
+#include "FdTable.hpp"
 #include "Monitor.hpp"
 #include "Data.hpp"

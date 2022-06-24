@@ -67,30 +67,21 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 **  Obtain one listening socket per each ServerConfig port.
 */
 
-bool  Server::prepare(std::vector<ServerConfig> & config)
+bool  Server::prepare(std::vector<ServerConfig> const & config)
 {
-  std::vector<ServerConfig>::iterator                   it;
-  std::set<std::size_t>                                       addedPorts;
-  //std::map<int, std::vector<ServerConfig const *> >::iterator jt;
-  int                                                         sock;
-  std::vector<ServerConfig const *>                    serverConfigs;
+  std::vector<ServerConfig>::const_iterator it;
+  std::map<std::size_t, int>                addedPorts;
+  int                                       sock;
 
   for (it = config.begin(); it != config.end(); ++it)
   {
-    if (addedPorts.insert(it->port).second == false)
+    if (addedPorts.insert(std::pair<size_t, int>(it->port, -1)).second == false)
     {
       /*
       **  If port is already bound to a socket, add ServerConfig
       **  as another value to that socket key in ServerConfig.
       */
-      /*for (jt = this->_listeningSockets.begin();
-              jt != this->_listeningSockets.end(); ++jt)
-      {*/
-        //if (it->port == jt->second.front()->port)
-      //}
-      //reinterpret_cast< HOLA *>(this->_fdList[sock].second);//.push_back(&(*it));
-      //Serialize way
-      deserialize(this->_fdList.at(sock).second)->push_back(&(*it));
+      this->_fdTable.getListenSockData(addedPorts[it->port]).push_back(&(*it));
     }
     else
     {
@@ -100,24 +91,11 @@ bool  Server::prepare(std::vector<ServerConfig> & config)
       */
       if (!this->_initSocket(sock, it->port))
         return (false);
-      //this->_listeningSockets[sock].push_back(&(*it));
-      serverConfigs.push_back(&(*it));
-      try
-      {
-        this->_fdList.at(sock).first = FdType::ListenSock;
-        //this->_fdList.at(sock).second = dynamic_cast<void *>(&(*it));
-        //Serialize way
-
-        this->_fdList.at(sock).second = serialize(new std::vector<ServerConfig const *>(1, &(*it)));
-      }
-      catch (std::exception err)
-      {
-        std::cout << err.what() << std::endl;
-        this->_fdList.reserve(sock + 10);
-        this->_fdList.at(sock).first = FdType::ListenSock;
-        //this->_fdList.at(sock).second = reinterpret_cast<void *>(&(*it));
-        this->_fdList.at(sock).second = serialize(new std::vector<ServerConfig const *>(1, &(*it)));
-      }
+      addedPorts[it->port] = sock;
+      this->_fdTable.add(sock,
+                          new std::vector<ServerConfig const *>(1, &(*it)));
+      //Add listening socket fd to poll array (monitor)
+      this->_monitor.add(sock, POLLIN);
     }
   }
   return (true);
@@ -467,7 +445,7 @@ void  Server::_acceptConn(int listenSocket)
   **  to avoid repeated searches in case more than one connection
   **  has been received through this port.
   */
-  configs = &this->_listeningSockets[listenSocket];
+  configs = &this->_fdTable.getListenSockData(listenSocket);
   addrLen = sizeof(address);
   while (true)
   {
@@ -502,10 +480,12 @@ void  Server::_acceptConn(int listenSocket)
 
 void  Server::_handleEvent(std::size_t index)
 {
-  int fd;
+  int     fd;
+  FdType  fdType;
 
   fd = this->_monitor[index].fd;
-  if (this->_listeningSockets.count(fd))
+  fdType = this->_fdTable.getType(fd);
+  if (fdType == ListenSock)
   {
     // New client/s connected to one of listening sockets
     this->_acceptConn(fd);
@@ -560,22 +540,6 @@ void  Server::_handleEvent(std::size_t index)
 }
 
 /*
-**  Add listening sockets of serverConfigs to connections array
-*/
-
-void  Server::_monitorListenSocketEvents(void)
-{
-  std::map<int, std::vector<ServerConfig const *> >::iterator it;
-
-  for (it = this->_listeningSockets.begin();
-          it != this->_listeningSockets.end(); ++it)
-  {
-    this->_monitor.add(it->first, POLLIN);
-  }
-  return ;
-}
-
-/*
 **  Start server and call poll() indefinitely to know when clients connect
 **  to any virtual server socket.
 **
@@ -588,7 +552,6 @@ bool  Server::start(void)
   int         numEvents;
   int         handlingCount;
 
-  this->_monitorListenSocketEvents();
   while (true)
   {
     // TIMEOUT -1 blocks until event is received
