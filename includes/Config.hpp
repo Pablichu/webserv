@@ -41,7 +41,6 @@ struct	ServerConfig
 	std::vector< LocationConfig >	location;
 
 	ServerConfig(void);
-	virtual ~ServerConfig(void);
 
 	bool	setProperty(std::pair<std::string, std::string> & pr);
 	bool	isUserDefined(std::string const & property);
