@@ -48,12 +48,15 @@ config_multi:
 monitor:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Monitor.cpp ./tests/monitor.cpp -o monitor
 
+url_parser:
+	$(CXX) $(CXXFLAGS) $(ROOT)/UrlParser.cpp ./tests/urlParser.cpp -o url_parser
+
 clean:
 	rm -rf $(NAME)
 
 fclean: clean
 	rm -rf $(OBJ)
-	@rm -f response request config monitor tests/tmp_config.json
+	@rm -f response request config monitor url_parser tests/tmp_config.json
 	@rm -rf tests/www
 
 re: fclean $(NAME)
@@ -63,4 +66,5 @@ git: fclean
 	git commit -m "$(MSG)"
 	git push
 
-.PHONY: all start response request config config_multi monitor clean fclean re
+.PHONY: all start response request config config_multi monitor url_parser \
+				clean fclean re
