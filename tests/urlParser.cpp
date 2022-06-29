@@ -123,11 +123,22 @@ void  query(void)
   assert(res["Query_String"] == "come_on=vamos");
   assert(!res.count("Path_Info"));
   res.clear();
+  /*
+  **  This case should not happen, as extra ? should be escaped
+  **  as %3F.
+  */
   input = "/?why?=por+que?";
   assert(urlParser.parse(input, res) == true);
   assert(input.empty());
   assert(res["Path"] == "/");
   assert(res["Query_String"] == "why?=por+que?");
+  assert(!res.count("FileName") && !res.count("Path_Info"));
+  res.clear();
+  input = "/?";
+  assert(urlParser.parse(input, res) == true);
+  assert(input.empty());
+  assert(res["Path"] == "/");
+  assert(res["Query_String"] == "");
   assert(!res.count("FileName") && !res.count("Path_Info"));
   res.clear();
 }
