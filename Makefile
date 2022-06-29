@@ -47,16 +47,20 @@ config_multi:
 
 monitor:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Monitor.cpp ./tests/monitor.cpp -o monitor
+	@./monitor
+	@rm monitor
 
 url_parser:
 	$(CXX) $(CXXFLAGS) $(ROOT)/UrlParser.cpp ./tests/urlParser.cpp -o url_parser
+	@./url_parser
+	@rm url_parser
 
 clean:
 	rm -rf $(NAME)
 
 fclean: clean
 	rm -rf $(OBJ)
-	@rm -f response request config monitor url_parser tests/tmp_config.json
+	@rm -f response request config tests/tmp_config.json
 	@rm -rf tests/www
 
 re: fclean $(NAME)
