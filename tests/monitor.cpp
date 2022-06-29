@@ -1,7 +1,10 @@
 #include "webserv.hpp"
 #include <assert.h>
 
-//Using real fds, otherwise the destructor's close function gives problems
+/*
+**  Using real fds, otherwise the destructor's close function gives problems.
+**  Monitor's destructor closes open fds.
+*/
 
 void  increase(void)
 {
@@ -11,7 +14,7 @@ void  increase(void)
 
   for (i = 0; i < 1000; ++i)
   {
-    fd = open("/Users/onapoli-/Desktop/www/localhost/index.html", O_RDONLY);
+    fd = open("./tests/monitor.cpp", O_RDONLY);
     mon.add(fd, POLLIN);
     assert(mon.len() == i + 1);
   }
