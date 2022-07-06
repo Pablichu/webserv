@@ -6,7 +6,7 @@ UrlParser::~UrlParser(void) {}
 
 /**/
 
-bool  UrlParser::parse(std::string & url,
+bool  UrlParser::parse(std::string url,
                         std::map<std::string, std::string> & data)
 {
   std::size_t needle;

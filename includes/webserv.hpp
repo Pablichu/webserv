@@ -17,3 +17,4 @@
 #include "CgiHandler.hpp"
 #include "Monitor.hpp"
 #include "Data.hpp"
+#include "UrlParser.hpp"

@@ -4,7 +4,7 @@ SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 PYTHON_INTERPRETER=python3
 
-if ! type python3 &> /dev/null
+if ! type python3 > /dev/null
 then
   PYTHON_INTERPRETER=python
 fi
@@ -38,11 +38,14 @@ cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
 #!/usr/bin/$PYTHON_INTERPRETER
 
 import sys
+import os
 
 print("HTTP/1.1 200 OK")
 print("Content-type: text/plain")
 print("")
 print(sys.stdin.read())
+for k, v in os.environ.items():
+  print(k, v)
 EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi

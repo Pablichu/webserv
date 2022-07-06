@@ -120,7 +120,8 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   **  and to this->_cgiPipes (Future fd direct address table)
   */
   cgiData = new CgiData(socket, connIndex);
-  if (!this->_cgiHandler.initPipes(*cgiData, conn))
+  if (!this->_cgiHandler.initPipes(*cgiData, conn,
+      *this->_cgiHandler.getEnv(conn.req.getHeaders(), conn.urlData, conn.ip)))
   {
     delete cgiData;
     return (false);
@@ -427,6 +428,8 @@ bool  Server::_receiveData(int socket)
     std::fill(buff, buff + buffLen, 0);
   }
   this->_connectionSockets[socket].req.process(reqData);
+  UrlParser().parse(this->_connectionSockets[socket].req.getPetit("Path"),
+                    this->_connectionSockets[socket].urlData);
   return (true);
 }
 
@@ -440,6 +443,7 @@ void  Server::_acceptConn(int listenSocket)
   std::vector< ServerConfig const * > * configs;
   struct sockaddr_in                    address;
   socklen_t									            addrLen;
+  char                                  ip[INET_ADDRSTRLEN];
   int                                   newConn;
 
   /*
@@ -473,6 +477,8 @@ void  Server::_acceptConn(int listenSocket)
     **  and configs vector as value.
     */
     this->_connectionSockets[newConn].portConfigs = configs;
+    inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
+    this->_connectionSockets[newConn].ip = ip;
   }
 }
 

@@ -63,3 +63,8 @@ std::map<std::string, std::string>::iterator	Request::end()
 {
 	return this->_values.end();
 }
+
+std::map<std::string, std::string>	Request::getHeaders(void)
+{
+	return (this->_values);
+}

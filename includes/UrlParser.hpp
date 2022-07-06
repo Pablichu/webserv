@@ -12,6 +12,6 @@ public:
   UrlParser(void);
   ~UrlParser(void);
 
-  bool  parse(std::string & url, std::map<std::string, std::string> & data);
+  bool  parse(std::string url, std::map<std::string, std::string> & data);
 
 };

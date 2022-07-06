@@ -9,35 +9,30 @@ void  onlyPath(void)
 
   input = "/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/");
   assert(!res.count("FileName") && !res.count("Path_Info")
           && !res.count("Query_String"));
   res.clear();
   input = "/hello";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/hello");
   assert(!res.count("FileName") && !res.count("Path_Info")
           && !res.count("Query_String"));
   res.clear();
   input = "/hello/world";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/hello/world");
   assert(!res.count("FileName") && !res.count("Path_Info")
           && !res.count("Query_String"));
   res.clear();
   input = "/hello/how/are/you/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/hello/how/are/you/");
   assert(!res.count("FileName") && !res.count("Path_Info")
           && !res.count("Query_String"));
   res.clear();
   input = "/hello//world/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   /*
   **  If // is found, erase one /
   */
@@ -47,7 +42,6 @@ void  onlyPath(void)
   res.clear();
   input = "/ hello/world ";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/ hello/world ");
   assert(!res.count("FileName") && !res.count("Path_Info")
           && !res.count("Query_String"));
@@ -62,14 +56,12 @@ void  file(void)
 
   input = "/file.html";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
   assert(!res.count("Path_Info") && !res.count("Query_String"));
   res.clear();
   input = "/I/want/this/file.html/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/I/want/this/file.html");
   assert(res["FileName"] == "file.html");
   /*
@@ -81,7 +73,6 @@ void  file(void)
   res.clear();
   input = "/file.php";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.php");
   assert(res["FileName"] == "file.php");
   assert(!res.count("Path_Info") && !res.count("Query_String"));
@@ -96,28 +87,24 @@ void  query(void)
 
   input = "/?hello=hola&goodbye=adios";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/");
   assert(res["Query_String"] == "hello=hola&goodbye=adios");
   assert(!res.count("FileName") && !res.count("Path_Info"));
   res.clear();
   input = "/intro?good_morning=buenos+dias";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/intro");
   assert(res["Query_String"] == "good_morning=buenos+dias");
   assert(!res.count("FileName") && !res.count("Path_Info"));
   res.clear();
   input = "/search/?come_on=vamos";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/search/");
   assert(res["Query_String"] == "come_on=vamos");
   assert(!res.count("FileName") && !res.count("Path_Info"));
   res.clear();
   input = "/search/something.cgi?come_on=vamos";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/search/something.cgi");
   assert(res["FileName"] == "something.cgi");
   assert(res["Query_String"] == "come_on=vamos");
@@ -129,14 +116,12 @@ void  query(void)
   */
   input = "/?why?=por+que?";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/");
   assert(res["Query_String"] == "why?=por+que?");
   assert(!res.count("FileName") && !res.count("Path_Info"));
   res.clear();
   input = "/?";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/");
   assert(res["Query_String"] == "");
   assert(!res.count("FileName") && !res.count("Path_Info"));
@@ -151,7 +136,6 @@ void  pathInfo(void)
 
   input = "/file.html/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/");
@@ -159,7 +143,6 @@ void  pathInfo(void)
   res.clear();
   input = "/file.html/hello";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/hello");
@@ -167,7 +150,6 @@ void  pathInfo(void)
   res.clear();
   input = "/file.html/hello/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/hello/");
@@ -175,7 +157,6 @@ void  pathInfo(void)
   res.clear();
   input = "/file.html/hello/world/";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/hello/world/");
@@ -191,7 +172,6 @@ void  mix(void)
 
   input = "/hello/file.html/goodbye?hola=adios";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/hello/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/goodbye");
@@ -199,7 +179,6 @@ void  mix(void)
   res.clear();
   input = "/hello/file.html/goodbye/world/?hola=adios";
   assert(urlParser.parse(input, res) == true);
-  assert(input.empty());
   assert(res["Path"] == "/hello/file.html");
   assert(res["FileName"] == "file.html");
   assert(res["Path_Info"] == "/goodbye/world/");

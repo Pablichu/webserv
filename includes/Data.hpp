@@ -15,6 +15,8 @@ struct	ConnectionData
 	std::size_t													serverIndex;
 	std::size_t													locationIndex;
 	Request															req;
+	std::string													ip;
+	std::map<std::string, std::string>	urlData;
 	int																	fileFd;
 	std::string													filePath;
 	long																fileSize;

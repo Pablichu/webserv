@@ -11,6 +11,7 @@ SRC =	main.cpp \
 		$(ROOT)/CgiHandler.cpp \
 		$(ROOT)/Monitor.cpp \
 		$(ROOT)/Data.cpp \
+		$(ROOT)/UrlParser.cpp \
 		$(ROOT)/Server.cpp
 
 OBJ =	$(SRC:.cpp=.o)
