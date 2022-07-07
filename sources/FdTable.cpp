@@ -7,35 +7,22 @@ FdTable::FdTable(void)
 
 FdTable::~FdTable(void)
 {
-  std::vector< std::pair<	FdType, uintptr_t > >::iterator it;
+	std::vector< std::pair<	FdType, uintptr_t > >::iterator it;
 
-  for (it = this->_table.begin(); it != this->_table.end(); ++it)
-  {
-    if (it->first == ListenSock)
-      delete this->_deserializeListenSock(it->second);
-    /*
-    **  More types
-    **
-    **  else if (it->first == OtherType)
-    **  else if (it->first == OtherOtherType)
-    **  ...
-    */
-    it->first = None;
-    it->second = 0;
-  }
-  return ;
-}
-
-uintptr_t
-FdTable::_serializeListenSock(std::vector< ServerConfig const * > *  ptr)
-{
-	return reinterpret_cast<uintptr_t>(ptr);
-}
-
-std::vector< ServerConfig const * > *
-FdTable::_deserializeListenSock(uintptr_t raw)
-{
-	return reinterpret_cast<std::vector< ServerConfig const * > * >(raw);
+	for (it = this->_table.begin(); it != this->_table.end(); ++it)
+	{
+    	if (it->first == ListenSock)
+			delete this->_deserializeListenSock(it->second);
+		if (it->first == ConnSock)
+			delete this->_deserializeConnSock(it->second);
+		if (it->first == File)
+			delete this->_deserializeFile(it->second);
+		if (it->first == Pipe)
+			delete this->_deserializePipe(it->second);
+    	it->first = None;
+    	it->second = 0;
+	}
+	return ;
 }
 
 std::size_t FdTable::size(void) const
@@ -56,9 +43,84 @@ FdType  FdTable::getType(int const fd) const
 **  WARNING! This method causes undefined behaviour if fd >= _table size
 */
 
+/*
+** Serializers
+*/
+
+uintptr_t
+FdTable::_serializeListenSock(std::vector< ServerConfig const * > *  ptr)
+{
+	return reinterpret_cast<uintptr_t>(ptr);
+}
+
+uintptr_t
+FdTable::_serializeConnSock(ConnectionData *  ptr)
+{
+	return reinterpret_cast<uintptr_t>(ptr);
+}
+
+uintptr_t
+FdTable::_serializeFile(std::pair< int, std::size_t> *  ptr)
+{
+	return reinterpret_cast<uintptr_t>(ptr);
+}
+
+uintptr_t
+FdTable::_serializePipe(CgiData *  ptr)
+{
+	return reinterpret_cast<uintptr_t>(ptr);
+}
+
+/*
+** Deserializers
+*/
+
+std::vector< ServerConfig const * > *
+FdTable::_deserializeListenSock(uintptr_t raw)
+{
+	return reinterpret_cast<std::vector< ServerConfig const * > * >(raw);
+}
+
+ConnectionData *
+FdTable::_deserializeConnSock(uintptr_t raw)
+{
+	return reinterpret_cast<ConnectionData * >(raw);
+}
+
+std::pair< int, std::size_t> *
+FdTable::_deserializeFile(uintptr_t raw)
+{
+	return reinterpret_cast<std::pair< int, std::size_t> * >(raw);
+}
+
+CgiData *
+FdTable::_deserializePipe(uintptr_t raw)
+{
+	return reinterpret_cast<CgiData * >(raw);
+}
+
+/*
+** Get specific type
+*/
+
 std::vector< ServerConfig const * > & FdTable::getListenSockData(int const fd)
 {
   return (*this->_deserializeListenSock(this->_table[fd].second));
+}
+
+ConnectionData & FdTable::getConnSock(int const fd)
+{
+  return (*this->_deserializeConnSock(this->_table[fd].second));
+}
+
+std::pair< int, std::size_t> & FdTable::getFile(int const fd)
+{
+  return (*this->_deserializeFile(this->_table[fd].second));
+}
+
+CgiData & FdTable::getPipe(int const fd)
+{
+  return (*this->_deserializePipe(this->_table[fd].second));
 }
 
 /*
@@ -67,8 +129,7 @@ std::vector< ServerConfig const * > & FdTable::getListenSockData(int const fd)
 **  fd type can be inferred by the data type.
 */
 
-bool
-FdTable::add(int const fd, std::vector< ServerConfig const * > * data)
+bool	FdTable::_littleAddChecker(int const fd)
 {
   if (fd < 3) //Invalid fd. 0 - 2 are reserved for STD I/O.
     return (false);
@@ -83,9 +144,47 @@ FdTable::add(int const fd, std::vector< ServerConfig const * > * data)
   */
   if (this->_table[fd].first != None)
     return (false);
+  return (true);
+}
+
+bool
+FdTable::add(int const fd, std::vector< ServerConfig const * > * data)
+{
+  if (!this->_littleAddChecker(fd))
+	return (false);
   this->_table[fd].first = ListenSock;
   this->_table[fd].second = this->_serializeListenSock(data);
   return (true);
+}
+
+bool
+FdTable::add(int const fd, ConnectionData * data)//Connection Data
+{
+	if (!this->_littleAddChecker(fd))
+		return (false);
+	this->_table[fd].first = ConnSock;
+	this->_table[fd].second = this->_serializeConnSock(data);
+	return (true);
+}
+
+bool
+FdTable::add(int const fd, std::pair< int, std::size_t> * data)//File
+{
+	if (!this->_littleAddChecker(fd))
+		return (false);
+	this->_table[fd].first = File;
+	this->_table[fd].second = this->_serializeFile(data);
+	return (true);
+}
+
+bool
+FdTable::add(int const fd, CgiData * data)//Pipes
+{
+	if (!this->_littleAddChecker(fd))
+		return (false);
+	this->_table[fd].first = Pipe;
+	this->_table[fd].second = this->_serializePipe(data);
+	return (true);
 }
 
 void  FdTable::remove(int const fd)
@@ -101,13 +200,13 @@ void  FdTable::remove(int const fd)
   fdType = &this->_table[fd].first;
   if (*fdType == ListenSock)
     delete this->_deserializeListenSock(this->_table[fd].second);
-  /*
-  **  More types
-  **
-  **  else if (*fdType == OtherType)
-  **  else if (*fdType == OtherOtherType)
-  **  ...
-  */
+  if (*fdType == ConnSock)
+    delete this->_deserializeConnSock(this->_table[fd].second);
+  if (*fdType == File)
+    delete this->_deserializeFile(this->_table[fd].second);
+  if (*fdType == Pipe)
+    delete this->_deserializePipe(this->_table[fd].second);
+
   this->_table[fd].second = 0;
   *fdType = None;
   return ;

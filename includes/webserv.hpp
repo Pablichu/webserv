@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <cerrno>
 
 //Server
 #include "Config.hpp"

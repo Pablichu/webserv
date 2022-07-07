@@ -18,9 +18,6 @@ class	Server
 {
 	private:
 
-		std::map<int, ConnectionData >								_connectionSockets;
-		std::map<int, std::pair< int, std::size_t> >	_fileFds;
-		std::map<int, CgiData *>											_cgiPipes;
 		FdTable																				_fdTable;
 		Monitor																				_monitor;
 		Response																			_response;
