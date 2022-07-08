@@ -422,13 +422,10 @@ bool  Server::_receiveData(int socket)
     reqData.append(buff, len);
     std::fill(buff, buff + buffLen, 0);
   }
-<<<<<<< HEAD
-  this->_connectionSockets[socket].req.process(reqData);
-  UrlParser().parse(this->_connectionSockets[socket].req.getPetit("Path"),
-                    this->_connectionSockets[socket].urlData);
-=======
   this->_fdTable.getConnSock(socket).req.process(reqData);
->>>>>>> fd-list
+  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
+                    this->_fdTable.getConnSock(socket).urlData);
+  
   return (true);
 }
 
