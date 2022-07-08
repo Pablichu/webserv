@@ -13,7 +13,7 @@ class	Request
 		Request();
 		~Request();
 
-    void  process(std::string reqData);
+	    void  process(std::string reqData);
 		const std::string	getPetit(std::string petition);
 		std::map<std::string, std::string>::iterator	begin();
 		std::map<std::string, std::string>::iterator	end();

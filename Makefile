@@ -1,7 +1,7 @@
 ROOT = ./sources
 
 NAME = webserv
-CXX = g++
+CXX = clang++
 CXXFLAGS = -Wall -Werror -Wextra -Iincludes -fsanitize=address -g3 -std=c++98 -pedantic
 
 SRC =	main.cpp \
