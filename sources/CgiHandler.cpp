@@ -18,6 +18,7 @@ void  CgiHandler::_deleteEnv(std::vector<char *> & env)
   {
     delete [] *it;
   }
+  delete &env;
   return ;
 }
 
@@ -170,13 +171,11 @@ void  CgiHandler::_execProgram(CgiData const & cgiData,
                                 ConnectionData & connData,
                                 std::vector<char *> env)
 {
-  std::string const path = connData.req.getPetit("Path");
-  std::string       programPath;
-  char **           argv;
+  std::string programPath;
+  char **     argv;
 
   programPath = connData.getLocation().cgi_dir + '/';
-  programPath.append(path.substr(path.find_last_of("/") + 1,
-                      path.length() - path.find_last_of("/") + 1));
+  programPath.append(connData.urlData.find("FileName")->second);
   argv = new char *[1 + 1];
   argv[1] = 0;
   argv[0] = const_cast<char *>(programPath.c_str());
