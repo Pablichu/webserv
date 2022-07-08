@@ -15,24 +15,14 @@
 
 #define MAX_REQUEST 5 //TRY WITH 10?
 
-/*enum		FdType
-{
-	Socket,
-	File,
-	Pipe
-}				fdType;*/
-
 class	Server
 {
 	private:
 
-		std::map<int, std::vector<ServerConfig const *> >		_listeningSockets;
-		std::map<int, ConnectionData >											_connectionSockets;
-		std::map<int, std::pair< int, std::size_t> >				_fileFds;
-		std::map<int, CgiData *>														_cgiPipes;
-		Monitor																							_monitor;
-		Response																						_response;
-		CgiHandler																					_cgiHandler;
+		FdTable																				_fdTable;
+		Monitor																				_monitor;
+		Response																			_response;
+		CgiHandler																		_cgiHandler;
 
 		bool	_initSocket(int & sock, std::size_t const port);
 		void	_endConnection(int fd, size_t connIndex);

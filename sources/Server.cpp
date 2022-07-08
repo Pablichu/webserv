@@ -69,25 +69,19 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 
 bool  Server::prepare(std::vector<ServerConfig> const & config)
 {
-  std::vector<ServerConfig>::const_iterator                   it;
-  std::set<std::size_t>                                       addedPorts;
-  std::map<int, std::vector<ServerConfig const *> >::iterator jt;
-  int                                                         sock;
+  std::vector<ServerConfig>::const_iterator it;
+  std::map<std::size_t, int>                addedPorts;
+  int                                       sock;
 
   for (it = config.begin(); it != config.end(); ++it)
   {
-    if (addedPorts.insert(it->port).second == false)
+    if (addedPorts.insert(std::pair<size_t, int>(it->port, -1)).second == false)
     {
       /*
       **  If port is already bound to a socket, add ServerConfig
       **  as another value to that socket key in ServerConfig.
       */
-      for (jt = this->_listeningSockets.begin();
-              jt != this->_listeningSockets.end(); ++jt)
-      {
-        if (it->port == jt->second.front()->port)
-          jt->second.push_back(&(*it));
-      }
+      this->_fdTable.getListenSockData(addedPorts[it->port]).push_back(&(*it));
     }
     else
     {
@@ -97,7 +91,10 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       */
       if (!this->_initSocket(sock, it->port))
         return (false);
-      this->_listeningSockets[sock].push_back(&(*it));
+      addedPorts[it->port] = sock;
+      this->_fdTable.add(sock, new std::vector<ServerConfig const *>(1, &(*it)));
+      //Add listening socket fd to poll array (monitor)
+      this->_monitor.add(sock, POLLIN);
     }
   }
   return (true);
@@ -107,7 +104,7 @@ void  Server::_endConnection(int fd, size_t connIndex)
 {
   close(fd);
   this->_monitor.remove(connIndex);
-  this->_connectionSockets.erase(fd);
+  this->_fdTable.remove(fd);
   return ;
 }
 
@@ -140,8 +137,7 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   write(cgiData->getWInPipe(), "Hola Mundo!", 11);
   close(cgiData->getWInPipe());
   //Associate read pipe fd with cgi class instance
-  this->_cgiPipes.insert(std::pair<int, CgiData *>(cgiData->getROutPipe(),
-    cgiData));
+  this->_fdTable.add(cgiData->getROutPipe(), cgiData);
   //Check POLLIN event of read pipe fd with poll()
   this->_monitor.add(cgiData->getROutPipe(), POLLIN);
   return (true);
@@ -153,9 +149,8 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
 
 bool  Server::_fillFileResponse(int const fd, int const index)
 {
-  std::pair<int, std::size_t> sockPair = this->_fileFds[fd];
-  ConnectionData &            sockData =
-    this->_connectionSockets[sockPair.first];
+  std::pair<int, std::size_t> sockPair = this->_fdTable.getFile(fd);
+  ConnectionData &            sockData = this->_fdTable.getConnSock(sockPair.first);
 
   if (!sockData.totalBytesRead)
   {
@@ -171,7 +166,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
     {
       close(fd);
       this->_monitor.remove(index);
-      this->_fileFds.erase(fd);
+	  this->_fdTable.remove(fd);
       this->_endConnection(sockPair.first, sockPair.second);
       return (false);
     }
@@ -180,7 +175,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   {
     close(fd);
     this->_monitor.remove(index);
-    this->_fileFds.erase(fd);
+	this->_fdTable.remove(fd);
   }
   this->_monitor[sockPair.second].events = POLLOUT;
   return (true);
@@ -324,7 +319,7 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 
 void  Server::_matchConfig(int socket)
 {
-  ConnectionData &  sockData = this->_connectionSockets[socket];
+  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
   this->_matchServer(
     *(sockData.portConfigs),
@@ -344,7 +339,7 @@ void  Server::_matchConfig(int socket)
 
 bool  Server::_prepareResponse(int socket, std::size_t index)
 {
-  ConnectionData &  sockData = this->_connectionSockets[socket];
+  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
   this->_matchConfig(socket);
   if (sockData.req.getPetit("Path").find(".cgi")
@@ -364,7 +359,7 @@ bool  Server::_prepareResponse(int socket, std::size_t index)
     if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
       return (false);
     this->_monitor.add(sockData.fileFd, POLLIN);
-    this->_fileFds[sockData.fileFd] = std::pair<int,std::size_t>(socket, index);
+	this->_fdTable.add(sockData.fileFd, new std::pair<int,std::size_t>(socket, index));
   }
   /*
   **  Do not check for events from this client socket until we receive data
@@ -385,14 +380,14 @@ bool  Server::_prepareResponse(int socket, std::size_t index)
 
 void  Server::_sendData(int socket, std::size_t index)
 {
-  ConnectionData &  sockData = this->_connectionSockets[socket];
+  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
   if (!this->_response.sendFile(socket, sockData))
   {
-    if (this->_fileFds.count(sockData.fileFd))
+    if (this->_fdTable.getType(sockData.fileFd) == File)
     {
       close(sockData.fileFd);
-      this->_fileFds.erase(sockData.fileFd);
+	  this->_fdTable.remove(sockData.fileFd);
       //TODO: delete fileFd from _monitor
     }
     this->_endConnection(socket, index);
@@ -427,9 +422,13 @@ bool  Server::_receiveData(int socket)
     reqData.append(buff, len);
     std::fill(buff, buff + buffLen, 0);
   }
+<<<<<<< HEAD
   this->_connectionSockets[socket].req.process(reqData);
   UrlParser().parse(this->_connectionSockets[socket].req.getPetit("Path"),
                     this->_connectionSockets[socket].urlData);
+=======
+  this->_fdTable.getConnSock(socket).req.process(reqData);
+>>>>>>> fd-list
   return (true);
 }
 
@@ -451,7 +450,7 @@ void  Server::_acceptConn(int listenSocket)
   **  to avoid repeated searches in case more than one connection
   **  has been received through this port.
   */
-  configs = &this->_listeningSockets[listenSocket];
+  configs = &this->_fdTable.getListenSockData(listenSocket);
   addrLen = sizeof(address);
   while (true)
   {
@@ -476,9 +475,10 @@ void  Server::_acceptConn(int listenSocket)
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
     */
-    this->_connectionSockets[newConn].portConfigs = configs;
+    this->_fdTable.add(newConn, new ConnectionData);
+    this->_fdTable.getConnSock(newConn).portConfigs = configs;
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
-    this->_connectionSockets[newConn].ip = ip;
+    this->_fdTable.getConnSock(newConn).ip = ip;    
   }
 }
 
@@ -488,34 +488,35 @@ void  Server::_acceptConn(int listenSocket)
 
 void  Server::_handleEvent(std::size_t index)
 {
-  int fd;
+  int     fd;
+  FdType  fdType;
 
   fd = this->_monitor[index].fd;
-  if (this->_listeningSockets.count(fd))
+  fdType = this->_fdTable.getType(fd);
+  if (fdType == ListenSock)
   {
     // New client/s connected to one of listening sockets
     this->_acceptConn(fd);
   }
-  else if (this->_cgiPipes.count(fd))
+  else if (this->_fdTable.getType(fd) == Pipe)
   {
     // Read pipe from cgi program is ready to read
-    if (!this->_cgiHandler.receiveData(fd,
-        this->_connectionSockets[this->_cgiPipes[fd]->socket]))
+    if (!this->_cgiHandler.receiveData(fd, this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
       return ; //Handle Error
-    if (this->_connectionSockets[this->_cgiPipes[fd]->socket].rspSize
-        == this->_connectionSockets[this->_cgiPipes[fd]->socket].totalBytesRead)
+    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
+		== this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
       this->_monitor.remove(index);
-      delete this->_cgiPipes[fd];
-      this->_cgiPipes.erase(fd); //remove cgiData instance of read pipe fd
+	  this->_fdTable.remove(fd);
       close(fd); //close pipe read fd
       return ;
     }
     // Check again for POLLOUT event of client socket associated to cgi pipe fd
-    if (!this->_connectionSockets[this->_cgiPipes[fd]->socket].totalBytesSent)
-      this->_monitor[this->_cgiPipes[fd]->connIndex].events = POLLOUT;
+    if (!this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent)
+      this->_monitor[this->_fdTable.getPipe(fd).connIndex].events = POLLOUT;
   }
-  else if (this->_fileFds.count(fd))
+  //else if (this->_fileFds.count(fd))
+  else if (this->_fdTable.getType(fd) == File)
   {
     // A file fd is ready to read.
     if (!this->_fillFileResponse(fd, index))
@@ -527,38 +528,25 @@ void  Server::_handleEvent(std::size_t index)
     if (!this->_receiveData(fd))
       return this->_endConnection(fd, index); //TODO: Handle Error
     std::cout << "Data received for "
-              << this->_connectionSockets[fd].req.getPetit("Host")
+              << this->_fdTable.getConnSock(fd).req.getPetit("Host")
               << " with path "
-              << this->_connectionSockets[fd].req.getPetit("Path")
+              << this->_fdTable.getConnSock(fd).req.getPetit("Path")
               << std::endl;
+              //<< this->_connectionSockets[fd].req.getPetit("Path")
     if (!this->_prepareResponse(fd, index))
       this->_endConnection(fd, index);
   }
   else
   {
     // Connected client socket is ready to write without blocking
-    if (this->_connectionSockets[fd].rspBuffSize)
+    //if (this->_connectionSockets[fd].rspBuffSize)
+    if (this->_fdTable.getConnSock(fd).rspBuffSize)
       this->_sendData(fd, index);
-    if (this->_connectionSockets[fd].totalBytesSent
-        == this->_connectionSockets[fd].rspSize)
+    //if (this->_connectionSockets[fd].totalBytesSent == this->_connectionSockets[fd].rspSize)
+    if (this->_fdTable.getConnSock(fd).totalBytesSent
+		== this->_fdTable.getConnSock(fd).rspSize)
       this->_endConnection(fd, index);
   }
-}
-
-/*
-**  Add listening sockets of serverConfigs to connections array
-*/
-
-void  Server::_monitorListenSocketEvents(void)
-{
-  std::map<int, std::vector<ServerConfig const *> >::iterator it;
-
-  for (it = this->_listeningSockets.begin();
-          it != this->_listeningSockets.end(); ++it)
-  {
-    this->_monitor.add(it->first, POLLIN);
-  }
-  return ;
 }
 
 /*
@@ -574,7 +562,6 @@ bool  Server::start(void)
   int         numEvents;
   int         handlingCount;
 
-  this->_monitorListenSocketEvents();
   while (true)
   {
     // TIMEOUT -1 blocks until event is received

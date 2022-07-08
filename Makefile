@@ -10,6 +10,7 @@ SRC =	main.cpp \
 		$(ROOT)/Response.cpp \
 		$(ROOT)/CgiHandler.cpp \
 		$(ROOT)/Monitor.cpp \
+		$(ROOT)/FdTable.cpp \
 		$(ROOT)/Data.cpp \
 		$(ROOT)/UrlParser.cpp \
 		$(ROOT)/Server.cpp
