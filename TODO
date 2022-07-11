@@ -18,13 +18,13 @@
 ⏳ • Your program should have a config file in argument or use a default path.
 ⏳ • You should be able to serve a fully static website.
 ⏳ • You need at least GET, POST, and DELETE methods.
-👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 ❌ • You server should have default error pages if none are provided.
 ❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
 ❌ • poll (or equivalent) should check read and write at the same time.
 ❌ • Client should be able to upload files.
 ❌ • Your HTTP response status codes must be accurate.
 ❌ • Stress tests your server it must stay available at all cost.
+👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 
 👍 ◦ choose the port and host of each "server"
 👍 · the cgi should be run in the correct directory for relative path file access

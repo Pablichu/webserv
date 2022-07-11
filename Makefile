@@ -58,7 +58,7 @@ url_parser:
 	@rm url_parser
 
 clean:
-	rm -rf $(NAME)
+	rm -rf $(OBJ)
 
 fclean: clean
 	rm -rf $(OBJ)
