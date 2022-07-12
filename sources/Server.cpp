@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include <cmath>
 
 Server::Server(void)
 {
@@ -235,22 +236,27 @@ std::string Server::_listDir(std::string const & uri,
 void  Server::_getFilePath(ConnectionData & conn) const
 {
   ServerConfig const *    serv = (*conn.portConfigs)[conn.serverIndex];
-  LocationConfig const *  loc = &serv->location[conn.locationIndex];
+  LocationConfig const *  loc;
   std::string const       path = conn.req.getPetit("Path");
   std::ifstream           file;
   std::string             aux;
 
+  if (conn.locationIndex == -1)
+  { //No config match for location
+    conn.filePath = serv->not_found_page;
+    return ;
+  }
+  loc = &serv->location[conn.locationIndex];
   conn.filePath = loc->root + '/';
-  //TODO: Save find result to avoid repeating operation after
-  if (path.find(".") != std::string::npos)
-    conn.filePath.append(path.substr(path.find_last_of("/") + 1,
-                    path.length() - path.find_last_of("/") + 1));
+  //TODO: Save count result to avoid repeating operation after
+  if (conn.urlData.count("FileName"))
+    conn.filePath.append(conn.urlData.find("FileName")->second);
   else
     conn.filePath.append(loc->default_file);
   file.open(conn.filePath.c_str());
   if (file.is_open())
     file.close();
-  else if (loc->dir_list == true && path.find(".") == std::string::npos)
+  else if (loc->dir_list == true && !conn.urlData.count("FileName"))
   {
     aux = this->_listDir(path, loc->root);
     conn.rspBuff.replace(0, aux.size(), aux);
@@ -265,9 +271,9 @@ void  Server::_getFilePath(ConnectionData & conn) const
 }
 
 void  Server::_matchLocation(std::vector<LocationConfig> const & locations,
-                              std::size_t & index, std::string const & reqUri)
+                              int & index, std::string const & reqUri)
 {
-  std::size_t                                 uriLen;
+  long                                        uriLen;
   std::vector<LocationConfig>::const_iterator it;
   std::size_t                                 i;
 
@@ -276,15 +282,20 @@ void  Server::_matchLocation(std::vector<LocationConfig> const & locations,
   {
     if (reqUri.find(it->uri) == 0)
     {
-      if (reqUri.length() > uriLen)
+      if (static_cast<long>(reqUri.length()) > uriLen)
       {
         uriLen = it->uri.length();
         index = i;
       }
     }
   }
-  if (uriLen == 0)
-    index = 0;
+  if (static_cast<long>(reqUri.length()) != uriLen)
+  {
+    //Path not found
+    if (! (labs(static_cast<long>(reqUri.length()) - uriLen) == 1
+            && reqUri[reqUri.length() - 1] == '/') )
+      index = -1;
+  }
   return ;
 }
 
@@ -320,13 +331,17 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 void  Server::_matchConfig(int socket)
 {
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
+  std::string       path = sockData.urlData.find("Path")->second;
 
   this->_matchServer(
     *(sockData.portConfigs),
     sockData.serverIndex,sockData.req.getPetit("Host"));
+  if (sockData.urlData.count("FileName"))
+    path.erase(path.rfind("/"));
   this->_matchLocation(
-    (*sockData.portConfigs)[sockData.serverIndex]->location,
-    sockData.locationIndex, sockData.req.getPetit("Path"));
+      (*sockData.portConfigs)[sockData.serverIndex]->location,
+      sockData.locationIndex, path);
+  return ;
 }
 
 /*
@@ -340,10 +355,11 @@ void  Server::_matchConfig(int socket)
 bool  Server::_prepareResponse(int socket, std::size_t index)
 {
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
+  std::map<std::string, std::string>::iterator  fileName;
 
   this->_matchConfig(socket);
-  if (sockData.req.getPetit("Path").find(".cgi")
-      != std::string::npos) //provisional
+  fileName = sockData.urlData.find("Filename");
+  if (fileName != sockData.urlData.end() && fileName->second.rfind(".cgi"))
   {
     if (!this->_launchCgi(socket, sockData, index))
       return (false);
@@ -359,7 +375,8 @@ bool  Server::_prepareResponse(int socket, std::size_t index)
     if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
       return (false);
     this->_monitor.add(sockData.fileFd, POLLIN);
-	this->_fdTable.add(sockData.fileFd, new std::pair<int,std::size_t>(socket, index));
+    this->_fdTable.add(sockData.fileFd,
+                        new std::pair<int,std::size_t>(socket, index));
   }
   /*
   **  Do not check for events from this client socket until we receive data
@@ -424,8 +441,7 @@ bool  Server::_receiveData(int socket)
   }
   this->_fdTable.getConnSock(socket).req.process(reqData);
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                    this->_fdTable.getConnSock(socket).urlData);
-  
+                    this->_fdTable.getConnSock(socket).urlData);  
   return (true);
 }
 
