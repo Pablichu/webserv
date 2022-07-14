@@ -2,6 +2,7 @@
 
 //Internal libraries
 #include <iostream>
+#include <string>
 #include <fstream>
 #include <streambuf>
 #include <sstream>

@@ -68,7 +68,7 @@ private:
 
 	bool	_validPath(void) const;
 
-	bool	_checkMinData(void) const;
+	bool	_checkMinData(void);
 
 	bool	_isServerProperty(std::string const & prop);
 	bool	_isLocationProperty(std::string const & prop);
