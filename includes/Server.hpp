@@ -33,11 +33,11 @@ class	Server
 		std::string	_listDir(std::string const & uri,
                           std::string const & root) const;
 		void	_getFilePath(ConnectionData & conn) const;
-		void	_matchLocation(std::vector<LocationConfig> const & servers,
-												int & index, std::string const & reqUri);
+		bool	_matchLocation(std::vector<LocationConfig> const & servers,
+												std::size_t & index, std::string const & reqUri);
 		void  _matchServer(std::vector<ServerConfig const *> & servers,
 												std::size_t & index, std::string const & reqHost);
-		void	_matchConfig(int socket);
+		bool	_matchConfig(int socket);
 		bool  _prepareResponse(int socket, std::size_t index);
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);

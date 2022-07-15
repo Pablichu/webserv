@@ -233,20 +233,14 @@ std::string Server::_listDir(std::string const & uri,
 **  increase response efficiency.
 */
 
-void  Server::_getFilePath(ConnectionData & conn) const
+bool  Server::_getFilePath(ConnectionData & conn) const
 {
   ServerConfig const *    serv = (*conn.portConfigs)[conn.serverIndex];
-  LocationConfig const *  loc;
+  LocationConfig const *  loc = &serv->location[conn.locationIndex];
   std::string const       path = conn.req.getPetit("Path");
   std::ifstream           file;
   std::string             aux;
 
-  if (conn.locationIndex == -1)
-  { //No config match for location
-    conn.filePath = serv->not_found_page;
-    return ;
-  }
-  loc = &serv->location[conn.locationIndex];
   conn.filePath = loc->root + '/';
   //TODO: Save count result to avoid repeating operation after
   if (conn.urlData.count("FileName"))
@@ -263,15 +257,58 @@ void  Server::_getFilePath(ConnectionData & conn) const
     conn.rspBuffSize = conn.rspBuff.find('\0');
     conn.rspSize = conn.rspBuffSize;
     conn.filePath.clear();
-    return ;
+    return (true);
   }
   else
-    conn.filePath = serv->not_found_page;
-  return ;
+    return (false);
+  return (true);
 }
 
-void  Server::_matchLocation(std::vector<LocationConfig> const & locations,
-                              int & index, std::string const & reqUri)
+bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
+{
+  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
+  std::map<std::string, std::string>::iterator  fileName;
+
+  fileName = sockData.urlData.find("Filename");
+  if (fileName != sockData.urlData.end() && fileName->second.rfind(".cgi"))
+  {
+    if (!this->_launchCgi(socket, sockData, index))
+    {
+      error = 500; // INternal Server Error
+      return (false);
+    }
+  }
+  else
+  {
+    if (!this->_getFilePath(sockData))
+    {
+      error = 404; //Not Found
+      return (false);
+    }
+    if (sockData.filePath.empty()) //Send directory list
+    {
+      this->_monitor[index].events = POLLOUT;
+      return (true);
+    }
+    if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
+    {
+      error = 500; // INternal Server Error
+      return (false);
+    }
+    this->_monitor.add(sockData.fileFd, POLLIN);
+    this->_fdTable.add(sockData.fileFd,
+                        new std::pair<int,std::size_t>(socket, index));
+  }
+  /*
+  **  Do not check for events from this client socket until we receive data
+  **  from file or cgi program.
+  */
+  this->_monitor[index].events = 0;
+  return (true);
+}
+
+bool  Server::_matchLocation(std::vector<LocationConfig> const & locations,
+                              std::size_t & index, std::string const & reqUri)
 {
   long                                        uriLen;
   std::vector<LocationConfig>::const_iterator it;
@@ -294,9 +331,9 @@ void  Server::_matchLocation(std::vector<LocationConfig> const & locations,
     //Path not found
     if (! (labs(static_cast<long>(reqUri.length()) - uriLen) == 1
             && reqUri[reqUri.length() - 1] == '/') )
-      index = -1;
+      return (false);
   }
-  return ;
+  return (true);
 }
 
 void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
@@ -328,7 +365,7 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 
 // Provisional
 
-void  Server::_matchConfig(int socket)
+bool  Server::_matchConfig(int socket)
 {
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
   std::string       path = sockData.urlData.find("Path")->second;
@@ -338,10 +375,11 @@ void  Server::_matchConfig(int socket)
     sockData.serverIndex,sockData.req.getPetit("Host"));
   if (sockData.urlData.count("FileName"))
     path.erase(path.rfind("/"));
-  this->_matchLocation(
+  if (this->_matchLocation(
       (*sockData.portConfigs)[sockData.serverIndex]->location,
-      sockData.locationIndex, path);
-  return ;
+      sockData.locationIndex, path))
+    return (false);
+  return (true);
 }
 
 /*
@@ -352,38 +390,51 @@ void  Server::_matchConfig(int socket)
 **  3. Create an html listing directory contents.
 */
 
-bool  Server::_prepareResponse(int socket, std::size_t index)
+bool  Server::_validRequest(int socket, int & error)
 {
-  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
-  std::map<std::string, std::string>::iterator  fileName;
+  ConnectionData &        sockData = this->_fdTable.getConnSock(socket);
+  ServerConfig const *    serv;
+  LocationConfig const *  loc;
 
-  this->_matchConfig(socket);
-  fileName = sockData.urlData.find("Filename");
-  if (fileName != sockData.urlData.end() && fileName->second.rfind(".cgi"))
-  {
-    if (!this->_launchCgi(socket, sockData, index))
-      return (false);
+  if (!this->_matchConfig(socket))
+  { //Request path did not match any server's location uri
+    error = 404; // Not Found
+    return (false);
   }
-  else
-  {
-    this->_getFilePath(sockData);
-    if (sockData.filePath.empty()) //Send directory list
-    {
-      this->_monitor[index].events = POLLOUT;
-      return (true);
-    }
-    if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
-      return (false);
-    this->_monitor.add(sockData.fileFd, POLLIN);
-    this->_fdTable.add(sockData.fileFd,
-                        new std::pair<int,std::size_t>(socket, index));
+  serv = (*sockData.portConfigs)[sockData.serverIndex];
+  loc = &serv->location[sockData.locationIndex];
+  if (!loc->methods.count(sockData.urlData.find("Method")->second))
+  { //Request method is not allowed in target location
+    error = 405; // Method Not Allowed
   }
-  /*
-  **  Do not check for events from this client socket until we receive data
-  **  from file or cgi program.
-  */
-  this->_monitor[index].events = 0;
+  //else if (!validBodySize)
+    //error = 413; // Payload Too Large
+  //else if (!validFileExtension)
+    //error = 415; // Unsupported Media Type
+  //else if (!validStandardHeaders)
+    //error = 400; // Bad Request
+  //else if (!validHTTPVersion)
+    //error = 505; // HTTP Version Not Supported
+  if (error)
+    return (false);
   return (true);
+}
+
+void  Server::_handleClientRead(int socket, std::size_t index)
+{
+  int error = 0;
+
+  if (!this->_receiveData(socket))
+    return this->_endConnection(socket, index); //TODO: Handle Error
+  std::cout << "Data received for "
+            << this->_fdTable.getConnSock(socket).req.getPetit("Host")
+            << " with path "
+            << this->_fdTable.getConnSock(socket).req.getPetit("Path")
+            << std::endl;
+            //<< this->_connectionSockets[fd].req.getPetit("Path")
+  if (!this->_validRequest(socket, error)
+      || !this->_prepareResponse(socket, index, error))
+    this->_sendError(socket, error);
 }
 
 /*
@@ -538,16 +589,7 @@ void  Server::_handleEvent(std::size_t index)
   else if (this->_monitor[index].revents & POLLIN)
   {
     // Connected client socket is ready to read without blocking
-    if (!this->_receiveData(fd))
-      return this->_endConnection(fd, index); //TODO: Handle Error
-    std::cout << "Data received for "
-              << this->_fdTable.getConnSock(fd).req.getPetit("Host")
-              << " with path "
-              << this->_fdTable.getConnSock(fd).req.getPetit("Path")
-              << std::endl;
-              //<< this->_connectionSockets[fd].req.getPetit("Path")
-    if (!this->_prepareResponse(fd, index))
-      this->_endConnection(fd, index);
+    this->_handleClientRead(fd, index);
   }
   else
   {

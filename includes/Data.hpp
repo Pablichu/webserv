@@ -13,8 +13,7 @@ struct	ConnectionData
 {
 	std::vector<ServerConfig const *> *	portConfigs;
 	std::size_t													serverIndex;
-	//int for locationIndex to set -1 when not matching
-	int																	locationIndex;
+	std::size_t													locationIndex;
 	Request															req;
 	std::string													ip;
 	std::map<std::string, std::string>	urlData;
