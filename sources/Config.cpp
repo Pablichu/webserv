@@ -66,10 +66,31 @@ bool  Config::_validPath(void) const
   return (true);
 }
 
-bool  Config::_checkMinData(void) const
+bool  Config::_checkMinData(void)
 {
-  //PENDING ...
-  //NEED TO DISCUSS WHAT OR IF THERE ARE MINIMUM CONFIG PROPERTIES
+  std::cout << "So we got it hu? NICE" << std::endl;
+  for (size_t i = 0; i < this->_serverConfig.size(); i++)
+  {
+	  if (!this->_serverConfig[i].port)
+	  {
+		std::cout << "Error: Port not setted" << std::endl;
+	  	return (false);
+	  }
+	  if (!this->_serverConfig[i].server_name.size())
+	  {
+		std::cout << "Error: No server_name" << std::endl;
+	  	return (false);
+	  }
+	  if (!this->_serverConfig[i].not_found_page.empty())
+	  {
+		std::cout << " -> Standard 404 html setted" << std::endl;
+		this->_serverConfig[i].not_found_page = ".default/404.html";
+	  }
+	  if (this->_serverConfig[i].max_body_size == 0)
+	  	this->_serverConfig[i].max_body_size = 8526;
+	  	  
+  }
+  
   return (true);
 }
 
