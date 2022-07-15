@@ -68,7 +68,6 @@ bool  Config::_validPath(void) const
 
 bool  Config::_checkMinData(void)
 {
-  std::cout << "So we got it hu? NICE" << std::endl;
   for (size_t i = 0; i < this->_serverConfig.size(); i++)
   {
 	  if (!this->_serverConfig[i].port)
@@ -81,16 +80,37 @@ bool  Config::_checkMinData(void)
 		std::cout << "Error: No server_name" << std::endl;
 	  	return (false);
 	  }
-	  if (!this->_serverConfig[i].not_found_page.empty())
+	  if (this->_serverConfig[i].not_found_page.empty())
 	  {
+		if (access(".default/404.html", F_OK))
+		{
+		  std::cout << "Error: default 404 could not be accessed" << std::endl;
+		  return (false);
+		}
 		std::cout << " -> Standard 404 html setted" << std::endl;
 		this->_serverConfig[i].not_found_page = ".default/404.html";
 	  }
 	  if (this->_serverConfig[i].max_body_size == 0)
-	  	this->_serverConfig[i].max_body_size = 8526;
-	  	  
+	  	this->_serverConfig[i].max_body_size = 8526;//This value may change, DEMOCRACY NEEDED
+	  if (!this->_serverConfig[i].location.size())//This could be not necessary
+	  {
+		std::cout << "Error: no location defined" << std::endl;
+		return (false);
+	  }
+	  for (size_t j = 0; j < this->_serverConfig[i].location.size(); j++)
+	  {
+		if (this->_serverConfig[i].location[j].uri.empty())
+		{
+		  std::cout << "Error: no uri defined" << std::endl;
+		  return (false);
+		}
+		if (this->_serverConfig[i].location[j].root.empty())
+		{
+		  std::cout << "Error: no root defined" << std::endl;
+		  return (false);
+		}
+	  }
   }
-  
   return (true);
 }
 

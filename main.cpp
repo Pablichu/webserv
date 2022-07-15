@@ -7,7 +7,7 @@ int		main(int argc, char **argv)
 
   if (argc == 1)
   {
-    std::cout << " -> Default configuration <-" << std::endl;
+    std::cout << " -> Default configuration" << std::endl;
     config.setPath(".default/default.json");
   }
   else if (argc == 2)
