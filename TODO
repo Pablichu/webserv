@@ -12,13 +12,14 @@
 👍 • You can’t use fork for something else than CGI (like php or python etc...)
 👍 • You can’t execve another webserver...
 👍 • You don’t need to use poll (or equivalent) before reading your config file.
+👍 • Your program should have a config file in argument or use a default path.
 ⏳ • It must be non-blocking and use only 1 poll (or equivalent) for all the IO between the client and the server (listens includes).
 ⏳ • Your server should never block and the client should be bounce properly if necessary.
 ⏳ • A request to your server should never hang forever.
-⏳ • Your program should have a config file in argument or use a default path.
 ⏳ • You should be able to serve a fully static website.
 ⏳ • You need at least GET, POST, and DELETE methods.
 ❌ • You server should have default error pages if none are provided.
+❌ ◦ setup default error pages
 ❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
 ❌ • poll (or equivalent) should check read and write at the same time.
 ❌ • Client should be able to upload files.
@@ -42,7 +43,6 @@
   ❌ ∗ define an HTTP redirection.
 👁🐽👁🔍· Because you won’t call the CGI directly use the full path as PATH_INFO
 ❌ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
-❌ ◦ setup default error pages
 ❌ · your server should work with one CGI (php-cgi, python...)
 ❌ · make the route able to accept uploaded files and configure where it should be saved
 

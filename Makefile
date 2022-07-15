@@ -61,7 +61,7 @@ clean:
 	rm -rf $(OBJ)
 
 fclean: clean
-	rm -rf $(OBJ)
+	rm -rf $(NAME)
 	@rm -f response request config tests/tmp_config.json
 	@rm -rf tests/www
 
