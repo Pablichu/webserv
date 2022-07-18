@@ -91,24 +91,29 @@ bool  Config::_checkMinData(void)
 		this->_serverConfig[i].not_found_page = ".default/404.html";
 	  }
 	  if (this->_serverConfig[i].max_body_size == 0)
-	  	this->_serverConfig[i].max_body_size = 8526;//This value may change, DEMOCRACY NEEDED
-	  if (!this->_serverConfig[i].location.size())//This could be not necessary
-	  {
-		std::cout << "Error: no location defined" << std::endl;
-		return (false);
-	  }
+	  	this->_serverConfig[i].max_body_size = 8192;//This value may change, DEMOCRACY NEEDED <---------
 	  for (size_t j = 0; j < this->_serverConfig[i].location.size(); j++)
 	  {
-		if (this->_serverConfig[i].location[j].uri.empty())
-		{
-		  std::cout << "Error: no uri defined" << std::endl;
-		  return (false);
-		}
-		if (this->_serverConfig[i].location[j].root.empty())
-		{
-		  std::cout << "Error: no root defined" << std::endl;
-		  return (false);
-		}
+		  if (this->_serverConfig[i].location[j].uri.empty())
+		  {
+			std::cout << "Error: no uri defined in " << i << " " << j << std::endl;
+			return (false);
+		  }
+		  if (this->_serverConfig[i].location[j].root.empty())
+		  {
+			std::cout << "Error: no root path defined in " << i << " " << j << std::endl;
+			return (false);
+		  }
+		  if (this->_serverConfig[i].location[j].default_file.empty())
+		  {
+			std::cout << "Error: no default_file defined in " << i << " " << j << std::endl;
+			return (false);
+		  }
+		  if (this->_serverConfig[i].location[j].methods.empty())
+		  {
+			std::cout << "Error: no methods defined in " << i << " " << j << std::endl;
+			return (false);
+		  }
 	  }
   }
   return (true);
