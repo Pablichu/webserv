@@ -259,7 +259,7 @@ bool  Server::_getFilePath(ConnectionData & connData) const
     if (connData.urlData.find("FileType")->second != ".cgi") //Requested file is not cgi
       connData.filePath.append(fileName->second);
     else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
-      connData.filePath = loc->cgi_dir + fileName->second;
+      connData.filePath = loc->cgi_dir + '/' + fileName->second;
     else //Requested file is cgi, but no cgi_dir exists in this location
       return (false);
   }
@@ -291,7 +291,7 @@ bool  Server::_prepareGet(int socket, std::size_t index, int & error)
   }
   else
   {
-    if (connData.filePath.rfind(".cgi")) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
+    if (connData.filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
     {
       if (!this->_launchCgi(socket, connData, index))
       {
@@ -322,12 +322,12 @@ bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
   {
     //this->_sendRedirection(loc->redirection);
   }
-  else if (reqMethod == "Get")
+  else if (reqMethod == "GET")
   {
     if (!this->_prepareGet(socket, index, error))
       return (false);
   }
-  else if (reqMethod == "Post")
+  else if (reqMethod == "POST")
   {
     /*if (!this->_preparePost(socket, index, error))
       return (false);*/
@@ -530,7 +530,7 @@ bool  Server::_receiveData(int socket)
 **  and add them to the connections array that is passed to poll.
 */
 
-void  Server::_acceptConn(int listenSocket)
+void  Server::_acceptConn(int listenSocket) 
 {
   std::vector< ServerConfig const * > * configs;
   struct sockaddr_in                    address;
