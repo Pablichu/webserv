@@ -2,114 +2,154 @@
 
 std::string const Response::protocol = "HTTP/1.1";
 
+InitStatusCode::InitStatusCode(void)
+{
+  this->m.insert(
+    std::pair<int const, std::string const>(200, "OK"));
+  this->m.insert(
+    std::pair<int const, std::string const>(201, "Created"));
+  this->m.insert(
+    std::pair<int const, std::string const>(301, "Moved Permanently"));
+  this->m.insert(
+    std::pair<int const, std::string const>(308, "Permanent Redirect"));
+  this->m.insert(
+    std::pair<int const, std::string const>(400, "Bad Request"));
+  this->m.insert(
+    std::pair<int const, std::string const>(404, "Not Found"));
+  this->m.insert(
+    std::pair<int const, std::string const>(405, "Method Not Allowed"));
+  this->m.insert(
+    std::pair<int const, std::string const>(413, "Payload Too Large"));
+  this->m.insert(
+    std::pair<int const, std::string const>(415, "Unsupported Media Type"));
+  this->m.insert(
+    std::pair<int const, std::string const>(500, "Internal Server Error"));
+  this->m.insert(
+    std::pair<int const, std::string const>(505, ""));
+}
+
+std::map<int const, std::string const> const
+  Response::statusCode(InitStatusCode().m);
+
+InitContentType::InitContentType(void)
+{
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".css", "text/css"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".gif", "image/gif"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".html", "text/html"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".htm", "text/html"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
+      ".ico", "image/vnd.microsoft.icon"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".jpeg", "image/jpeg"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".jpg", "image/jpeg"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
+      ".json", "application/json"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".mp3", "audio/mpeg"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".png", "image/png"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
+      ".rar", "application/vnd.rar"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
+      ".tar", "application/x-tar"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".txt", "text/plain"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".wav", "audio/wav"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".xml", "application/xml"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(".zip", "application/zip"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
+      ".7z", "application/x-7z-compressed"));
+}
+
+std::map<std::string const, std::string const> const
+  Response::contentType(InitContentType().m);
+
 Response::Response(void) {}
 
 Response::~Response(void) {}
 
-// Open file
-
-bool	Response::openFile(std::string const & filePath, int & fd)
+void  Response::_buildResponse(ConnectionData & connData,
+                                std::string const & content)
 {
-	/*
-	**	NOT SETTING THIS fd AS NON-BLOCKING, BECAUSE IT HAS NO EFFECT
-	**	ON REGULAR FILES.
-	*/
-	fd = open(filePath.c_str(), O_RDONLY);
-	if (fd == -1)
-		return (false);
-	return (true);
+  connData.rspBuff.replace(0, content.size(), content);
+  connData.rspBuffSize = connData.rspBuff.find('\0');
+  connData.rspSize = connData.rspBuffSize;
+  return ;
 }
 
-/*
-**	Read file for the first time, adding headers before file content in rsp.
-**
-**	Provisional
-*/
-
-bool	Response::readFileFirst(int const fd, ConnectionData & connData)
+void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
+                              std::string const & root)
 {
-	std::stringstream	headers;
-	std::size_t				headersSize;
+  DIR *           dir;
+  struct dirent * elem;
+  std::string     content;
 
-	status = 200;
-	if (connData.filePath.find("404") != std::string::npos)
-		status = 404;
-	status_msg = "OK";
-	if (status != 200)
-		status_msg = "Not Found";
-
-	std::string		doctype
-	(
-		connData.filePath.substr
-		(
-			connData.filePath.find_last_of('.') + 1,
-			connData.filePath.size() - connData.filePath.find_last_of('.') + 1
-		)
-	);
-	cnt_type = "text/" + doctype + "; charset=utf-8"; //TODO: cambiar en futuro
-	connData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
-	if (connData.fileSize == -1)
-	{
-		close(fd);
-		return (false);
-	}
-	if (lseek(fd, 0, SEEK_SET) == -1)
-	{
-		close(fd);
-		return (false);
-	}
-	headers << protocol << " " << status << " " << status_msg << '\n';
-	headers << "Content-length: " << connData.fileSize << '\n';
-	headers << "Content-type: " << cnt_type << "\n\n";
-	headersSize = headers.str().size();
-	connData.rspBuff.replace(0, headersSize, headers.str());
-	this->bytesRead = read(fd, &connData.rspBuff[headersSize],
-													ConnectionData::rspBuffCapacity - headersSize);
-	if (this->bytesRead <= 0)
-	{
-		close(fd);
-		return (false);
-	}
-	connData.rspBuffSize = this->bytesRead + headersSize;
-	connData.totalBytesRead = this->bytesRead;
-	connData.rspSize = headersSize + connData.fileSize;
-	return (true);
+  content = "HTTP/1.1 200 OK\n";
+  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content.append("<html><head><title>Index of ");
+  content.append(uri);
+  content.append("</title></head><body><h1>Index of ");
+  content.append(uri);
+  content.append("</h1><hr><pre><a href=\"../\">../</a>\n");
+  dir = opendir(root.c_str());
+  if (dir)
+  {
+    while (true)
+    {
+      elem = readdir(dir);
+      if (!elem)
+        break ;
+      if (elem->d_name[0] == '.') //Skip hidden files
+        continue ;
+      content.append("<a href=\"" + uri + '/');
+      content.append(elem->d_name);
+      content.append("\">");
+      content.append(elem->d_name);
+      content.append("</a>\n");
+      //Check to ensure the closing html tags will fit in the buffer
+      if (content.size() >= ConnectionData::rspBuffCapacity - 25)
+      {
+        content.erase(content.rfind("<a href"), std::string::npos);
+        break ;
+      }
+    }
+    closedir(dir);
+  }
+  content.append("</pre><hr></body></html>");
+  this->_buildResponse(connData, content);
+  return ;
 }
 
-/*
-**	Subsequent file reads. This function gets called if read buffer size
-**	is less than file size.
-**
-**	The fd is closed outside when returns false or file was read completely.
-*/
-
-bool	Response::readFileNext(int const fd, ConnectionData & connData)
+void  Response::buildError(ConnectionData & connData, int const error)
 {
-	std::size_t	endContent;
+  std::string const errorCode = utils::toString<int>(error);
+  std::string const errorDescription = Response::statusCode.find(error)->second;
+  std::string       content;
 
-	endContent = connData.rspBuffSize;
-	if (connData.rspBuffOffset)
-	{
-		//Move the content after offset to the front
-		connData.rspBuff.replace(connData.rspBuff.begin(),
-			connData.rspBuff.begin() + connData.rspBuffOffset,
-			&connData.rspBuff[connData.rspBuffOffset]);
-		//Fill the content that is duplicated at the back with NULL
-		connData.rspBuff.replace(endContent - connData.rspBuffOffset,
-			connData.rspBuffOffset, 0);
-		//Update endContent
-		endContent = endContent - connData.rspBuffOffset;
-		//Reset offset
-		connData.rspBuffOffset = 0;
-	}
-	this->bytesRead = read(fd, &connData.rspBuff[endContent],
-													ConnectionData::rspBuffCapacity - endContent);
-	if (bytesRead <= 0)
-		return (false);
-	connData.rspBuffSize = endContent + this->bytesRead;
-	connData.totalBytesRead += this->bytesRead;
-	return (true);
+  content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + '\n';
+  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content.append("<html><head><title>");
+  content.append(errorCode + ' ' + errorDescription);
+  content.append("</title></head><body><h1>");
+  content.append(errorCode + ' ' + errorDescription);
+  content.append("</h1></body></html>");
+  this->_buildResponse(connData, content);
+  return ;
 }
+
 
 /*
 **	Sends read file content to client socket. It may be called more than once
@@ -131,6 +171,6 @@ bool	Response::sendFile(int const sockFd, ConnectionData & connData)
 		connData.rspBuffSize = 0;
 	}
 	else
-		connData.rspBuffOffset = this->bytesRead;
+		connData.rspBuffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
 	return (true);
 }

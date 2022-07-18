@@ -9,10 +9,12 @@ SRC =	main.cpp \
 		$(ROOT)/Request.cpp \
 		$(ROOT)/Response.cpp \
 		$(ROOT)/CgiHandler.cpp \
+		$(ROOT)/FileHandler.cpp \
 		$(ROOT)/Monitor.cpp \
 		$(ROOT)/FdTable.cpp \
 		$(ROOT)/Data.cpp \
 		$(ROOT)/UrlParser.cpp \
+		$(ROOT)/utils.cpp \
 		$(ROOT)/Server.cpp
 
 OBJ =	$(SRC:.cpp=.o)
@@ -57,6 +59,11 @@ url_parser:
 	@./url_parser
 	@rm url_parser
 
+utils:
+	$(CXX) $(CXXFLAGS) ./tests/utils.cpp -o utils
+	@./utils
+	@rm utils
+
 clean:
 	rm -rf $(NAME)
 
@@ -73,4 +80,4 @@ git: fclean
 	git push
 
 .PHONY: all start response request config config_multi monitor url_parser \
-				clean fclean re
+				utils clean fclean re

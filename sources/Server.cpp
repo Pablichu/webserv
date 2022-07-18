@@ -117,8 +117,8 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   **  ADD CGI write and read pipe fds to this->_monitor
   **  and to this->_cgiPipes (Future fd direct address table)
   */
-  cgiData = new CgiData(socket, connIndex);
-  if (!this->_cgiHandler.initPipes(*cgiData, conn,
+  cgiData = new CgiData(socket, connIndex, conn.filePath);
+  if (!this->_cgiHandler.initPipes(*cgiData,
       *this->_cgiHandler.getEnv(conn.req.getHeaders(), conn.urlData, conn.ip)))
   {
     delete cgiData;
@@ -151,11 +151,11 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
 bool  Server::_fillFileResponse(int const fd, int const index)
 {
   std::pair<int, std::size_t> sockPair = this->_fdTable.getFile(fd);
-  ConnectionData &            sockData = this->_fdTable.getConnSock(sockPair.first);
+  ConnectionData &            connData = this->_fdTable.getConnSock(sockPair.first);
 
-  if (!sockData.totalBytesRead)
+  if (!connData.totalBytesRead)
   {
-    if (!this->_response.readFileFirst(fd, sockData))
+    if (!this->_fileHandler.readFileFirst(fd, connData))
     {
       this->_endConnection(sockPair.first, sockPair.second);
       return (false);
@@ -163,7 +163,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   }
   else
   {
-    if (!this->_response.readFileNext(fd, sockData))
+    if (!this->_fileHandler.readFileNext(fd, connData))
     {
       close(fd);
       this->_monitor.remove(index);
@@ -172,7 +172,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
       return (false);
     }
   }
-  if (static_cast<long>(sockData.totalBytesRead) == sockData.fileSize)
+  if (static_cast<long>(connData.totalBytesRead) == connData.fileSize)
   {
     close(fd);
     this->_monitor.remove(index);
@@ -182,48 +182,57 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   return (true);
 }
 
-// Provisional listDir belongs to Response class
-
-std::string Server::_listDir(std::string const & uri,
-                              std::string const & root) const
+bool  Server::_openFile(int const socket, int const index,
+                          ConnectionData & connData)
 {
-  DIR *           dir;
-  struct dirent * elem;
-  std::string     res;
+  if (!this->_fileHandler.openFile(connData.filePath, connData.fileFd))
+    return (false);
+  this->_monitor.add(connData.fileFd, POLLIN);
+  this->_fdTable.add(connData.fileFd,
+                      new std::pair<int,std::size_t>(socket, index));
+  /*
+  **  Do not check for events from this client socket until we receive data
+  **  from file or cgi program.
+  */
+  this->_monitor[index].events = 0;
+  return (true);
+}
 
-  res = "HTTP/1.1 200 OK\n";
-  res.append("Content-type: text/html; charset=utf-8\n\n");
-  res.append("<html><head><title>Index of ");
-  res.append(uri);
-  res.append("</title></head><body><h1>Index of ");
-  res.append(uri);
-  res.append("</h1><hr><pre><a href=\"../\">../</a>\n");
-  dir = opendir(root.c_str());
-  if (dir)
+void  Server::_sendListDir(ConnectionData & connData, int const index)
+{  
+  this->_response.buildDirList(
+    connData, connData.urlData.find("Path")->second,
+    connData.getLocation()->root
+  );
+  this->_monitor[index].events = POLLOUT;
+  return ;
+}
+
+/*
+**  Provisional. More than one error page might be available.
+**
+**  Idea. Create folder for each host:port config where error pages
+**  will be stored as errorcode.html. ex: 404.html, 500.html.
+**  And search in that folder for errorFolderPath + '/' + errorCode.html,
+**  if not found, buildError.
+*/
+
+void  Server::_sendError(int const socket, int const index, int error)
+{
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+
+  if (error == 404) //Not Found
   {
-    while (true)
-    {
-      elem = readdir(dir);
-      if (!elem)
-        break ;
-      if (elem->d_name[0] == '.') //Skip hidden files
-        continue ;
-      res.append("<a href=\"" + uri + '/');
-      res.append(elem->d_name);
-      res.append("\">");
-      res.append(elem->d_name);
-      res.append("</a>\n");
-      //Check to ensure the closing html tags will fit in the buffer
-      if (res.size() >= ConnectionData::rspBuffCapacity - 25)
-      {
-        res.erase(res.rfind("<a href"), std::string::npos);
-        break ;
-      }
-    }
-    closedir(dir);
+    connData.filePath = connData.getServer()->not_found_page;
+    connData.rspStatus = error; //Provisional
+    if (!this->_openFile(socket, index, connData))
+      error = 500; //An error ocurred while opening file
+    else
+      return ;
   }
-  res.append("</pre><hr></body></html>");
-  return (res);
+  this->_response.buildError(connData, error);
+  this->_monitor[index].events = POLLOUT;
+  return ;
 }
 
 /*
@@ -231,79 +240,103 @@ std::string Server::_listDir(std::string const & uri,
 **
 **  A hash table could be implemented to avoid some file I/O and
 **  increase response efficiency.
+**
+**  If user sets a cgi file as default, the complete path,
+**  including the cgi_dir, must be provided in proprty "default_file"
+**  of config file.
 */
 
-bool  Server::_getFilePath(ConnectionData & conn) const
+bool  Server::_getFilePath(ConnectionData & connData) const
 {
-  ServerConfig const *    serv = (*conn.portConfigs)[conn.serverIndex];
-  LocationConfig const *  loc = &serv->location[conn.locationIndex];
-  std::string const       path = conn.req.getPetit("Path");
+  LocationConfig const *  loc = connData.getLocation();
+  std::map<std::string, std::string>::iterator  fileName;
   std::ifstream           file;
-  std::string             aux;
 
-  conn.filePath = loc->root + '/';
-  //TODO: Save count result to avoid repeating operation after
-  if (conn.urlData.count("FileName"))
-    conn.filePath.append(conn.urlData.find("FileName")->second);
-  else
-    conn.filePath.append(loc->default_file);
-  file.open(conn.filePath.c_str());
-  if (file.is_open())
+  connData.filePath = loc->root + '/';
+  fileName = connData.urlData.find("FileName");
+  if (fileName != connData.urlData.end()) //FileName present in request uri
+  { //Provisional. Need to check multiple cgi extensions if necessary (php, cgi, py, etc.)
+    if (connData.urlData.find("FileType")->second != ".cgi") //Requested file is not cgi
+      connData.filePath.append(fileName->second);
+    else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
+      connData.filePath = loc->cgi_dir + fileName->second;
+    else //Requested file is cgi, but no cgi_dir exists in this location
+      return (false);
+  }
+  else //FileName not present in request uri
+    connData.filePath.append(loc->default_file);
+  file.open(connData.filePath.c_str());
+  if (file.is_open()) //Requested file exists
     file.close();
-  else if (loc->dir_list == true && !conn.urlData.count("FileName"))
+  else //Requested file does not exist
+    return (false);
+  return (true);
+}
+
+bool  Server::_prepareGet(int socket, std::size_t index, int & error)
+{
+  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
+  LocationConfig const *  loc = connData.getLocation();
+
+  if (!this->_getFilePath(connData))
   {
-    aux = this->_listDir(path, loc->root);
-    conn.rspBuff.replace(0, aux.size(), aux);
-    conn.rspBuffSize = conn.rspBuff.find('\0');
-    conn.rspSize = conn.rspBuffSize;
-    conn.filePath.clear();
-    return (true);
+    connData.filePath.clear();
+    if (loc->dir_list == true && !connData.urlData.count("FileName"))
+      this->_sendListDir(connData, index);
+    else
+    {
+      error = 404; // Not Found
+      return (false);
+    }
   }
   else
-    return (false);
+  {
+    if (connData.filePath.rfind(".cgi")) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
+    {
+      if (!this->_launchCgi(socket, connData, index))
+      {
+        error = 500; // Internal Server Error
+        return (false);
+      }
+    }
+    else
+    {
+      if(!this->_openFile(socket, index, connData))
+      {
+        error = 500; // Internal Server Error
+        return (false);
+      }
+      connData.rspStatus = 200; //Provisional
+    }
+  }
   return (true);
 }
 
 bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
 {
-  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
-  std::map<std::string, std::string>::iterator  fileName;
+  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
+  LocationConfig const *  loc = connData.getLocation();
+  std::string const       reqMethod = connData.req.getPetit("Method");
 
-  fileName = sockData.urlData.find("Filename");
-  if (fileName != sockData.urlData.end() && fileName->second.rfind(".cgi"))
+  if (loc->redirection != "")
   {
-    if (!this->_launchCgi(socket, sockData, index))
-    {
-      error = 500; // INternal Server Error
-      return (false);
-    }
+    //this->_sendRedirection(loc->redirection);
   }
-  else
+  else if (reqMethod == "Get")
   {
-    if (!this->_getFilePath(sockData))
-    {
-      error = 404; //Not Found
+    if (!this->_prepareGet(socket, index, error))
       return (false);
-    }
-    if (sockData.filePath.empty()) //Send directory list
-    {
-      this->_monitor[index].events = POLLOUT;
-      return (true);
-    }
-    if (!this->_response.openFile(sockData.filePath, sockData.fileFd))
-    {
-      error = 500; // INternal Server Error
-      return (false);
-    }
-    this->_monitor.add(sockData.fileFd, POLLIN);
-    this->_fdTable.add(sockData.fileFd,
-                        new std::pair<int,std::size_t>(socket, index));
   }
-  /*
-  **  Do not check for events from this client socket until we receive data
-  **  from file or cgi program.
-  */
-  this->_monitor[index].events = 0;
+  else if (reqMethod == "Post")
+  {
+    /*if (!this->_preparePost(socket, index, error))
+      return (false);*/
+  }
+  else //Delete
+  {
+    /*if (!this->_prepareDelete(socket, index, error))
+      return (false);*/
+  }
   return (true);
 }
 
@@ -367,17 +400,17 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 
 bool  Server::_matchConfig(int socket)
 {
-  ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
-  std::string       path = sockData.urlData.find("Path")->second;
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  std::string       path = connData.urlData.find("Path")->second;
 
   this->_matchServer(
-    *(sockData.portConfigs),
-    sockData.serverIndex,sockData.req.getPetit("Host"));
-  if (sockData.urlData.count("FileName"))
+    *(connData.portConfigs),
+    connData.serverIndex, connData.req.getPetit("Host"));
+  if (connData.urlData.count("FileName"))
     path.erase(path.rfind("/"));
-  if (this->_matchLocation(
-      (*sockData.portConfigs)[sockData.serverIndex]->location,
-      sockData.locationIndex, path))
+  if (!this->_matchLocation(
+      connData.getServer()->location,
+      connData.locationIndex, path))
     return (false);
   return (true);
 }
@@ -392,18 +425,14 @@ bool  Server::_matchConfig(int socket)
 
 bool  Server::_validRequest(int socket, int & error)
 {
-  ConnectionData &        sockData = this->_fdTable.getConnSock(socket);
-  ServerConfig const *    serv;
-  LocationConfig const *  loc;
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
 
   if (!this->_matchConfig(socket))
   { //Request path did not match any server's location uri
     error = 404; // Not Found
     return (false);
   }
-  serv = (*sockData.portConfigs)[sockData.serverIndex];
-  loc = &serv->location[sockData.locationIndex];
-  if (!loc->methods.count(sockData.urlData.find("Method")->second))
+  if (!connData.getLocation()->methods.count(connData.req.getPetit("Method")))
   { //Request method is not allowed in target location
     error = 405; // Method Not Allowed
   }
@@ -434,7 +463,7 @@ void  Server::_handleClientRead(int socket, std::size_t index)
             //<< this->_connectionSockets[fd].req.getPetit("Path")
   if (!this->_validRequest(socket, error)
       || !this->_prepareResponse(socket, index, error))
-    this->_sendError(socket, error);
+    this->_sendError(socket, index, error);
 }
 
 /*

@@ -168,14 +168,12 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 // execve fails with std::vector<char *> & env
 
 void  CgiHandler::_execProgram(CgiData const & cgiData,
-                                ConnectionData & connData,
                                 std::vector<char *> env)
 {
   std::string programPath;
   char **     argv;
 
-  programPath = connData.getLocation().cgi_dir + '/';
-  programPath.append(connData.urlData.find("FileName")->second);
+  programPath = cgiData.filePath;
   argv = new char *[1 + 1];
   argv[1] = 0;
   argv[0] = const_cast<char *>(programPath.c_str());
@@ -187,8 +185,7 @@ void  CgiHandler::_execProgram(CgiData const & cgiData,
   delete [] argv;
 }
 
-bool  CgiHandler::initPipes(CgiData & cgiData, ConnectionData & connData,
-                            std::vector<char *> & env)
+bool  CgiHandler::initPipes(CgiData & cgiData, std::vector<char *> & env)
 {
   pid_t child;
 
@@ -208,7 +205,7 @@ bool  CgiHandler::initPipes(CgiData & cgiData, ConnectionData & connData,
   { //Child process
     close(cgiData.inPipe[1]);
     close(cgiData.outPipe[0]);
-    this->_execProgram(cgiData, connData, env);
+    this->_execProgram(cgiData, env);
     std::cout << "exec failed" << std::endl;
     exit(EXIT_FAILURE);
   }
