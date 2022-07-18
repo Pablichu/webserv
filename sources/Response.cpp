@@ -50,6 +50,9 @@ InitContentType::InitContentType(void)
     std::pair<std::string const, std::string const>(".jpg", "image/jpeg"));
   this->m.insert(
     std::pair<std::string const, std::string const>(
+      ".js", "application/javascript"));
+  this->m.insert(
+    std::pair<std::string const, std::string const>(
       ".json", "application/json"));
   this->m.insert(
     std::pair<std::string const, std::string const>(".mp3", "audio/mpeg"));
