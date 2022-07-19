@@ -28,11 +28,26 @@ void  toString(void)
   return ;
 }
 
+void  getFileExtension(void)
+{
+  std::string input;
+
+  input = "/hello.cgi";
+  assert(utils::getFileExtension(input) == ".cgi");
+  input = "/hello/hello.cgi";
+  assert(utils::getFileExtension(input) == ".cgi");
+  input = "/hello/bye.html/hello.cgi";
+  assert(utils::getFileExtension(input) == ".cgi");
+  return ;
+}
+
 int main(void)
 {
   std::cout << "\n--- UTILS TESTS ---\n";
   toString();
   std::cout << "\ntoString: OK\n";
+  getFileExtension();
+  std::cout << "\ngetFileExtension: OK\n";
   std::cout << std::endl; 
   return (0);
 }

@@ -60,7 +60,7 @@ url_parser:
 	@rm url_parser
 
 utils:
-	$(CXX) $(CXXFLAGS) ./tests/utils.cpp -o utils
+	$(CXX) $(CXXFLAGS) $(ROOT)/utils.cpp ./tests/utils.cpp -o utils
 	@./utils
 	@rm utils
 
