@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <cmath>
 #include <cerrno>
 
 //Server
@@ -18,7 +19,9 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "CgiHandler.hpp"
+#include "FileHandler.hpp"
 #include "FdTable.hpp"
 #include "Monitor.hpp"
 #include "Data.hpp"
 #include "UrlParser.hpp"
+#include "utils.hpp"

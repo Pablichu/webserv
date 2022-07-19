@@ -92,14 +92,9 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   */
   content = "Script_Name=" + urlData.find("FileName")->second;
   this->_addEnvVar(*env, content);
-  /*
-  **  Add Server_Name and Port pairs to req's header map
-  **  after parsing request. Then add their values to env's
-  **  Server_Name and Server_Port respectively.
-  */
-  content = "Server_Name=" + reqHeader.find("Host")->second;
+  content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);
-  content = "Server_Port=" + reqHeader.find("Host")->second;
+  content = "Server_Port=" + utils::extractPort(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);
   content = "Server_Protocol=HTTP/1.1";
   this->_addEnvVar(*env, content);
@@ -168,14 +163,12 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 // execve fails with std::vector<char *> & env
 
 void  CgiHandler::_execProgram(CgiData const & cgiData,
-                                ConnectionData & connData,
                                 std::vector<char *> env)
 {
   std::string programPath;
   char **     argv;
 
-  programPath = connData.getLocation().cgi_dir + '/';
-  programPath.append(connData.urlData.find("FileName")->second);
+  programPath = cgiData.filePath;
   argv = new char *[1 + 1];
   argv[1] = 0;
   argv[0] = const_cast<char *>(programPath.c_str());
@@ -187,8 +180,7 @@ void  CgiHandler::_execProgram(CgiData const & cgiData,
   delete [] argv;
 }
 
-bool  CgiHandler::initPipes(CgiData & cgiData, ConnectionData & connData,
-                            std::vector<char *> & env)
+bool  CgiHandler::initPipes(CgiData & cgiData, std::vector<char *> & env)
 {
   pid_t child;
 
@@ -208,7 +200,7 @@ bool  CgiHandler::initPipes(CgiData & cgiData, ConnectionData & connData,
   { //Child process
     close(cgiData.inPipe[1]);
     close(cgiData.outPipe[0]);
-    this->_execProgram(cgiData, connData, env);
+    this->_execProgram(cgiData, env);
     std::cout << "exec failed" << std::endl;
     exit(EXIT_FAILURE);
   }

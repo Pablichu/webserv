@@ -26,6 +26,7 @@ struct	ConnectionData
 	std::size_t													rspBuffSize;
 	std::size_t													rspBuffOffset;
 	std::string													rspBuff;
+	int																	rspStatus;
 
 	static std::size_t const						rspBuffCapacity = 8192;
 
@@ -33,17 +34,19 @@ struct	ConnectionData
 	~ConnectionData(void);
 
 	ServerConfig const *		getServer(void);
-	LocationConfig					getLocation(void);
+	LocationConfig const *	getLocation(void);
 };
 
 struct	CgiData
 {
-	int         socket;
-  std::size_t connIndex;
-  int         inPipe[2];
-  int         outPipe[2];
+	int const        	socket;
+  std::size_t const	connIndex;
+	std::string	const	filePath;
+  int         			inPipe[2];
+  int         			outPipe[2];
 
-	CgiData(int const socket, std::size_t const connIndex);
+	CgiData(int const socket, std::size_t const connIndex,
+					std::string const & filePath);
 
 	int getRInPipe(void) const;
   int getWInPipe(void) const;
