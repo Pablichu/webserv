@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include <cmath>
 
 Server::Server(void)
 {
