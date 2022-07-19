@@ -15,4 +15,6 @@ namespace utils
   }
 
   std::string getFileExtension(std::string const & input);
+  std::string extractHost(std::string const & input);
+  std::string extractPort(std::string const & input);
 }

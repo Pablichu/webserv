@@ -41,6 +41,28 @@ void  getFileExtension(void)
   return ;
 }
 
+void  extractHost(void)
+{
+  std::string input;
+
+  input = "localhost:8080";
+  assert(utils::extractHost(input) == "localhost");
+  input = "www.hello.com:8080";
+  assert(utils::extractHost(input) == "www.hello.com");
+  return ;
+}
+
+void  extractPort(void)
+{
+  std::string input;
+
+  input = "localhost:8080";
+  assert(utils::extractPort(input) == "8080");
+  input = "www.hello.com:8080";
+  assert(utils::extractPort(input) == "8080");
+  return ;
+}
+
 int main(void)
 {
   std::cout << "\n--- UTILS TESTS ---\n";
@@ -48,6 +70,10 @@ int main(void)
   std::cout << "\ntoString: OK\n";
   getFileExtension();
   std::cout << "\ngetFileExtension: OK\n";
+  extractHost();
+  std::cout << "\nextractHost: OK\n";
+  extractPort();
+  std::cout << "\nextractPort: OK\n";
   std::cout << std::endl; 
   return (0);
 }

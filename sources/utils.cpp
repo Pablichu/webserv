@@ -10,3 +10,23 @@ std::string utils::getFileExtension(std::string const & input)
 {
   return (input.substr(input.rfind(".")));
 }
+
+/*
+**  IMPORTANT!!
+**  input must be the header HOST, which contains host:port value.
+*/
+
+std::string utils::extractHost(std::string const & input)
+{
+  return (input.substr(0, input.rfind(":")));
+}
+
+/*
+**  IMPORTANT!!
+**  input must be the header HOST, which contains host:port value.
+*/
+
+std::string utils::extractPort(std::string const & input)
+{
+  return (input.substr(input.rfind(":") + 1));
+}
