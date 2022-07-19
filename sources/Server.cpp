@@ -405,7 +405,7 @@ bool  Server::_matchConfig(int socket)
 
   this->_matchServer(
     *(connData.portConfigs),
-    connData.serverIndex, connData.req.getPetit("Host"));
+    connData.serverIndex, utils::extractHost(connData.req.getPetit("Host")));
   if (connData.urlData.count("FileName"))
     path.erase(path.rfind("/"));
   if (!this->_matchLocation(

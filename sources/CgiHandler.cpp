@@ -92,14 +92,9 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   */
   content = "Script_Name=" + urlData.find("FileName")->second;
   this->_addEnvVar(*env, content);
-  /*
-  **  Add Server_Name and Port pairs to req's header map
-  **  after parsing request. Then add their values to env's
-  **  Server_Name and Server_Port respectively.
-  */
-  content = "Server_Name=" + reqHeader.find("Host")->second;
+  content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);
-  content = "Server_Port=" + reqHeader.find("Host")->second;
+  content = "Server_Port=" + utils::extractPort(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);
   content = "Server_Protocol=HTTP/1.1";
   this->_addEnvVar(*env, content);
