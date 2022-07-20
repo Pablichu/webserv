@@ -58,6 +58,13 @@
           "dir_list": 1,
           "default_file": "missing.html",
           "upload_dir": "WEBSERV_PATH/tests/www/localhost/media"
+        },
+        {
+          "uri": "/oldgallery",
+          "root": "WEBSERV_PATH/tests/www/localhost/gallery",
+          "methods": "GET",
+          "redirection": "/gallery",
+          "default_file": "missing.html"
         }
       ]
     }
