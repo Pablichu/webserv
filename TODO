@@ -35,12 +35,12 @@
   👍 · the cgi should be run in the correct directory for relative path file access
   👍 ◦ The first server for a host:port will be the default for this host:port (meaning it will answer to all request that doesn’t belong to an other server)
   👍 ◦ setup default error pages
+  👍 ∗ define an HTTP redirection.
   ⏳ ◦ setup the server_names or not
   ⏳ ◦ limit client body size
   ⏳ · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
   ⏳ · Your program should call the cgi with the file requested as first argument
   ⏳ ∗ execute CGI based on certain file extension (for example .php)
-  ❌ ∗ define an HTTP redirection.
   👁🐽👁🔍· Because you won’t call the CGI directly use the full path as PATH_INFO
   ❌ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ❌ · your server should work with one CGI (php-cgi, python...)
