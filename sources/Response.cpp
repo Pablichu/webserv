@@ -93,6 +93,21 @@ void  Response::_buildResponse(ConnectionData & connData,
   return ;
 }
 
+/*
+**  url can be absolute or relative. Administrator decides in config file.
+*/
+
+void  Response::buildRedirect(ConnectionData & connData,
+                              std::string const & url)
+{
+  std::string content;
+
+  content = "HTTP/1.1 301 " + Response::statusCode.find(301)->second + '\n';
+  content += "Location: " + url + "\n\n";
+  this->_buildResponse(connData, content);
+  return ;
+}
+
 void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
                               std::string const & root)
 {

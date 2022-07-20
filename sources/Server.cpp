@@ -197,6 +197,14 @@ bool  Server::_openFile(int const socket, int const index,
   return (true);
 }
 
+void  Server::_sendRedirect(ConnectionData & connData, int const index,
+                                std::string const & redirUrl)
+{
+  this->_response.buildRedirect(connData, redirUrl);
+  this->_monitor[index].events = POLLOUT;
+  return ;
+}
+
 void  Server::_sendListDir(ConnectionData & connData, int const index)
 {  
   this->_response.buildDirList(
@@ -319,7 +327,7 @@ bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
 
   if (loc->redirection != "")
   {
-    //this->_sendRedirection(loc->redirection);
+    this->_sendRedirect(connData, index, loc->redirection);
   }
   else if (reqMethod == "GET")
   {

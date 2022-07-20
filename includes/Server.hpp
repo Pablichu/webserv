@@ -32,6 +32,8 @@ class	Server
 		bool	_fillFileResponse(int const fd, int const index);
 		bool  _openFile(int const socket, int const index,
 										ConnectionData & connData);
+		void	_sendRedirect(ConnectionData & connData, int const index,
+												std::string const & redirUrl);
 		void  _sendListDir(ConnectionData & connData, int const index);
 		void  _sendError(int const socket, int const index, int error);
 		bool	_getFilePath(ConnectionData & conn) const;
