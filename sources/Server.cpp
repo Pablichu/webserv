@@ -529,17 +529,14 @@ void  Server::_handleEvent(std::size_t index)
               << " with path "
               << this->_fdTable.getConnSock(fd).req.getPetit("Path")
               << std::endl;
-              //<< this->_connectionSockets[fd].req.getPetit("Path")
     if (!this->_prepareResponse(fd, index))
       this->_endConnection(fd, index);
   }
   else
   {
     // Connected client socket is ready to write without blocking
-    //if (this->_connectionSockets[fd].rspBuffSize)
     if (this->_fdTable.getConnSock(fd).rspBuffSize)
       this->_sendData(fd, index);
-    //if (this->_connectionSockets[fd].totalBytesSent == this->_connectionSockets[fd].rspSize)
     if (this->_fdTable.getConnSock(fd).totalBytesSent
 		== this->_fdTable.getConnSock(fd).rspSize)
       this->_endConnection(fd, index);
