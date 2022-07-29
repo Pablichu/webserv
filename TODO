@@ -21,9 +21,9 @@
 ⏳ • You need at least GET, POST, and DELETE methods.
 ⏳ • Client should be able to upload files.
 ⏳ • Your HTTP response status codes must be accurate.
+⏳ • poll (or equivalent) should check read and write at the same time.
 👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 ❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
-❌ • poll (or equivalent) should check read and write at the same time.
 ❌ • Stress tests your server it must stay available at all cost.
 
 ◦ setup routes with one or multiple of the following rules/configuration (routes wont be using regexp):
