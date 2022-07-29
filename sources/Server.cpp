@@ -199,22 +199,6 @@ bool  Server::_openFile(int const socket, int const index,
   return (true);
 }
 
-void  Server::_sendRedirect(ConnectionData & connData,
-                              std::string const & redirUrl)
-{
-  this->_response.buildRedirect(connData, redirUrl);
-  return ;
-}
-
-void  Server::_sendListDir(ConnectionData & connData)
-{  
-  this->_response.buildDirList(
-    connData, connData.urlData.find("Path")->second,
-    connData.getLocation()->root
-  );
-  return ;
-}
-
 /*
 **  Provisional. More than one error page might be available.
 **
@@ -288,7 +272,10 @@ bool  Server::_prepareGet(int socket, std::size_t index, int & error)
   {
     connData.filePath.clear();
     if (loc->dir_list == true && !connData.urlData.count("FileName"))
-      this->_sendListDir(connData);
+    {
+      this->_response.buildDirList(
+        connData, connData.urlData.find("Path")->second, loc->root);
+    }
     else
     {
       error = 404; // Not Found
@@ -326,7 +313,7 @@ bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
 
   if (loc->redirection != "")
   {
-    this->_sendRedirect(connData, loc->redirection);
+    this->_response.buildRedirect(connData, loc->redirection);
   }
   else if (reqMethod == "GET")
   {
@@ -484,13 +471,13 @@ void  Server::_sendData(int socket, std::size_t index)
 {
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
-  if (!this->_response.sendFile(socket, sockData))
+  if (!this->_response.sendData(socket, sockData))
   {
     if (this->_fdTable.getType(sockData.fileFd) == File)
-    {
+    { //fileFd is still present in fdTable and therefore, it is still open.
       close(sockData.fileFd);
-	  this->_fdTable.remove(sockData.fileFd);
-      //TODO: delete fileFd from _monitor
+	    this->_fdTable.remove(sockData.fileFd);
+      this->_monitor.remove(sockData.fileFd);
     }
     this->_endConnection(socket, index);
   }

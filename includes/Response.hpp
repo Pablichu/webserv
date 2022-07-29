@@ -46,5 +46,5 @@ public:
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
-	bool	sendFile(int const sockFd, ConnectionData & connData);
+	bool	sendData(int const sockFd, ConnectionData & connData);
 };

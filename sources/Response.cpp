@@ -172,9 +172,12 @@ void  Response::buildError(ConnectionData & connData, int const error)
 /*
 **	Sends read file content to client socket. It may be called more than once
 **	if file size is bigger than read buffer size.
+**
+**  Naming it sendData instead of just send because there is
+**  a namespace conflict with send of the C Standard Library.
 */
 
-bool	Response::sendFile(int const sockFd, ConnectionData & connData)
+bool	Response::sendData(int const sockFd, ConnectionData & connData)
 {
 	this->bytesSent = send(sockFd, &connData.rspBuff[0], connData.rspBuffSize, 0);
 	if (this->bytesSent <= 0)
