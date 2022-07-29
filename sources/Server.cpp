@@ -94,7 +94,11 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       addedPorts[it->port] = sock;
       this->_fdTable.add(sock, new std::vector<ServerConfig const *>(1, &(*it)));
       //Add listening socket fd to poll array (monitor)
-      this->_monitor.add(sock, POLLIN);
+      /*
+      **  Determine if it makes sense to check for POLLOUT if it is never
+      **  going to be used for listening sockets.
+      */
+      this->_monitor.add(sock, POLLIN /*| POLLOUT*/);
     }
   }
   return (true);
@@ -139,7 +143,11 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData);
   //Check POLLIN event of read pipe fd with poll()
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN);
+  /*
+  **  Determine if it makes sense to check for POLLOUT if it is never
+  **  going to be used for listening sockets.
+  */
+  this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
   return (true);
 }
 
@@ -166,7 +174,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
     {
       close(fd);
       this->_monitor.remove(index);
-	  this->_fdTable.remove(fd);
+	    this->_fdTable.remove(fd);
       this->_endConnection(sockPair.first, sockPair.second);
       return (false);
     }
@@ -175,9 +183,8 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   {
     close(fd);
     this->_monitor.remove(index);
-	this->_fdTable.remove(fd);
+	  this->_fdTable.remove(fd);
   }
-  this->_monitor[sockPair.second].events = POLLOUT;
   return (true);
 }
 
@@ -186,32 +193,25 @@ bool  Server::_openFile(int const socket, int const index,
 {
   if (!this->_fileHandler.openFile(connData.filePath, connData.fileFd))
     return (false);
-  this->_monitor.add(connData.fileFd, POLLIN);
+  this->_monitor.add(connData.fileFd, POLLIN | POLLOUT);
   this->_fdTable.add(connData.fileFd,
                       new std::pair<int,std::size_t>(socket, index));
-  /*
-  **  Do not check for events from this client socket until we receive data
-  **  from file or cgi program.
-  */
-  this->_monitor[index].events = 0;
   return (true);
 }
 
-void  Server::_sendRedirect(ConnectionData & connData, int const index,
-                                std::string const & redirUrl)
+void  Server::_sendRedirect(ConnectionData & connData,
+                              std::string const & redirUrl)
 {
   this->_response.buildRedirect(connData, redirUrl);
-  this->_monitor[index].events = POLLOUT;
   return ;
 }
 
-void  Server::_sendListDir(ConnectionData & connData, int const index)
+void  Server::_sendListDir(ConnectionData & connData)
 {  
   this->_response.buildDirList(
     connData, connData.urlData.find("Path")->second,
     connData.getLocation()->root
   );
-  this->_monitor[index].events = POLLOUT;
   return ;
 }
 
@@ -238,7 +238,6 @@ void  Server::_sendError(int const socket, int const index, int error)
       return ;
   }
   this->_response.buildError(connData, error);
-  this->_monitor[index].events = POLLOUT;
   return ;
 }
 
@@ -289,7 +288,7 @@ bool  Server::_prepareGet(int socket, std::size_t index, int & error)
   {
     connData.filePath.clear();
     if (loc->dir_list == true && !connData.urlData.count("FileName"))
-      this->_sendListDir(connData, index);
+      this->_sendListDir(connData);
     else
     {
       error = 404; // Not Found
@@ -327,7 +326,7 @@ bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
 
   if (loc->redirection != "")
   {
-    this->_sendRedirect(connData, index, loc->redirection);
+    this->_sendRedirect(connData, loc->redirection);
   }
   else if (reqMethod == "GET")
   {
@@ -467,7 +466,6 @@ void  Server::_handleClientRead(int socket, std::size_t index)
             << " with path "
             << this->_fdTable.getConnSock(socket).req.getPetit("Path")
             << std::endl;
-            //<< this->_connectionSockets[fd].req.getPetit("Path")
   if (!this->_validRequest(socket, error)
       || !this->_prepareResponse(socket, index, error))
     this->_sendError(socket, index, error);
@@ -570,7 +568,7 @@ void  Server::_acceptConn(int listenSocket)
       close(newConn);
       continue ;
     }
-    this->_monitor.add(newConn, POLLIN);
+    this->_monitor.add(newConn, POLLIN | POLLOUT);
     /*
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
@@ -604,39 +602,40 @@ void  Server::_handleEvent(std::size_t index)
     if (!this->_cgiHandler.receiveData(fd, this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
       return ; //Handle Error
     if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
-		== this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesRead)
+		    == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
       this->_monitor.remove(index);
-	  this->_fdTable.remove(fd);
+	    this->_fdTable.remove(fd);
       close(fd); //close pipe read fd
       return ;
     }
-    // Check again for POLLOUT event of client socket associated to cgi pipe fd
-    if (!this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent)
-      this->_monitor[this->_fdTable.getPipe(fd).connIndex].events = POLLOUT;
   }
-  //else if (this->_fileFds.count(fd))
   else if (this->_fdTable.getType(fd) == File)
   {
-    // A file fd is ready to read.
-    if (!this->_fillFileResponse(fd, index))
-      std::cout << "Error reading file" << std::endl;
-  }
-  else if (this->_monitor[index].revents & POLLIN)
-  {
-    // Connected client socket is ready to read without blocking
-    this->_handleClientRead(fd, index);
+    if (this->_monitor[index].revents & POLLIN)
+    {
+      // A file fd is ready to read.
+      if (!this->_fillFileResponse(fd, index))
+        std::cout << "Error reading file" << std::endl;
+    }
   }
   else
   {
-    // Connected client socket is ready to write without blocking
-    //if (this->_connectionSockets[fd].rspBuffSize)
-    if (this->_fdTable.getConnSock(fd).rspBuffSize)
-      this->_sendData(fd, index);
-    //if (this->_connectionSockets[fd].totalBytesSent == this->_connectionSockets[fd].rspSize)
-    if (this->_fdTable.getConnSock(fd).totalBytesSent
-		== this->_fdTable.getConnSock(fd).rspSize)
-      this->_endConnection(fd, index);
+    if (this->_monitor[index].revents & POLLIN)
+    {
+      // Connected client socket is ready to read without blocking
+      this->_handleClientRead(fd, index);
+    }
+    if (this->_monitor[index].revents & POLLOUT)
+    {
+      // Connected client socket is ready to write without blocking
+      if (this->_fdTable.getConnSock(fd).rspBuffSize)
+        this->_sendData(fd, index);
+      if (this->_fdTable.getConnSock(fd).totalBytesSent
+          == this->_fdTable.getConnSock(fd).rspSize
+          && this->_fdTable.getConnSock(fd).totalBytesSent)
+        this->_endConnection(fd, index);
+    }
   }
 }
 
