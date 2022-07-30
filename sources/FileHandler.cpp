@@ -19,6 +19,21 @@ bool	FileHandler::openFile(std::string const & filePath, int & fd)
 }
 
 /*
+**	If no processes have the file open, it is deleted. Otherwise,
+**	it will not be deleted until the last file descriptor
+**	referring to it is closed.
+**
+**	remove returns -1 on failure, 0 otherwise.
+*/
+
+bool	FileHandler::removeFile(std::string const & filePath) const
+{
+	if (remove(filePath.c_str()))
+		return (false);
+	return (true);
+}
+
+/*
 **	Read file for the first time, adding headers before file content in rsp.
 **
 **	Provisional
