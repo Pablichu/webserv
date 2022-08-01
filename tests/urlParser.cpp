@@ -58,12 +58,14 @@ void  file(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(!res.count("Path_Info") && !res.count("Query_String"));
   res.clear();
   input = "/I/want/this/file.html/";
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/I/want/this/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   /*
   **  If Path_Info has data and fileName is not a CGI script,
   **  return NOT FOUND error page to user.
@@ -75,6 +77,7 @@ void  file(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.php");
   assert(res["FileName"] == "file.php");
+  assert(res["FileType"] == ".php");
   assert(!res.count("Path_Info") && !res.count("Query_String"));
   res.clear();
 }
@@ -107,6 +110,7 @@ void  query(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/search/something.cgi");
   assert(res["FileName"] == "something.cgi");
+  assert(res["FileType"] == ".cgi");
   assert(res["Query_String"] == "come_on=vamos");
   assert(!res.count("Path_Info"));
   res.clear();
@@ -138,6 +142,7 @@ void  pathInfo(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/");
   assert(!res.count("Query_String"));
   res.clear();
@@ -145,6 +150,7 @@ void  pathInfo(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/hello");
   assert(!res.count("Query_String"));
   res.clear();
@@ -152,6 +158,7 @@ void  pathInfo(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/hello/");
   assert(!res.count("Query_String"));
   res.clear();
@@ -159,6 +166,7 @@ void  pathInfo(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/hello/world/");
   assert(!res.count("Query_String"));
   res.clear();
@@ -174,6 +182,7 @@ void  mix(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/hello/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/goodbye");
   assert(res["Query_String"] == "hola=adios");
   res.clear();
@@ -181,6 +190,7 @@ void  mix(void)
   assert(urlParser.parse(input, res) == true);
   assert(res["Path"] == "/hello/file.html");
   assert(res["FileName"] == "file.html");
+  assert(res["FileType"] == ".html");
   assert(res["Path_Info"] == "/goodbye/world/");
   assert(res["Query_String"] == "hola=adios");
   res.clear();
