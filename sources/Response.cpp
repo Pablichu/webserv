@@ -2,12 +2,14 @@
 
 Response::Response(FdTable & fdTable, Monitor & monitor)
   : _fdTable(fdTable), _monitor(monitor),
-    _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor)))
+    _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor))),
+    _deleteProcessor(*(new DeleteProcessor(*this, _fdTable, _monitor)))
 {}
 
 Response::~Response(void)
 {
   delete &(this->_getProcessor);
+  delete &(this->_deleteProcessor);
   return ;
 }
 
@@ -31,6 +33,17 @@ void  Response::buildRedirect(ConnectionData & connData,
 
   content = "HTTP/1.1 301 " + HttpInfo::statusCode.find(301)->second + '\n';
   content += "Location: " + url + "\n\n";
+  this->_buildResponse(connData, content);
+  return ;
+}
+
+void  Response::buildDeleted(ConnectionData & connData)
+{
+  std::string content;
+
+  content = "HTTP/1.1 200 OK\n";
+  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content.append("<html><body><h1>File deleted.</h1></body></html>");
   this->_buildResponse(connData, content);
   return ;
 }
@@ -118,8 +131,8 @@ bool  Response::process(int const sockFd, std::size_t const monitorIndex,
   }
   else //Delete
   {
-    /*if (!this->_prepareDelete(sockFd, monitorIndex, error))
-      return (false);*/
+    if (!this->_deleteProcessor.start(sockFd, monitorIndex, error))
+      return (false);
   }
   return (true);
 }

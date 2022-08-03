@@ -15,6 +15,7 @@ SRC =	main.cpp \
 		$(ROOT)/FdTable.cpp \
 		$(ROOT)/Processor.cpp \
 		$(ROOT)/GetProcessor.cpp \
+		$(ROOT)/DeleteProcessor.cpp \
 		$(ROOT)/UrlParser.cpp \
 		$(ROOT)/utils.cpp \
 		$(ROOT)/Response.cpp \

@@ -13,6 +13,7 @@
 #include "FileHandler.hpp"
 #include "CgiHandler.hpp"
 #include "GetProcessor.hpp"
+#include "DeleteProcessor.hpp"
 #include "HttpInfo.hpp"
 
 /*
@@ -22,16 +23,18 @@
 */
 
 class	GetProcessor;
+class	DeleteProcessor;
 
 class	Response
 {
 
 private:
 
-	FdTable &				_fdTable;
-	Monitor &				_monitor;
-	GetProcessor &	_getProcessor;
-	std::size_t			bytesSent;
+	FdTable &					_fdTable;
+	Monitor &					_monitor;
+	GetProcessor &		_getProcessor;
+	DeleteProcessor &	_deleteProcessor;
+	std::size_t				bytesSent;
 
 	void	_buildResponse(ConnectionData & connData, std::string const & content);
 	Response(void);
@@ -45,6 +48,7 @@ public:
 	~Response(void);
 
 	void	buildRedirect(ConnectionData & connData, std::string const & url);
+	void	buildDeleted(ConnectionData & connData);
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
