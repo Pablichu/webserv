@@ -448,14 +448,17 @@ void  Server::_handleClientRead(int socket, std::size_t index)
 
   if (!this->_receiveData(socket))
     return this->_endConnection(socket, index); //TODO: Handle Error
-  std::cout << "Data received for "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Host")
-            << " with path "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Path")
-            << std::endl;
-  if (!this->_validRequest(socket, error)
-      || !this->_prepareResponse(socket, index, error))
-    this->_sendError(socket, index, error);
+  if (!this->_fdTable.getConnSock(socket).req.getDataState())
+  {
+    std::cout << "Data received for "
+              << this->_fdTable.getConnSock(socket).req.getPetit("Host")
+              << " with path "
+              << this->_fdTable.getConnSock(socket).req.getPetit("Path")
+              << std::endl;
+    if (!this->_validRequest(socket, error)
+        || !this->_prepareResponse(socket, index, error))
+      this->_sendError(socket, index, error);
+  }
 }
 
 /*
@@ -489,31 +492,34 @@ void  Server::_sendData(int socket, std::size_t index)
 
 bool  Server::_receiveData(int socket)
 {
-  std::string       reqData;
   std::size_t const buffLen = 500;
   char              buff[buffLen + 1];
   int               len;
+  Request			*req = &this->_fdTable.getConnSock(socket).req;
 
-  std::fill(buff, buff + buffLen + 1, 0);
   /*
   **  TODO: Handle this recv in a truly non-blocking way.
   */
-  while (1)
+  req->getDataState() = true;
+  std::fill(buff, buff + buffLen + 1, 0);
+
+  len = recv(socket, buff, buffLen, 0);
+  if (len == 0)
   {
-    len = recv(socket, buff, buffLen, 0);
-    if (len == 0)
-    {
-      std::cout << "Client connection closed unexpectedly." << std::endl;
-      return (false);
-    }
-    if (len < 0)
-      break ;
-    reqData.append(buff, len);
-    std::fill(buff, buff + buffLen, 0);
+    std::cout << "Client connection closed unexpectedly." << std::endl;
+    return (false);
   }
-  this->_fdTable.getConnSock(socket).req.process(reqData);
-  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                    this->_fdTable.getConnSock(socket).urlData);  
+  req->getData().append(buff, len);
+  //if (len < 0) //THIS MUST NOT BE COMENTED WORK IN PROGRESS
+    req->getDataState() = false;
+
+  if (!req->getDataState())
+  {
+	std::cout << "AQUI ENTRO" << std::endl;
+    this->_fdTable.getConnSock(socket).req.process();
+    UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
+                      this->_fdTable.getConnSock(socket).urlData);  
+  }
   return (true);
 }
 
@@ -583,7 +589,7 @@ void  Server::_handleEvent(std::size_t index)
     // New client/s connected to one of listening sockets
     this->_acceptConn(fd);
   }
-  else if (this->_fdTable.getType(fd) == Pipe)
+  else if (fdType == Pipe)
   {
     // Read pipe from cgi program is ready to read
     if (!this->_cgiHandler.receiveData(fd, this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
@@ -597,7 +603,7 @@ void  Server::_handleEvent(std::size_t index)
       return ;
     }
   }
-  else if (this->_fdTable.getType(fd) == File)
+  else if (fdType == File)
   {
     if (this->_monitor[index].revents & POLLIN)
     {

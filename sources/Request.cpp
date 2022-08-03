@@ -8,11 +8,12 @@ Request::~Request() {}
 *  To avoid generating a copy of reqData, consider passing
 *  std::string const & reqData, but to do this, reqData.erase() cannot be used.
 */
-void  Request::process(std::string reqData)
+void  Request::process(void)
 {
   std::string	buff;
 	size_t		pos;
 	size_t		rpos;
+	std::string reqData = this->getData();
 
 	//First line
 	pos = reqData.find(" ");
@@ -67,4 +68,15 @@ std::map<std::string, std::string>::iterator	Request::end()
 std::map<std::string, std::string>	Request::getHeaders(void)
 {
 	return (this->_values);
+}
+
+
+bool &	Request::getDataState(void)
+{
+	return this->_fdData.state;
+}
+
+std::string &	Request::getData(void)
+{
+	return this->_fdData.data;
 }
