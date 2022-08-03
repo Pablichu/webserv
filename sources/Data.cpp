@@ -1,7 +1,8 @@
 #include "Data.hpp"
 
-CgiData::CgiData(int socket, std::size_t connIndex) : socket(socket),
-                  connIndex(connIndex)
+CgiData::CgiData(int const socket, std::size_t const connIndex,
+                  std::string const & filePath)
+                : socket(socket), connIndex(connIndex), filePath(filePath)
 {
   std::fill(this->inPipe, this->inPipe + 2, 0);
   std::fill(this->outPipe, this->outPipe + 2, 0);
@@ -51,10 +52,10 @@ ServerConfig const *  ConnectionData::getServer(void)
   return ((*this->portConfigs)[this->serverIndex]);
 }
 
-LocationConfig  ConnectionData::getLocation(void)
+LocationConfig const *  ConnectionData::getLocation(void)
 {
   if (!this->portConfigs->size())
-    return (LocationConfig());
-  return (this->getServer()->location[this->locationIndex]);
+    return (0);
+  return (&this->getServer()->location[this->locationIndex]);
 }
 
