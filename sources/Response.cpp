@@ -1,14 +1,14 @@
 #include "Response.hpp"
 
-Response::Response(FdTable & fdTable, Monitor & monitor) : _fdTable(fdTable),
-                    _monitor(monitor), _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor)))
-{
-  //this->_getProcessor = new GetProcessor(*this, this->_fdTable, this->_monitor);
-}
+Response::Response(FdTable & fdTable, Monitor & monitor)
+  : _fdTable(fdTable), _monitor(monitor),
+    _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor)))
+{}
 
 Response::~Response(void)
 {
   delete &(this->_getProcessor);
+  return ;
 }
 
 void  Response::_buildResponse(ConnectionData & connData,
