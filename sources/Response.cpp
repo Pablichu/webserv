@@ -1,88 +1,15 @@
 #include "Response.hpp"
 
-std::string const Response::protocol = "HTTP/1.1";
-
-InitStatusCode::InitStatusCode(void)
+Response::Response(FdTable & fdTable, Monitor & monitor) : _fdTable(fdTable),
+                    _monitor(monitor), _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor)))
 {
-  this->m.insert(
-    std::pair<int const, std::string const>(200, "OK"));
-  this->m.insert(
-    std::pair<int const, std::string const>(201, "Created"));
-  this->m.insert(
-    std::pair<int const, std::string const>(301, "Moved Permanently"));
-  this->m.insert(
-    std::pair<int const, std::string const>(308, "Permanent Redirect"));
-  this->m.insert(
-    std::pair<int const, std::string const>(400, "Bad Request"));
-  this->m.insert(
-    std::pair<int const, std::string const>(404, "Not Found"));
-  this->m.insert(
-    std::pair<int const, std::string const>(405, "Method Not Allowed"));
-  this->m.insert(
-    std::pair<int const, std::string const>(413, "Payload Too Large"));
-  this->m.insert(
-    std::pair<int const, std::string const>(415, "Unsupported Media Type"));
-  this->m.insert(
-    std::pair<int const, std::string const>(500, "Internal Server Error"));
-  this->m.insert(
-    std::pair<int const, std::string const>(505, ""));
+  //this->_getProcessor = new GetProcessor(*this, this->_fdTable, this->_monitor);
 }
 
-std::map<int const, std::string const> const
-  Response::statusCode(InitStatusCode().m);
-
-InitContentType::InitContentType(void)
+Response::~Response(void)
 {
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".css", "text/css"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".gif", "image/gif"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".html", "text/html"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".htm", "text/html"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".ico", "image/vnd.microsoft.icon"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".jpeg", "image/jpeg"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".jpg", "image/jpeg"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".js", "application/javascript"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".json", "application/json"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".mp3", "audio/mpeg"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".png", "image/png"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".rar", "application/vnd.rar"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".tar", "application/x-tar"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".txt", "text/plain"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".wav", "audio/wav"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".xml", "application/xml"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(".zip", "application/zip"));
-  this->m.insert(
-    std::pair<std::string const, std::string const>(
-      ".7z", "application/x-7z-compressed"));
+  delete &(this->_getProcessor);
 }
-
-std::map<std::string const, std::string const> const
-  Response::contentType(InitContentType().m);
-
-Response::Response(void) {}
-
-Response::~Response(void) {}
 
 void  Response::_buildResponse(ConnectionData & connData,
                                 std::string const & content)
@@ -102,7 +29,7 @@ void  Response::buildRedirect(ConnectionData & connData,
 {
   std::string content;
 
-  content = "HTTP/1.1 301 " + Response::statusCode.find(301)->second + '\n';
+  content = "HTTP/1.1 301 " + HttpInfo::statusCode.find(301)->second + '\n';
   content += "Location: " + url + "\n\n";
   this->_buildResponse(connData, content);
   return ;
@@ -154,7 +81,7 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
 void  Response::buildError(ConnectionData & connData, int const error)
 {
   std::string const errorCode = utils::toString<int>(error);
-  std::string const errorDescription = Response::statusCode.find(error)->second;
+  std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
   std::string       content;
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + '\n';
@@ -168,6 +95,65 @@ void  Response::buildError(ConnectionData & connData, int const error)
   return ;
 }
 
+bool  Response::process(int const sockFd, std::size_t const monitorIndex,
+                        int & error)
+{
+  ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
+  LocationConfig const *  loc = connData.getLocation();
+  std::string const       reqMethod = connData.req.getPetit("Method");
+
+  if (loc->redirection != "")
+  {
+    this->buildRedirect(connData, loc->redirection);
+  }
+  else if (reqMethod == "GET")
+  {
+    if (!this->_getProcessor.start(sockFd, monitorIndex, error))
+      return (false);
+  }
+  else if (reqMethod == "POST")
+  {
+    /*if (!this->_preparePost(sockFd, monitorIndex, error))
+      return (false);*/
+  }
+  else //Delete
+  {
+    /*if (!this->_prepareDelete(sockFd, monitorIndex, error))
+      return (false);*/
+  }
+  return (true);
+}
+
+/*
+**  Provisional. More than one error page might be available.
+**
+**  Idea. Create folder for each host:port config where error pages
+**  will be stored as errorcode.html. ex: 404.html, 500.html.
+**  And search in that folder for errorFolderPath + '/' + errorCode.html,
+**  if not found, buildError.
+*/
+
+void  Response::sendError(int const socket, int const index, int error)
+{
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+
+  if (error == 404) //Not Found
+  {
+    connData.filePath = connData.getServer()->not_found_page;
+    connData.rspStatus = error; //Provisional
+    if (!this->fileHandler.openFile(connData.filePath, connData.fileFd))
+      error = 500; //An error ocurred while opening file
+    else
+    {
+      this->_monitor.add(connData.fileFd, POLLIN | POLLOUT);
+      this->_fdTable.add(connData.fileFd,
+                          new std::pair<int,std::size_t>(socket, index));
+      return ;
+    }
+  }
+  this->buildError(connData, error);
+  return ;
+}
 
 /*
 **	Sends read file content to client socket. It may be called more than once

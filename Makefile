@@ -6,15 +6,18 @@ CXXFLAGS = -Wall -Werror -Wextra -Iincludes -fsanitize=address -g3 -std=c++98 -p
 
 SRC =	main.cpp \
 		$(ROOT)/Config.cpp \
+		$(ROOT)/HttpInfo.cpp \
+		$(ROOT)/Data.cpp \
 		$(ROOT)/Request.cpp \
-		$(ROOT)/Response.cpp \
 		$(ROOT)/CgiHandler.cpp \
 		$(ROOT)/FileHandler.cpp \
 		$(ROOT)/Monitor.cpp \
 		$(ROOT)/FdTable.cpp \
-		$(ROOT)/Data.cpp \
+		$(ROOT)/Processor.cpp \
+		$(ROOT)/GetProcessor.cpp \
 		$(ROOT)/UrlParser.cpp \
 		$(ROOT)/utils.cpp \
+		$(ROOT)/Response.cpp \
 		$(ROOT)/Server.cpp
 
 OBJ =	$(SRC:.cpp=.o)

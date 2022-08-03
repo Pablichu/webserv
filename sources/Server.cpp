@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-Server::Server(void)
+Server::Server(void) : _response(_fdTable, _monitor)
 {
   return ;
 }
@@ -112,45 +112,6 @@ void  Server::_endConnection(int fd, size_t connIndex)
   return ;
 }
 
-bool  Server::_launchCgi(int socket, ConnectionData & conn,
-                          std::size_t connIndex)
-{
-  CgiData * cgiData;
-  /*
-  **  ADD CGI write and read pipe fds to this->_monitor
-  **  and to this->_cgiPipes (Future fd direct address table)
-  */
-  cgiData = new CgiData(socket, connIndex, conn.filePath);
-  if (!this->_cgiHandler.initPipes(*cgiData,
-      *this->_cgiHandler.getEnv(conn.req.getHeaders(), conn.urlData, conn.ip)))
-  {
-    delete cgiData;
-    return (false);
-  }
-  //Set non-blocking pipe fds
-  if (fcntl(cgiData->getWInPipe(), F_SETFL, O_NONBLOCK)
-      || fcntl(cgiData->getROutPipe(), F_SETFL, O_NONBLOCK))
-  {
-    std::cerr << "Could not set non-blocking pipe fds" << std::endl;
-    close(cgiData->getWInPipe());
-    close(cgiData->getROutPipe());
-    delete cgiData;
-    return (false);
-  }
-  //Provisional, need to check writen bytes after each call, as it is non-blocking
-  write(cgiData->getWInPipe(), "Hola Mundo!", 11);
-  close(cgiData->getWInPipe());
-  //Associate read pipe fd with cgi class instance
-  this->_fdTable.add(cgiData->getROutPipe(), cgiData);
-  //Check POLLIN event of read pipe fd with poll()
-  /*
-  **  Determine if it makes sense to check for POLLOUT if it is never
-  **  going to be used for listening sockets.
-  */
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
-  return (true);
-}
-
 /*
 **  Calls the appropiate Response's readFile method.
 */
@@ -162,7 +123,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
 
   if (!connData.totalBytesRead)
   {
-    if (!this->_fileHandler.readFileFirst(fd, connData))
+    if (!this->_response.fileHandler.readFileFirst(fd, connData))
     {
       this->_endConnection(sockPair.first, sockPair.second);
       return (false);
@@ -170,7 +131,7 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   }
   else
   {
-    if (!this->_fileHandler.readFileNext(fd, connData))
+    if (!this->_response.fileHandler.readFileNext(fd, connData))
     {
       close(fd);
       this->_monitor.remove(index);
@@ -184,151 +145,6 @@ bool  Server::_fillFileResponse(int const fd, int const index)
     close(fd);
     this->_monitor.remove(index);
 	  this->_fdTable.remove(fd);
-  }
-  return (true);
-}
-
-bool  Server::_openFile(int const socket, int const index,
-                          ConnectionData & connData)
-{
-  if (!this->_fileHandler.openFile(connData.filePath, connData.fileFd))
-    return (false);
-  this->_monitor.add(connData.fileFd, POLLIN | POLLOUT);
-  this->_fdTable.add(connData.fileFd,
-                      new std::pair<int,std::size_t>(socket, index));
-  return (true);
-}
-
-/*
-**  Provisional. More than one error page might be available.
-**
-**  Idea. Create folder for each host:port config where error pages
-**  will be stored as errorcode.html. ex: 404.html, 500.html.
-**  And search in that folder for errorFolderPath + '/' + errorCode.html,
-**  if not found, buildError.
-*/
-
-void  Server::_sendError(int const socket, int const index, int error)
-{
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
-
-  if (error == 404) //Not Found
-  {
-    connData.filePath = connData.getServer()->not_found_page;
-    connData.rspStatus = error; //Provisional
-    if (!this->_openFile(socket, index, connData))
-      error = 500; //An error ocurred while opening file
-    else
-      return ;
-  }
-  this->_response.buildError(connData, error);
-  return ;
-}
-
-/*
-**  Provisional, this should be handled in Response class.
-**
-**  A hash table could be implemented to avoid some file I/O and
-**  increase response efficiency.
-**
-**  If user sets a cgi file as default, the complete path,
-**  including the cgi_dir, must be provided in proprty "default_file"
-**  of config file.
-*/
-
-bool  Server::_getFilePath(ConnectionData & connData) const
-{
-  LocationConfig const *  loc = connData.getLocation();
-  std::map<std::string, std::string>::iterator  fileName;
-  std::ifstream           file;
-
-  connData.filePath = loc->root + '/';
-  fileName = connData.urlData.find("FileName");
-  if (fileName != connData.urlData.end()) //FileName present in request uri
-  { //Provisional. Need to check multiple cgi extensions if necessary (php, cgi, py, etc.)
-    if (connData.urlData.find("FileType")->second != ".cgi") //Requested file is not cgi
-      connData.filePath.append(fileName->second);
-    else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
-      connData.filePath = loc->cgi_dir + '/' + fileName->second;
-    else //Requested file is cgi, but no cgi_dir exists in this location
-      return (false);
-  }
-  else //FileName not present in request uri
-    connData.filePath.append(loc->default_file);
-  file.open(connData.filePath.c_str());
-  if (file.is_open()) //Requested file exists
-    file.close();
-  else //Requested file does not exist
-    return (false);
-  return (true);
-}
-
-bool  Server::_prepareGet(int socket, std::size_t index, int & error)
-{
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
-  LocationConfig const *  loc = connData.getLocation();
-
-  if (!this->_getFilePath(connData))
-  {
-    connData.filePath.clear();
-    if (loc->dir_list == true && !connData.urlData.count("FileName"))
-    {
-      this->_response.buildDirList(
-        connData, connData.urlData.find("Path")->second, loc->root);
-    }
-    else
-    {
-      error = 404; // Not Found
-      return (false);
-    }
-  }
-  else
-  {
-    if (connData.filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
-    {
-      if (!this->_launchCgi(socket, connData, index))
-      {
-        error = 500; // Internal Server Error
-        return (false);
-      }
-    }
-    else
-    {
-      if(!this->_openFile(socket, index, connData))
-      {
-        error = 500; // Internal Server Error
-        return (false);
-      }
-      connData.rspStatus = 200; //Provisional
-    }
-  }
-  return (true);
-}
-
-bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
-{
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
-  LocationConfig const *  loc = connData.getLocation();
-  std::string const       reqMethod = connData.req.getPetit("Method");
-
-  if (loc->redirection != "")
-  {
-    this->_response.buildRedirect(connData, loc->redirection);
-  }
-  else if (reqMethod == "GET")
-  {
-    if (!this->_prepareGet(socket, index, error))
-      return (false);
-  }
-  else if (reqMethod == "POST")
-  {
-    /*if (!this->_preparePost(socket, index, error))
-      return (false);*/
-  }
-  else //Delete
-  {
-    /*if (!this->_prepareDelete(socket, index, error))
-      return (false);*/
   }
   return (true);
 }
@@ -442,20 +258,24 @@ bool  Server::_validRequest(int socket, int & error)
   return (true);
 }
 
-void  Server::_handleClientRead(int socket, std::size_t index)
+bool  Server::_handleClientRead(int socket, std::size_t index)
 {
   int error = 0;
 
   if (!this->_receiveData(socket))
-    return this->_endConnection(socket, index); //TODO: Handle Error
+  {
+    this->_endConnection(socket, index); //TODO: Handle Error
+    return (false);
+  }
   std::cout << "Data received for "
             << this->_fdTable.getConnSock(socket).req.getPetit("Host")
             << " with path "
             << this->_fdTable.getConnSock(socket).req.getPetit("Path")
             << std::endl;
   if (!this->_validRequest(socket, error)
-      || !this->_prepareResponse(socket, index, error))
-    this->_sendError(socket, index, error);
+      || !this->_response.process(socket, index, error))
+    this->_response.sendError(socket, index, error);
+  return (true);
 }
 
 /*
@@ -586,10 +406,12 @@ void  Server::_handleEvent(std::size_t index)
   else if (this->_fdTable.getType(fd) == Pipe)
   {
     // Read pipe from cgi program is ready to read
-    if (!this->_cgiHandler.receiveData(fd, this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
+    if (!this->_response.cgiHandler.receiveData(fd,
+        this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
       return ; //Handle Error
     if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
-		    == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesRead)
+		    == this->_fdTable.getConnSock(
+          this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
       this->_monitor.remove(index);
 	    this->_fdTable.remove(fd);
@@ -611,7 +433,8 @@ void  Server::_handleEvent(std::size_t index)
     if (this->_monitor[index].revents & POLLIN)
     {
       // Connected client socket is ready to read without blocking
-      this->_handleClientRead(fd, index);
+      if (!this->_handleClientRead(fd, index))
+        return ;
     }
     if (this->_monitor[index].revents & POLLOUT)
     {

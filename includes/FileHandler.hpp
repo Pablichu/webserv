@@ -1,6 +1,10 @@
 #pragma once
 
-#include "webserv.hpp"
+#include <fcntl.h>
+
+#include "Data.hpp"
+#include "HttpInfo.hpp"
+#include "utils.hpp"
 
 class FileHandler
 {

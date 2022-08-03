@@ -56,13 +56,13 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 		close(fd);
 		return (false);
 	}
-	headers << Response::protocol
+	headers << HttpInfo::protocol
 					<< " " << connData.rspStatus << " "
-					<< Response::statusCode.find(connData.rspStatus)->second
+					<< HttpInfo::statusCode.find(connData.rspStatus)->second
 					<< '\n';
 	headers << "Content-length: " << connData.fileSize << '\n';
 	headers << "Content-type: "
-					<< Response::contentType.find(
+					<< HttpInfo::contentType.find(
 							utils::getFileExtension(connData.filePath)
 							)->second + "; charset=utf-8"
 					<< "\n\n";

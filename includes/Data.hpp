@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "Config.hpp"
+#include "Request.hpp"
 
 struct  ServerConfig;
 struct  LocationConfig;

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "Config.hpp"
+#include "Data.hpp"
 
 struct  ServerConfig;
 
