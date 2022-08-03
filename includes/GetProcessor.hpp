@@ -15,6 +15,7 @@ class GetProcessor : public Processor
 private:
 
   Response &  _response;
+
   bool  _getFilePath(ConnectionData & connData) const;
   bool  _launchCGI(ConnectionData & connData, int const sockFd,
                     std::size_t const monitorIndex) const;
