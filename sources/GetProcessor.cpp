@@ -19,9 +19,9 @@ GetProcessor::~GetProcessor(void)
 
 bool  GetProcessor::_getFilePath(ConnectionData & connData) const
 {
-  LocationConfig const *  loc = connData.getLocation();
+  LocationConfig const *                        loc = connData.getLocation();
   std::map<std::string, std::string>::iterator  fileName;
-  std::ifstream           file;
+  std::ifstream                                 file;
 
   connData.filePath = loc->root + '/';
   fileName = connData.urlData.find("FileName");
