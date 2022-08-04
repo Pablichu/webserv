@@ -444,11 +444,11 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket, std::size_t index)
 {
-  int error = 0;
+  //int error = 0;
 
   if (!this->_receiveData(socket))
     return this->_endConnection(socket, index); //TODO: Handle Error
-  if (!this->_fdTable.getConnSock(socket).req.getDataState())
+  /*if (!this->_fdTable.getConnSock(socket).req.getDataState())
   {
     std::cout << "Data received for "
               << this->_fdTable.getConnSock(socket).req.getPetit("Host")
@@ -458,7 +458,7 @@ void  Server::_handleClientRead(int socket, std::size_t index)
     if (!this->_validRequest(socket, error)
         || !this->_prepareResponse(socket, index, error))
       this->_sendError(socket, index, error);
-  }
+  }*/
 }
 
 /*
@@ -500,6 +500,7 @@ bool  Server::_receiveData(int socket)
   /*
   **  TODO: Handle this recv in a truly non-blocking way.
   */
+  //std::cout << "RECIEVE DATA" << std::endl;
   req->getDataState() = true;
   std::fill(buff, buff + buffLen + 1, 0);
 
@@ -510,16 +511,6 @@ bool  Server::_receiveData(int socket)
     return (false);
   }
   req->getData().append(buff, len);
-  //if (len < 0) //THIS MUST NOT BE COMENTED WORK IN PROGRESS
-    req->getDataState() = false;
-
-  if (!req->getDataState())
-  {
-	std::cout << "AQUI ENTRO" << std::endl;
-    this->_fdTable.getConnSock(socket).req.process();
-    UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                      this->_fdTable.getConnSock(socket).urlData);  
-  }
   return (true);
 }
 
@@ -616,11 +607,29 @@ void  Server::_handleEvent(std::size_t index)
   {
     if (this->_monitor[index].revents & POLLIN)
     {
+	  //std::cout << "Pollin" << std::endl;
       // Connected client socket is ready to read without blocking
       this->_handleClientRead(fd, index);
-    }
-    if (this->_monitor[index].revents & POLLOUT)
-    {
+      }
+      if (this->_monitor[index].revents & POLLOUT)
+      {
+   	    if (this->_fdTable.getConnSock(fd).req.getDataState() == true) //THIS MUST NOT BE COMENTED WORK IN PROGRESS
+        {
+          this->_fdTable.getConnSock(fd).req.getDataState() = false;
+          this->_fdTable.getConnSock(fd).req.process();
+          UrlParser().parse(this->_fdTable.getConnSock(fd).req.getPetit("Path"),
+                            this->_fdTable.getConnSock(fd).urlData);
+		  std::cout << "Data received for "
+                    << this->_fdTable.getConnSock(fd).req.getPetit("Host")
+                    << " with path "
+                    << this->_fdTable.getConnSock(fd).req.getPetit("Path")
+                    << std::endl;
+		   int error = 0;
+           if (!this->_validRequest(fd, error)
+             || !this->_prepareResponse(fd, index, error))
+           this->_sendError(fd, index, error);
+        }
+	  //std::cout << "POLLOUT" << std::endl;
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).rspBuffSize)
         this->_sendData(fd, index);
