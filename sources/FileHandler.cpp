@@ -60,6 +60,7 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 					<< " " << connData.rspStatus << " "
 					<< HttpInfo::statusCode.find(connData.rspStatus)->second
 					<< '\n';
+	headers << "Date: " << utils::getDate() << '\n';
 	headers << "Content-length: " << connData.fileSize << '\n';
 	headers << "Content-type: "
 					<< HttpInfo::contentType.find(
