@@ -59,14 +59,14 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 	headers << HttpInfo::protocol
 					<< " " << connData.rspStatus << " "
 					<< HttpInfo::statusCode.find(connData.rspStatus)->second
-					<< '\n';
-	headers << "Date: " << utils::getDate() << '\n';
-	headers << "Content-length: " << connData.fileSize << '\n';
+					<< "\r\n";
+	headers << "Date: " << utils::getDate() << "\r\n";
+	headers << "Content-length: " << connData.fileSize << "\r\n";
 	headers << "Content-type: "
 					<< HttpInfo::contentType.find(
 							utils::getFileExtension(connData.filePath)
 							)->second + "; charset=utf-8"
-					<< "\n\n";
+					<< "\r\n\r\n";
 	headersSize = headers.str().size();
 	connData.rspBuff.replace(0, headersSize, headers.str());
 	bytesRead = read(fd, &connData.rspBuff[headersSize],

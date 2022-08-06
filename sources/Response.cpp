@@ -31,9 +31,9 @@ void  Response::buildRedirect(ConnectionData & connData,
 {
   std::string content;
 
-  content = "HTTP/1.1 301 " + HttpInfo::statusCode.find(301)->second + '\n';
-  content = "Date: " + utils::getDate() + '\n';
-  content += "Location: " + url + "\n\n";
+  content = "HTTP/1.1 301 " + HttpInfo::statusCode.find(301)->second + "\r\n";
+  content += "Date: " + utils::getDate() + "\r\n";
+  content += "Location: " + url + "\r\n\r\n";
   this->_buildResponse(connData, content);
   return ;
 }
@@ -42,9 +42,9 @@ void  Response::buildDeleted(ConnectionData & connData)
 {
   std::string content;
 
-  content = "HTTP/1.1 200 OK\n";
-  content = "Date: " + utils::getDate() + '\n';
-  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content = "HTTP/1.1 200 OK\r\n";
+  content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   content.append("<html><body><h1>File deleted.</h1></body></html>");
   this->_buildResponse(connData, content);
   return ;
@@ -57,9 +57,9 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
   struct dirent * elem;
   std::string     content;
 
-  content = "HTTP/1.1 200 OK\n";
-  content = "Date: " + utils::getDate() + '\n';
-  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content = "HTTP/1.1 200 OK\r\n";
+  content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   content.append("<html><head><title>Index of ");
   content.append(uri);
   content.append("</title></head><body><h1>Index of ");
@@ -100,9 +100,9 @@ void  Response::buildError(ConnectionData & connData, int const error)
   std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
   std::string       content;
 
-  content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + '\n';
-  content = "Date: " + utils::getDate() + '\n';
-  content.append("Content-type: text/html; charset=utf-8\n\n");
+  content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
+  content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   content.append("<html><head><title>");
   content.append(errorCode + ' ' + errorDescription);
   content.append("</title></head><body><h1>");
