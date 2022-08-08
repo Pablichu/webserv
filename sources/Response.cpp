@@ -153,18 +153,20 @@ bool  Response::process(int const sockFd, std::size_t const monitorIndex,
 void  Response::sendError(int const socket, int const index, int error)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  FileData *        fileData;
 
   if (error == 404) //Not Found
   {
-    connData.filePath = connData.getServer()->not_found_page;
+    fileData = new FileData(connData.getServer()->not_found_page,
+                            socket, index);
     connData.rspStatus = error; //Provisional
-    if (!this->fileHandler.openFile(connData.filePath, connData.fileFd))
+    if (!this->fileHandler.openFile(fileData->filePath, fileData->fd))
       error = 500; //An error ocurred while opening file
     else
     {
-      this->_monitor.add(connData.fileFd, POLLIN | POLLOUT);
-      this->_fdTable.add(connData.fileFd,
-                          new std::pair<int,std::size_t>(socket, index));
+      this->_monitor.add(fileData->fd, POLLIN | POLLOUT);
+      this->_fdTable.add(fileData->fd, fileData);
+      connData.fileData = fileData;
       return ;
     }
   }

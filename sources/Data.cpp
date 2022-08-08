@@ -2,7 +2,8 @@
 
 CgiData::CgiData(int const socket, std::size_t const connIndex,
                   std::string const & filePath)
-                : socket(socket), connIndex(connIndex), filePath(filePath)
+                : index(0), socket(socket), connIndex(connIndex),
+                  filePath(filePath)
 {
   std::fill(this->inPipe, this->inPipe + 2, 0);
   std::fill(this->outPipe, this->outPipe + 2, 0);
@@ -29,9 +30,18 @@ int CgiData::getWOutPipe(void) const
   return (this->outPipe[1]);
 }
 
+FileData::FileData(std::string const & filePath, int const socket,
+                    std::size_t const connIndex) : fd(0), index(0),
+                                                    socket(socket),
+                                                    connIndex(connIndex),
+                                                    filePath(filePath)
+{
+  return ;
+}
+
 ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
-  fileFd(-1), fileSize(0), totalBytesRead(0), totalBytesSent(0), rspSize(0),
-  rspBuffSize(0), rspBuffOffset(0)
+  totalBytesRead(0), totalBytesSent(0), rspSize(0), rspBuffSize(0),
+  rspBuffOffset(0), fileData(0), cgiData(0)
 {
   /*
   **  To simulate a Buffer of 8K

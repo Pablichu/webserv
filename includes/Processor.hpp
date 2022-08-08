@@ -15,9 +15,11 @@ protected:
 
   FdTable &     _fdTable;
 	Monitor &     _monitor;
-  virtual bool  _getFilePath(ConnectionData & connData) const = 0;
+  virtual bool  _getFilePath(ConnectionData & connData,
+                              std::string & filePath) const = 0;
   virtual bool  _launchCGI(ConnectionData & conn, int const sockFd,
-                            std::size_t const connIndex) const = 0;
+                            std::size_t const connIndex,
+                            std::string const & filePath) const = 0;
 
 public:
 

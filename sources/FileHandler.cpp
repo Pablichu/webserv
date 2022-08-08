@@ -41,12 +41,13 @@ bool	FileHandler::removeFile(std::string const & filePath) const
 
 bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 {
+	FileData &				fileData = *(connData.fileData);
 	std::stringstream	headers;
 	std::size_t				headersSize;
 	std::size_t				bytesRead;
 
-	connData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
-	if (connData.fileSize == -1)
+	fileData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
+	if (fileData.fileSize == -1)
 	{
 		close(fd);
 		return (false);
@@ -61,10 +62,10 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 					<< HttpInfo::statusCode.find(connData.rspStatus)->second
 					<< "\r\n";
 	headers << "Date: " << utils::getDate() << "\r\n";
-	headers << "Content-length: " << connData.fileSize << "\r\n";
+	headers << "Content-length: " << fileData.fileSize << "\r\n";
 	headers << "Content-type: "
 					<< HttpInfo::contentType.find(
-							utils::getFileExtension(connData.filePath)
+							utils::getFileExtension(fileData.filePath)
 							)->second + "; charset=utf-8"
 					<< "\r\n\r\n";
 	headersSize = headers.str().size();
@@ -78,7 +79,7 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 	}
 	connData.rspBuffSize = bytesRead + headersSize;
 	connData.totalBytesRead = bytesRead;
-	connData.rspSize = headersSize + connData.fileSize;
+	connData.rspSize = headersSize + fileData.fileSize;
 	return (true);
 }
 

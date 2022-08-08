@@ -104,11 +104,49 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
   return (true);
 }
 
+/*
+**  Order of removals is important. fdTable deletes fileData and cgiData.
+**
+**  IMPORTANT!!!
+**
+**  Closing the fd must be done after using it to remove its associated
+**  data structures, otherwise that fd could be assigned to another connection,
+**  and when removing the data structure, it would be removing one from other
+**  connection.
+*/
+
 void  Server::_endConnection(int fd, size_t connIndex)
 {
-  close(fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
+  int               associatedFd;
+
+  if (connData.fileData)
+  { // Order of removals is important. fdTable deletes fileData.
+    if (connData.fileData->index) // An assigned file index can never be 0
+      this->_monitor.remove(connData.fileData->index);
+    if (connData.fileData->fd) // An assigned file fd can never be 0
+    {
+      associatedFd = connData.fileData->fd;
+      this->_fdTable.remove(associatedFd);
+      close(associatedFd);
+    }
+    connData.fileData = 0;
+  }
+  else if (connData.cgiData)
+  { // Order of removals is important. fdTable deletes cgiData.
+    if (connData.cgiData->index) // An assigned pipe index can never be 0
+      this->_monitor.remove(connData.cgiData->index);
+    if (connData.cgiData->getROutPipe()) // An assigned pipe fd can never be 0
+    {
+      associatedFd = connData.cgiData->getROutPipe();
+      this->_fdTable.remove(associatedFd);
+      close(associatedFd);
+    }
+    connData.cgiData = 0;
+  }
   this->_monitor.remove(connIndex);
   this->_fdTable.remove(fd);
+  close(fd);
   return ;
 }
 
@@ -118,14 +156,14 @@ void  Server::_endConnection(int fd, size_t connIndex)
 
 bool  Server::_fillFileResponse(int const fd, int const index)
 {
-  std::pair<int, std::size_t> sockPair = this->_fdTable.getFile(fd);
-  ConnectionData &            connData = this->_fdTable.getConnSock(sockPair.first);
+  FileData &        fileData = this->_fdTable.getFile(fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket);
 
   if (!connData.totalBytesRead)
   {
     if (!this->_response.fileHandler.readFileFirst(fd, connData))
     {
-      this->_endConnection(sockPair.first, sockPair.second);
+      this->_endConnection(fileData.socket, fileData.connIndex);
       return (false);
     }
   }
@@ -133,18 +171,16 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   {
     if (!this->_response.fileHandler.readFileNext(fd, connData))
     {
-      close(fd);
-      this->_monitor.remove(index);
-	    this->_fdTable.remove(fd);
-      this->_endConnection(sockPair.first, sockPair.second);
+      this->_endConnection(fileData.socket, fileData.connIndex);
       return (false);
     }
   }
-  if (static_cast<long>(connData.totalBytesRead) == connData.fileSize)
+  if (static_cast<long>(connData.totalBytesRead) == fileData.fileSize)
   {
-    close(fd);
     this->_monitor.remove(index);
 	  this->_fdTable.remove(fd);
+    close(fd);
+    connData.fileData = 0;
   }
   return (true);
 }
@@ -292,15 +328,7 @@ void  Server::_sendData(int socket, std::size_t index)
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
   if (!this->_response.sendData(socket, sockData))
-  {
-    if (this->_fdTable.getType(sockData.fileFd) == File)
-    { //fileFd is still present in fdTable and therefore, it is still open.
-      close(sockData.fileFd);
-	    this->_fdTable.remove(sockData.fileFd);
-      this->_monitor.remove(sockData.fileFd);
-    }
     this->_endConnection(socket, index);
-  }
 }
 
 /*
@@ -413,6 +441,8 @@ void  Server::_handleEvent(std::size_t index)
 		    == this->_fdTable.getConnSock(
           this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
+      //Order of removals and close is important!!!
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
       this->_monitor.remove(index);
 	    this->_fdTable.remove(fd);
       close(fd); //close pipe read fd
@@ -425,7 +455,7 @@ void  Server::_handleEvent(std::size_t index)
     {
       // A file fd is ready to read.
       if (!this->_fillFileResponse(fd, index))
-        std::cout << "Error reading file" << std::endl;
+        std::cout << "Error reading file fd: " << fd << std::endl;
     }
   }
   else

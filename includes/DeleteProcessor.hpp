@@ -16,10 +16,12 @@ private:
 
   Response &  _response;
 
-  bool  _getFilePath(ConnectionData & connData) const;
+  bool  _getFilePath(ConnectionData & connData, std::string & filePath) const;
   bool  _launchCGI(ConnectionData & connData, int const sockFd,
-                    std::size_t const monitorIndex) const;
-  bool  _removeFile(ConnectionData & connData) const;
+                    std::size_t const monitorIndex,
+                    std::string const & filePath) const;
+  bool  _removeFile(ConnectionData & connData,
+                    std::string const & filePath) const;
   DeleteProcessor(void);
 
 public:

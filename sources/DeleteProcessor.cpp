@@ -8,7 +8,8 @@ DeleteProcessor::DeleteProcessor(Response & response, FdTable & fdTable,
 
 DeleteProcessor::~DeleteProcessor(void) {}
 
-bool  DeleteProcessor::_getFilePath(ConnectionData & connData) const
+bool  DeleteProcessor::_getFilePath(ConnectionData & connData,
+                                    std::string & filePath) const
 {
   LocationConfig const *                        loc = connData.getLocation();
   std::map<std::string, std::string>::iterator  fileName;
@@ -21,16 +22,16 @@ bool  DeleteProcessor::_getFilePath(ConnectionData & connData) const
     {
       if (loc->upload_dir == "")
         return (false);
-      connData.filePath = loc->upload_dir + '/' + fileName->second;
+      filePath = loc->upload_dir + '/' + fileName->second;
     }
     else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
-      connData.filePath = loc->cgi_dir + '/' + fileName->second;
+      filePath = loc->cgi_dir + '/' + fileName->second;
     else //Requested file is cgi, but no cgi_dir exists in this location
       return (false);
   }
   else
     return (false); //Maybe 400 Bad Request instead of 404 is better in this case?
-  file.open(connData.filePath.c_str());
+  file.open(filePath.c_str());
   if (file.is_open()) //Requested file exists
     file.close();
   else //Requested file does not exist
@@ -39,14 +40,15 @@ bool  DeleteProcessor::_getFilePath(ConnectionData & connData) const
 }
 
 bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
-                                std::size_t const monitorIndex) const
+                                  std::size_t const monitorIndex,
+                                  std::string const & filePath) const
 {
   CgiData * cgiData;
   /*
   **  ADD CGI write and read pipe fds to this->_monitor
   **  and to this->_cgiPipes (Future fd direct address table)
   */
-  cgiData = new CgiData(sockFd, monitorIndex, connData.filePath);
+  cgiData = new CgiData(sockFd, monitorIndex, filePath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData, connData.ip)))
@@ -75,14 +77,17 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   **  going to be used for listening sockets.
   */
   this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
+  cgiData->index = this->_monitor.len() - 1;
+  connData.cgiData = cgiData;
   return (true);
 }
 
-bool  DeleteProcessor::_removeFile(ConnectionData & connData) const
+bool  DeleteProcessor::_removeFile(ConnectionData & connData,
+                                    std::string const & filePath) const
 {
   std::string content;
 
-  if (!this->_response.fileHandler.removeFile(connData.filePath))
+  if (!this->_response.fileHandler.removeFile(filePath))
     return (false);
   //Build success response directly
   this->_response.buildDeleted(connData);
@@ -92,19 +97,20 @@ bool  DeleteProcessor::_removeFile(ConnectionData & connData) const
 bool  DeleteProcessor::start(int const sockFd, std::size_t const monitorIndex,
                               int & error) const
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(sockFd);
+  std::string       filePath;
 
-  if (!this->_getFilePath(connData))
+  if (!this->_getFilePath(connData, filePath))
   {
-    connData.filePath.clear();
+    filePath.clear();
     error = 404; // Not Found
     return (false);
   }
   else
   {
-    if (connData.filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
+    if (filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
     {
-      if (!this->_launchCGI(connData, sockFd, monitorIndex))
+      if (!this->_launchCGI(connData, sockFd, monitorIndex, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -112,7 +118,7 @@ bool  DeleteProcessor::start(int const sockFd, std::size_t const monitorIndex,
     }
     else
     {
-      if(!this->_removeFile(connData))
+      if(!this->_removeFile(connData, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
