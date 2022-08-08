@@ -510,7 +510,7 @@ bool  Server::start(void)
     handlingCount = 0;
     for (std::size_t i = 0; i < this->_monitor.len(); ++i)
     { // INEFFICIENT!! USE kqueue INSTEAD of poll
-      if (this->_monitor[i].revents == 0)
+      if (this->_monitor[i].revents == 0 || this->_monitor[i].fd == -1)
         continue;
       this->_handleEvent(i);
       // To stop iterating when total events have been handled
@@ -518,6 +518,6 @@ bool  Server::start(void)
         break ;
     }
     this->_monitor.purge();
-  } 
+  }
   return (true);
 }
