@@ -311,7 +311,9 @@ void  Server::_handleClientRead(int socket, std::size_t index)
             << this->_fdTable.getConnSock(socket).req.getPetit("Host")
             << " with path "
             << this->_fdTable.getConnSock(socket).req.getPetit("Path")
-            << std::endl;
+            << " | Buffer reached: "
+			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
+			<< std::endl;
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, index, error))
     this->_response.sendError(socket, index, error);
@@ -354,6 +356,7 @@ bool  Server::_receiveData(int socket)
     return (false);
   }
   reqData.append(buff, len);
+  this->_fdTable.getConnSock(socket).req.updateLoop(true);
 
 /*  this->_fdTable.getConnSock(socket).req.process();
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),

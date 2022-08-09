@@ -24,4 +24,5 @@ class	Request
 
 		bool &			getDataSate(void);
 		std::string &	getData(void);
+		size_t 			updateLoop(bool loop);
 };

@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() {}
+Request::Request() : _dataState(false), _loops(0) {}
 
 Request::~Request() {}
 
@@ -78,4 +78,11 @@ bool &			Request::getDataSate(void)
 std::string &	Request::getData(void)
 {
 	return this->_data;
+}
+
+size_t	Request::updateLoop(bool loop)
+{
+	if (loop)
+		this->_loops++;
+	return this->_loops;
 }
