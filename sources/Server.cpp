@@ -294,15 +294,19 @@ bool  Server::_validRequest(int socket, int & error)
   return (true);
 }
 
-bool  Server::_handleClientRead(int socket, std::size_t index)
+void  Server::_handleClientRead(int socket, std::size_t index)
 {
   int error = 0;
 
-  if (!this->_receiveData(socket))
+  /*if (!this->_receiveData(socket))
   {
     this->_endConnection(socket, index); //TODO: Handle Error
     return (false);
-  }
+  }*/
+  this->_fdTable.getConnSock(socket).req.getDataSate() = false;
+  this->_fdTable.getConnSock(socket).req.process();
+  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
+                    this->_fdTable.getConnSock(socket).urlData);
   std::cout << "Data received for "
             << this->_fdTable.getConnSock(socket).req.getPetit("Host")
             << " with path "
@@ -311,7 +315,6 @@ bool  Server::_handleClientRead(int socket, std::size_t index)
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, index, error))
     this->_response.sendError(socket, index, error);
-  return (true);
 }
 
 /*
@@ -337,31 +340,24 @@ void  Server::_sendData(int socket, std::size_t index)
 
 bool  Server::_receiveData(int socket)
 {
-  std::string       reqData;
-  std::size_t const buffLen = 500;
+  std::string &      reqData = this->_fdTable.getConnSock(socket).req.getData();
+  std::size_t const buffLen = 8000;
   char              buff[buffLen + 1];
   int               len;
 
+  this->_fdTable.getConnSock(socket).req.getDataSate() = true;
   std::fill(buff, buff + buffLen + 1, 0);
-  /*
-  **  TODO: Handle this recv in a truly non-blocking way.
-  */
-  while (1)
+  len = recv(socket, buff, buffLen, 0);
+  if (len == 0)
   {
-    len = recv(socket, buff, buffLen, 0);
-    if (len == 0)
-    {
-      std::cout << "Client connection closed unexpectedly." << std::endl;
-      return (false);
-    }
-    if (len < 0)
-      break ;
-    reqData.append(buff, len);
-    std::fill(buff, buff + buffLen, 0);
+    std::cout << "Client connection closed unexpectedly." << std::endl;
+    return (false);
   }
-  this->_fdTable.getConnSock(socket).req.process(reqData);
+  reqData.append(buff, len);
+
+/*  this->_fdTable.getConnSock(socket).req.process();
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                    this->_fdTable.getConnSock(socket).urlData);  
+                    this->_fdTable.getConnSock(socket).urlData);*/
   return (true);
 }
 
@@ -463,11 +459,16 @@ void  Server::_handleEvent(std::size_t index)
     if (this->_monitor[index].revents & POLLIN)
     {
       // Connected client socket is ready to read without blocking
-      if (!this->_handleClientRead(fd, index))
-        return ;
+	  if (!this->_receiveData(fd))
+  	  {
+    	this->_endConnection(fd, index); //TODO: Handle Error
+    	return ;
+  	  }
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {
+	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
+      	this->_handleClientRead(fd, index);
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).rspBuffSize)
         this->_sendData(fd, index);

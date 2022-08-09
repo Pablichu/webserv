@@ -35,7 +35,7 @@ class	Server
 												std::size_t & index, std::string const & reqHost);
 		bool	_matchConfig(int socket);
 		bool  _validRequest(int socket, int & error);
-		bool  _handleClientRead(int socket, std::size_t index);
+		void  _handleClientRead(int socket, std::size_t index);
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);
