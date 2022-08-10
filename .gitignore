@@ -4,5 +4,5 @@ a.out
 request
 *.o
 webserv
-tests/tmp.config.json
+tests/tmp_config.json
 tests/www
