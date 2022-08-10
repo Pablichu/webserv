@@ -30,3 +30,24 @@ std::string utils::extractPort(std::string const & input)
 {
   return (input.substr(input.rfind(":") + 1));
 }
+
+/*
+**  Returns current date in RFC 822 format
+*/
+
+std::string utils::getDate(void)
+{
+  time_t      rawTime;
+  tm  *       timePtr;
+  int const   dateLen = 30;
+  char        date[dateLen + 1];
+  std::string res;
+
+  std::fill(date, date + dateLen + 1, 0);
+  time(&rawTime);
+  timePtr = gmtime(&rawTime);
+  strftime(date, dateLen + 1, "%a, %d %b %Y %X ", timePtr);
+  res = date;
+  res.append("GMT");
+  return (res);
+}

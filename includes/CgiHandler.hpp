@@ -1,9 +1,10 @@
 #pragma once
 
-#include "webserv.hpp"
+#include <map>
+#include <stdlib.h>
 
-struct  CgiData;
-struct  ConnectionData;
+#include "Data.hpp"
+#include "utils.hpp"
 
 class CgiHandler
 {

@@ -4,3 +4,8 @@ a.out
 request
 *.o
 webserv
+<<<<<<< HEAD
+=======
+tests/tmp_config.json
+tests/www
+>>>>>>> non-blocking
