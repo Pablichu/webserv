@@ -60,7 +60,7 @@ FdTable::_serializeConnSock(ConnectionData *  ptr)
 }
 
 uintptr_t
-FdTable::_serializeFile(std::pair< int, std::size_t> *  ptr)
+FdTable::_serializeFile(FileData *  ptr)
 {
 	return reinterpret_cast<uintptr_t>(ptr);
 }
@@ -87,10 +87,10 @@ FdTable::_deserializeConnSock(uintptr_t raw)
 	return reinterpret_cast<ConnectionData * >(raw);
 }
 
-std::pair< int, std::size_t> *
+FileData *
 FdTable::_deserializeFile(uintptr_t raw)
 {
-	return reinterpret_cast<std::pair< int, std::size_t> * >(raw);
+	return reinterpret_cast<FileData * >(raw);
 }
 
 CgiData *
@@ -113,7 +113,7 @@ ConnectionData & FdTable::getConnSock(int const fd)
   return (*this->_deserializeConnSock(this->_table[fd].second));
 }
 
-std::pair< int, std::size_t> & FdTable::getFile(int const fd)
+FileData & FdTable::getFile(int const fd)
 {
   return (*this->_deserializeFile(this->_table[fd].second));
 }
@@ -168,7 +168,7 @@ FdTable::add(int const fd, ConnectionData * data)//Connection Data
 }
 
 bool
-FdTable::add(int const fd, std::pair< int, std::size_t> * data)//File
+FdTable::add(int const fd, FileData * data)//File
 {
 	if (!this->_littleAddChecker(fd))
 		return (false);

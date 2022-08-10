@@ -35,6 +35,8 @@ void  CgiHandler::_addEnvVar(std::vector<char *> & env, std::string const & var)
   return ;
 }
 
+//Return vector of CGI environment variables
+
 std::vector<char *> *
 CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
                     std::map<std::string, std::string> const & urlData,

@@ -63,6 +63,19 @@ void  extractPort(void)
   return ;
 }
 
+void  getDate(void)
+{
+  std::string res;
+
+  res = utils::getDate();
+  assert(res.length() == 29);
+  assert(res.find(',') == 3);
+  assert(res.find(':') == 19);
+  assert(res.rfind(':') == 22);
+  assert(res.rfind("GMT") == 26);
+  return ;
+}
+
 int main(void)
 {
   std::cout << "\n--- UTILS TESTS ---\n";
@@ -74,6 +87,8 @@ int main(void)
   std::cout << "\nextractHost: OK\n";
   extractPort();
   std::cout << "\nextractPort: OK\n";
+  getDate();
+  std::cout << "\ngetDate: OK\n";
   std::cout << std::endl; 
   return (0);
 }

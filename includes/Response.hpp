@@ -8,43 +8,52 @@
 #include <dirent.h>
 
 #include "Data.hpp"
+#include "FdTable.hpp"
+#include "Monitor.hpp"
+#include "FileHandler.hpp"
+#include "CgiHandler.hpp"
+#include "GetProcessor.hpp"
+#include "DeleteProcessor.hpp"
+#include "HttpInfo.hpp"
 
-struct	ConnectionData;
+/*
+**	Circular dependency between Response and GetProcessor
+**	forced to add it here as a reference or pointer instead
+**	of declaring it in memory.
+*/
 
-struct	InitStatusCode
-{
-	std::map<int const, std::string const>	m;
-
-	InitStatusCode(void);
-};
-
-struct	InitContentType
-{
-	std::map<std::string const, std::string const>	m;
-
-	InitContentType(void);
-};
+class	GetProcessor;
+class	DeleteProcessor;
 
 class	Response
 {
+
 private:
 
-	std::size_t	bytesSent;
+	FdTable &					_fdTable;
+	Monitor &					_monitor;
+	GetProcessor &		_getProcessor;
+	DeleteProcessor &	_deleteProcessor;
+	std::size_t				bytesSent;
 
 	void	_buildResponse(ConnectionData & connData, std::string const & content);
+	Response(void);
 
 public:
 
-	static std::string const									protocol; // HTTP/1.1
-	static std::map<int const, std::string const> const			statusCode;
-	static std::map<std::string const, std::string const> const	contentType;
+	FileHandler	fileHandler;
+  CgiHandler  cgiHandler;	
 
-	Response(void);
+	Response(FdTable & fdTable, Monitor & monitor);
 	~Response(void);
 
 	void	buildRedirect(ConnectionData & connData, std::string const & url);
+	void	buildDeleted(ConnectionData & connData);
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
+	bool	process(int const sockFd, std::size_t const monitorIndex, int & error);
+	void	sendError(int const socket, int const index, int error);
 	bool	sendData(int const sockFd, ConnectionData & connData);
+
 };
