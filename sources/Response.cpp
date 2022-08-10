@@ -112,8 +112,7 @@ void  Response::buildError(ConnectionData & connData, int const error)
   return ;
 }
 
-bool  Response::process(int const sockFd, std::size_t const monitorIndex,
-                        int & error)
+bool  Response::process(int const sockFd, int & error)
 {
   ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
   LocationConfig const *  loc = connData.getLocation();
@@ -125,7 +124,7 @@ bool  Response::process(int const sockFd, std::size_t const monitorIndex,
   }
   else if (reqMethod == "GET")
   {
-    if (!this->_getProcessor.start(sockFd, monitorIndex, error))
+    if (!this->_getProcessor.start(sockFd, error))
       return (false);
   }
   else if (reqMethod == "POST")
@@ -135,7 +134,7 @@ bool  Response::process(int const sockFd, std::size_t const monitorIndex,
   }
   else //Delete
   {
-    if (!this->_deleteProcessor.start(sockFd, monitorIndex, error))
+    if (!this->_deleteProcessor.start(sockFd, error))
       return (false);
   }
   return (true);
@@ -150,15 +149,14 @@ bool  Response::process(int const sockFd, std::size_t const monitorIndex,
 **  if not found, buildError.
 */
 
-void  Response::sendError(int const socket, int const index, int error)
+void  Response::sendError(int const socket, int error)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(socket);
   FileData *        fileData;
 
   if (error == 404) //Not Found
   {
-    fileData = new FileData(connData.getServer()->not_found_page,
-                            socket, index);
+    fileData = new FileData(connData.getServer()->not_found_page, socket);
     connData.rspStatus = error; //Provisional
     if (!this->fileHandler.openFile(fileData->filePath, fileData->fd))
       error = 500; //An error ocurred while opening file

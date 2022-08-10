@@ -52,12 +52,25 @@ void  Monitor::add(int const fd, short const events)
 **  Mark an array element as removable when calling purge. 
 */
 
-void  Monitor::remove(std::size_t index)
+void  Monitor::removeByIndex(std::size_t const index)
 {
   if (index >= this->_len)
     return ;
   this->_fds[index].fd = -1;
   this->_removedIndexs.push_back(index);
+  return ;
+}
+
+void  Monitor::removeByFd(int const fd)
+{
+  for (size_t i = 0; i < this->_len; ++i)
+  {
+    if (this->_fds[i].fd == fd)
+    {
+      this->removeByIndex(i);
+      break ;
+    }
+  }
   return ;
 }
 

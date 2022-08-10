@@ -122,29 +122,21 @@ void  Server::_endConnection(int fd, size_t connIndex)
 
   if (connData.fileData)
   { // Order of removals is important. fdTable deletes fileData.
-    if (connData.fileData->index) // An assigned file index can never be 0
-      this->_monitor.remove(connData.fileData->index);
-    if (connData.fileData->fd) // An assigned file fd can never be 0
-    {
-      associatedFd = connData.fileData->fd;
-      this->_fdTable.remove(associatedFd);
-      close(associatedFd);
-    }
+    associatedFd = connData.fileData->fd;
+    this->_monitor.removeByFd(associatedFd);
+    this->_fdTable.remove(associatedFd);
+    close(associatedFd);
     connData.fileData = 0;
   }
   else if (connData.cgiData)
   { // Order of removals is important. fdTable deletes cgiData.
-    if (connData.cgiData->index) // An assigned pipe index can never be 0
-      this->_monitor.remove(connData.cgiData->index);
-    if (connData.cgiData->getROutPipe()) // An assigned pipe fd can never be 0
-    {
-      associatedFd = connData.cgiData->getROutPipe();
-      this->_fdTable.remove(associatedFd);
-      close(associatedFd);
-    }
+    associatedFd = connData.cgiData->getROutPipe();
+    this->_monitor.removeByFd(associatedFd);
+    this->_fdTable.remove(associatedFd);
+    close(associatedFd);
     connData.cgiData = 0;
   }
-  this->_monitor.remove(connIndex);
+  this->_monitor.removeByIndex(connIndex);
   this->_fdTable.remove(fd);
   close(fd);
   return ;
@@ -162,22 +154,22 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   if (!connData.totalBytesRead)
   {
     if (!this->_response.fileHandler.readFileFirst(fd, connData))
-    {
-      this->_endConnection(fileData.socket, fileData.connIndex);
+    { // Maybe try to return 500 error?
+      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
       return (false);
     }
   }
   else
-  {
+  { // Maybe try to return 500 error?
     if (!this->_response.fileHandler.readFileNext(fd, connData))
     {
-      this->_endConnection(fileData.socket, fileData.connIndex);
+      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
       return (false);
     }
   }
   if (static_cast<long>(connData.totalBytesRead) == fileData.fileSize)
   {
-    this->_monitor.remove(index);
+    this->_monitor.removeByIndex(index);
 	  this->_fdTable.remove(fd);
     close(fd);
     connData.fileData = 0;
@@ -309,8 +301,8 @@ bool  Server::_handleClientRead(int socket, std::size_t index)
             << this->_fdTable.getConnSock(socket).req.getPetit("Path")
             << std::endl;
   if (!this->_validRequest(socket, error)
-      || !this->_response.process(socket, index, error))
-    this->_response.sendError(socket, index, error);
+      || !this->_response.process(socket, error))
+    this->_response.sendError(socket, error);
   return (true);
 }
 
@@ -355,7 +347,11 @@ bool  Server::_receiveData(int socket)
       return (false);
     }
     if (len < 0)
+    {
+      if (!reqData.length())
+        return (false);
       break ;
+    }
     reqData.append(buff, len);
     std::fill(buff, buff + buffLen, 0);
   }
@@ -436,14 +432,17 @@ void  Server::_handleEvent(std::size_t index)
     // Read pipe from cgi program is ready to read
     if (!this->_response.cgiHandler.receiveData(fd,
         this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
-      return ; //Handle Error
+    { // Maybe try to return 500 error?
+      //Possible _endConnection function overload? this->_endConnection(this->_fdTable.getPipe(fd).socket, fd, index);
+      return ;
+    }
     if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
 		    == this->_fdTable.getConnSock(
           this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
       //Order of removals and close is important!!!
       this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
-      this->_monitor.remove(index);
+      this->_monitor.removeByIndex(index);
 	    this->_fdTable.remove(fd);
       close(fd); //close pipe read fd
       return ;
@@ -461,7 +460,7 @@ void  Server::_handleEvent(std::size_t index)
   else
   {
     if (this->_monitor[index].revents & POLLIN)
-    {
+    {  
       // Connected client socket is ready to read without blocking
       if (!this->_handleClientRead(fd, index))
         return ;
@@ -469,7 +468,7 @@ void  Server::_handleEvent(std::size_t index)
     else if (this->_monitor[index].revents & POLLOUT)
     {
       // Connected client socket is ready to write without blocking
-      if (this->_fdTable.getConnSock(fd).rspBuffSize)
+      if (this->_fdTable.getConnSock(fd).rspBuffSize)    
         this->_sendData(fd, index);
       if (this->_fdTable.getConnSock(fd).totalBytesSent
           == this->_fdTable.getConnSock(fd).rspSize
