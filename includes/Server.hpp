@@ -34,8 +34,8 @@ class	Server
 		void  _matchServer(std::vector<ServerConfig const *> & servers,
 												std::size_t & index, std::string const & reqHost);
 		bool	_matchConfig(int socket);
-		bool  _validRequest(int socket, int & error);
-		void  _handleClientRead(int socket, std::size_t index);
+		bool	_validRequest(int socket, int & error);
+		void	_handleClientRead(int socket);
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);

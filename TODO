@@ -45,3 +45,7 @@
   ❌ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ❌ · your server should work with one CGI (php-cgi, python...)
   ❌ · make the route able to accept uploaded files and configure where it should be saved
+
+Movidas del Peblo:
+-  chunked
+-  template for errors html

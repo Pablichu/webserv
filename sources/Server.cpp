@@ -286,15 +286,10 @@ bool  Server::_validRequest(int socket, int & error)
   return (true);
 }
 
-void  Server::_handleClientRead(int socket, std::size_t index)
+void  Server::_handleClientRead(int socket)
 {
   int error = 0;
 
-  /*if (!this->_receiveData(socket))
-  {
-    this->_endConnection(socket, index); //TODO: Handle Error
-    return (false);
-  }*/
   this->_fdTable.getConnSock(socket).req.getDataSate() = false;
   this->_fdTable.getConnSock(socket).req.process();
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
@@ -334,25 +329,20 @@ void  Server::_sendData(int socket, std::size_t index)
 
 bool  Server::_receiveData(int socket)
 {
-  std::string &      reqData = this->_fdTable.getConnSock(socket).req.getData();
-  std::size_t const buffLen = 8000;
-  char              buff[buffLen + 1];
+  ConnectionData &	cone = this->_fdTable.getConnSock(socket);
+  std::string &     reqData = cone.req.getData();
   int               len;
 
-  this->_fdTable.getConnSock(socket).req.getDataSate() = true;
-  std::fill(buff, buff + buffLen + 1, 0);
-  len = recv(socket, buff, buffLen, 0);
+  cone.req.getDataSate() = true;
+  len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
   if (len == 0)
   {
     std::cout << "Client connection closed unexpectedly." << std::endl;
     return (false);
   }
-  reqData.append(buff, len);
-  this->_fdTable.getConnSock(socket).req.updateLoop(true);
-
-/*  this->_fdTable.getConnSock(socket).req.process();
-  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                    this->_fdTable.getConnSock(socket).urlData);*/
+  reqData.append(cone.rspBuff);
+  cone.req.updateLoop(true);
+  std::fill(&cone.rspBuff[0], &cone.rspBuff[len], 0);
   return (true);
 }
 
