@@ -456,7 +456,7 @@ void  Server::_handleEvent(std::size_t index)
     else if (this->_monitor[index].revents & POLLOUT)
     {
 	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
-      	this->_handleClientRead(fd, index);
+      	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).rspBuffSize)    
         this->_sendData(fd, index);
