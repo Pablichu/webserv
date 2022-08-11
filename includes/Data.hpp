@@ -10,15 +10,12 @@ struct  LocationConfig;
 
 struct	CgiData
 {
-	std::size_t				index;
 	int const        	socket;
-  std::size_t const	connIndex;
 	std::string	const	filePath;
   int         			inPipe[2];
   int         			outPipe[2];
 
-	CgiData(int const socket, std::size_t const connIndex,
-					std::string const & filePath);
+	CgiData(int const socket, std::string const & filePath);
 
 	int getRInPipe(void) const;
   int getWInPipe(void) const;
@@ -29,14 +26,11 @@ struct	CgiData
 struct FileData
 {
 	int								fd;
-	std::size_t				index;
 	int const					socket;
-	std::size_t	const	connIndex;
 	std::string				filePath;
 	long							fileSize;
 
-	FileData(std::string const & filePath, int const socket,
-						std::size_t const connIndex);
+	FileData(std::string const & filePath, int const socket);
 };
 
 // One ConnectionData per client (connection) socket

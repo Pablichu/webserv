@@ -52,8 +52,8 @@ public:
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
-	bool	process(int const sockFd, std::size_t const monitorIndex, int & error);
-	void	sendError(int const socket, int const index, int error);
+	bool	process(int const sockFd, int & error);
+	void	sendError(int const socket, int error);
 	bool	sendData(int const sockFd, ConnectionData & connData);
 
 };

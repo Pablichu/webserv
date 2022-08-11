@@ -1,9 +1,7 @@
 #include "Data.hpp"
 
-CgiData::CgiData(int const socket, std::size_t const connIndex,
-                  std::string const & filePath)
-                : index(0), socket(socket), connIndex(connIndex),
-                  filePath(filePath)
+CgiData::CgiData(int const socket, std::string const & filePath)
+                : socket(socket), filePath(filePath)
 {
   std::fill(this->inPipe, this->inPipe + 2, 0);
   std::fill(this->outPipe, this->outPipe + 2, 0);
@@ -30,11 +28,8 @@ int CgiData::getWOutPipe(void) const
   return (this->outPipe[1]);
 }
 
-FileData::FileData(std::string const & filePath, int const socket,
-                    std::size_t const connIndex) : fd(0), index(0),
-                                                    socket(socket),
-                                                    connIndex(connIndex),
-                                                    filePath(filePath)
+FileData::FileData(std::string const & filePath, int const socket)
+                    : fd(0), socket(socket), filePath(filePath)
 {
   return ;
 }

@@ -40,7 +40,6 @@ bool  DeleteProcessor::_getFilePath(ConnectionData & connData,
 }
 
 bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
-                                  std::size_t const monitorIndex,
                                   std::string const & filePath) const
 {
   CgiData * cgiData;
@@ -48,7 +47,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   **  ADD CGI write and read pipe fds to this->_monitor
   **  and to this->_cgiPipes (Future fd direct address table)
   */
-  cgiData = new CgiData(sockFd, monitorIndex, filePath);
+  cgiData = new CgiData(sockFd, filePath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData, connData.ip)))
@@ -77,7 +76,6 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   **  going to be used for listening sockets.
   */
   this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
-  cgiData->index = this->_monitor.len() - 1;
   connData.cgiData = cgiData;
   return (true);
 }
@@ -94,8 +92,7 @@ bool  DeleteProcessor::_removeFile(ConnectionData & connData,
   return (true);
 }
 
-bool  DeleteProcessor::start(int const sockFd, std::size_t const monitorIndex,
-                              int & error) const
+bool  DeleteProcessor::start(int const sockFd, int & error) const
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(sockFd);
   std::string       filePath;
@@ -110,7 +107,7 @@ bool  DeleteProcessor::start(int const sockFd, std::size_t const monitorIndex,
   {
     if (filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
     {
-      if (!this->_launchCGI(connData, sockFd, monitorIndex, filePath))
+      if (!this->_launchCGI(connData, sockFd, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
