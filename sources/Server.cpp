@@ -340,7 +340,12 @@ bool  Server::_receiveData(int socket)
     std::cout << "Client connection closed unexpectedly." << std::endl;
     return (false);
   }
-  reqData.append(cone.rspBuff);
+  /*
+  **  Do not append as string, as it will append the entire buffer size
+  **  instead of only the non null elements encountered before the first
+  **  null element.
+  */
+  reqData.append(&cone.rspBuff[0]);
   cone.req.updateLoop(true);
   std::fill(&cone.rspBuff[0], &cone.rspBuff[len], 0);
   return (true);
@@ -412,7 +417,34 @@ void  Server::_handleEvent(std::size_t index)
     // New client/s connected to one of listening sockets
     this->_acceptConn(fd);
   }
-  else if (this->_fdTable.getType(fd) == Pipe)
+  else if (fdType == PipeWrite)
+  {
+    if (!this->_response.cgiHandler.sendBody(fd,
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
+    { // Maybe return 500 error?
+      // End connection, write failed.
+      return ;
+    }
+    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent
+        == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize)
+    {
+      /*
+      **  Close pipe fd, but do not delete CgiData structure,
+      **  only PipeRead type must do it, because it is shared between the two.
+      */
+      /*
+      **  The way of obtaining ConnectionData is provisional. This code will
+      **  be moved to another function.
+      */
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize = 0;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent = 0;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
+      this->_monitor.removeByIndex(index);
+	    this->_fdTable.remove(fd);
+      close(fd); //close pipe write fd
+    }
+  }
+  else if (fdType == PipeRead)
   {
     // Read pipe from cgi program is ready to read
     if (!this->_response.cgiHandler.receiveData(fd,
@@ -433,7 +465,7 @@ void  Server::_handleEvent(std::size_t index)
       return ;
     }
   }
-  else if (this->_fdTable.getType(fd) == File)
+  else if (fdType == File)
   {
     if (this->_monitor[index].revents & POLLIN)
     {

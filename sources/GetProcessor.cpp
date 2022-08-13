@@ -71,11 +71,17 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
     delete cgiData;
     return (false);
   }
-  //Provisional, need to check writen bytes after each call, as it is non-blocking
-  write(cgiData->getWInPipe(), "Hola Mundo!", 11);
-  close(cgiData->getWInPipe());
+  if (connData.req.getHeaders().find("Body") != connData.req.getHeaders().end())
+  {
+    //Associate write pipe fd with cgi class instance
+    this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
+    this->_monitor.add(cgiData->getWInPipe(), /*POLLIN |*/ POLLOUT);
+    connData.rspSize = connData.req.getPetit("Body").length();
+  }
+  else
+    close(cgiData->getWInPipe());
   //Associate read pipe fd with cgi class instance
-  this->_fdTable.add(cgiData->getROutPipe(), cgiData);
+  this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
   /*
   **  Determine if it makes sense to check for POLLOUT if it is never

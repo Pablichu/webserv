@@ -13,7 +13,8 @@ enum		FdType
 	ListenSock,
 	ConnSock,
 	File,
-	Pipe
+	PipeRead,
+  PipeWrite
 };
 
 class FdTable
@@ -49,7 +50,7 @@ public:
   bool  add(int const fd, std::vector< ServerConfig const * > * data);
   bool  add(int const fd, FileData * data);
   bool  add(int const fd, ConnectionData * data);
-  bool  add(int const fd, CgiData * data);
+  bool  add(int const fd, CgiData * data, bool const read);
   void  remove(int const fd);
 
 };

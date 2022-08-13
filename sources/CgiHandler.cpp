@@ -162,6 +162,31 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   return (true);
 }
 
+bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
+{
+  int                 len;
+  std::size_t &       totalBytesSent = connData.totalBytesSent;
+  std::string const & body = (connData.req.getHeaders())["Body"];
+
+  len = write(wPipe, &body[totalBytesSent], body.length() - totalBytesSent);
+  if (len == 0)
+  {
+    std::cout << "Could not write to pipe. It may be closed." << std::endl;
+    totalBytesSent = 0;
+    connData.rspSize = 0;
+    return (true);
+  }
+  if (len < 0)
+  {
+    std::cout << "Pipe error."
+              << "POLLOUT was received, and write returned < 0."
+              << std::endl;
+    return (false);
+  }
+  totalBytesSent += len;
+  return (true);
+}
+
 // execve fails with std::vector<char *> & env
 
 void  CgiHandler::_execProgram(CgiData const & cgiData,

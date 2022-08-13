@@ -24,6 +24,7 @@ public:
           std::map<std::string, std::string> const & urlData,
           std::string const & ip);
   bool	receiveData(int rPipe, ConnectionData & connData);
+  bool  sendBody(int wPipe, ConnectionData & connData);
   bool  initPipes(CgiData & cgiData, std::vector<char *> & env);
 
 };

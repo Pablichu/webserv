@@ -32,10 +32,11 @@ void  Request::process()
 	{
 		reqData.erase(0, rpos + 1);
 		//This takes the body in case there is
-		if (reqData[0] == '\n')
+		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
 		{
-			reqData.erase(0, 1);
-			this->_values["Body"] = reqData;
+			reqData.erase(0, 2);
+			if (reqData != "")
+				this->_values["Body"] = reqData.substr();
 			break ;
 		}
 		pos = reqData.find(":");
@@ -65,7 +66,7 @@ std::map<std::string, std::string>::iterator	Request::end()
 	return this->_values.end();
 }
 
-std::map<std::string, std::string>	Request::getHeaders(void)
+std::map<std::string, std::string> &	Request::getHeaders(void)
 {
 	return (this->_values);
 }

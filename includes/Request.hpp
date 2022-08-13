@@ -20,7 +20,7 @@ class	Request
 		const std::string	getPetit(std::string petition);
 		std::map<std::string, std::string>::iterator	begin();
 		std::map<std::string, std::string>::iterator	end();
-		std::map<std::string, std::string>	getHeaders(void);
+		std::map<std::string, std::string> &	getHeaders(void);
 
 		bool &			getDataSate(void);
 		std::string &	getData(void);
