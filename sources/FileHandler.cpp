@@ -19,6 +19,21 @@ bool	FileHandler::openFile(std::string const & filePath, int & fd)
 }
 
 /*
+**	If no processes have the file open, it is deleted. Otherwise,
+**	it will not be deleted until the last file descriptor
+**	referring to it is closed.
+**
+**	remove returns -1 on failure, 0 otherwise.
+*/
+
+bool	FileHandler::removeFile(std::string const & filePath) const
+{
+	if (remove(filePath.c_str()))
+		return (false);
+	return (true);
+}
+
+/*
 **	Read file for the first time, adding headers before file content in rsp.
 **
 **	Provisional
@@ -26,12 +41,13 @@ bool	FileHandler::openFile(std::string const & filePath, int & fd)
 
 bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 {
+	FileData &				fileData = *(connData.fileData);
 	std::stringstream	headers;
 	std::size_t				headersSize;
 	std::size_t				bytesRead;
 
-	connData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
-	if (connData.fileSize == -1)
+	fileData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
+	if (fileData.fileSize == -1)
 	{
 		close(fd);
 		return (false);
@@ -41,16 +57,17 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 		close(fd);
 		return (false);
 	}
-	headers << Response::protocol
+	headers << HttpInfo::protocol
 					<< " " << connData.rspStatus << " "
-					<< Response::statusCode.find(connData.rspStatus)->second
-					<< '\n';
-	headers << "Content-length: " << connData.fileSize << '\n';
+					<< HttpInfo::statusCode.find(connData.rspStatus)->second
+					<< "\r\n";
+	headers << "Date: " << utils::getDate() << "\r\n";
+	headers << "Content-length: " << fileData.fileSize << "\r\n";
 	headers << "Content-type: "
-					<< Response::contentType.find(
-							utils::getFileExtension(connData.filePath)
+					<< HttpInfo::contentType.find(
+							utils::getFileExtension(fileData.filePath)
 							)->second + "; charset=utf-8"
-					<< "\n\n";
+					<< "\r\n\r\n";
 	headersSize = headers.str().size();
 	connData.rspBuff.replace(0, headersSize, headers.str());
 	bytesRead = read(fd, &connData.rspBuff[headersSize],
@@ -62,7 +79,7 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 	}
 	connData.rspBuffSize = bytesRead + headersSize;
 	connData.totalBytesRead = bytesRead;
-	connData.rspSize = headersSize + connData.fileSize;
+	connData.rspSize = headersSize + fileData.fileSize;
 	return (true);
 }
 

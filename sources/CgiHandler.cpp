@@ -35,6 +35,8 @@ void  CgiHandler::_addEnvVar(std::vector<char *> & env, std::string const & var)
   return ;
 }
 
+//Return vector of CGI environment variables
+
 std::vector<char *> *
 CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
                     std::map<std::string, std::string> const & urlData,
@@ -160,24 +162,52 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   return (true);
 }
 
+bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
+{
+  int                 len;
+  std::size_t &       totalBytesSent = connData.totalBytesSent;
+  std::string const & body = (connData.req.getHeaders())["Body"];
+
+  len = write(wPipe, &body[totalBytesSent], body.length() - totalBytesSent);
+  if (len == 0)
+  {
+    std::cout << "Could not write to pipe. It may be closed." << std::endl;
+    totalBytesSent = 0;
+    connData.rspSize = 0;
+    return (true);
+  }
+  if (len < 0)
+  {
+    std::cout << "Pipe error."
+              << "POLLOUT was received, and write returned < 0."
+              << std::endl;
+    return (false);
+  }
+  totalBytesSent += len;
+  return (true);
+}
+
 // execve fails with std::vector<char *> & env
 
 void  CgiHandler::_execProgram(CgiData const & cgiData,
                                 std::vector<char *> env)
 {
   std::string programPath;
-  char **     argv;
+  char *      argv[1 + 1];
+  char **     envArr;
 
   programPath = cgiData.filePath;
-  argv = new char *[1 + 1];
   argv[1] = 0;
   argv[0] = const_cast<char *>(programPath.c_str());
+  envArr = new char *[env.size() + 1];
+  std::copy(env.begin(), env.end(), envArr);
+  envArr[env.size()] = 0;
   dup2(cgiData.inPipe[0], STDIN_FILENO);
   close(cgiData.inPipe[0]);
   dup2(cgiData.outPipe[1], STDOUT_FILENO);
   close(cgiData.outPipe[1]);
-  execve(programPath.c_str(), argv, &env[0]);
-  delete [] argv;
+  execve(programPath.c_str(), argv, envArr);
+  delete [] envArr;
 }
 
 bool  CgiHandler::initPipes(CgiData & cgiData, std::vector<char *> & env)

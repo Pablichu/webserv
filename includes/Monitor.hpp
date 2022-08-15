@@ -21,6 +21,9 @@ private:
   std::size_t             _cap;
   std::list<std::size_t>  _removedIndexs;
 
+  void	_increaseCap(void);
+  bool  _getLastValidElem(struct pollfd & elem, std::size_t const currPos);
+
 public:
 
   Monitor(void);
@@ -31,10 +34,8 @@ public:
   struct pollfd * getFds(void);
   std::size_t     len(void) const;
   void	          add(int const fd, short const events);
-  void	          remove(std::size_t index);
+  void	          removeByIndex(std::size_t const index);
+  void            removeByFd(int const fd);
   void            purge(void);
-
-  void	_increaseCap(void);
-  bool  _getLastValidElem(struct pollfd & elem, std::size_t const currPos);
 
 };

@@ -15,7 +15,7 @@
 👍 • Your program should have a config file in argument or use a default path.
 👍 • You should be able to serve a fully static website.
 👍 • You server should have default error pages if none are provided.
-⏳ • It must be non-blocking and use only 1 poll (or equivalent) for all the IO between the client and the server (listens includes).
+👍 • It must be non-blocking and use only 1 poll (or equivalent) for all the IO between the client and the server (listens includes).
 ⏳ • Your server should never block and the client should be bounce properly if necessary.
 ⏳ • A request to your server should never hang forever.
 ⏳ • You need at least GET, POST, and DELETE methods.
@@ -45,3 +45,11 @@
   ❌ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ❌ · your server should work with one CGI (php-cgi, python...)
   ❌ · make the route able to accept uploaded files and configure where it should be saved
+
+	<<<<<< BONUS >>>>>>
+		❌  Multiple CGI
+		❌  Cookies 🍪 
+
+Movidas del Peblo:
+-  chunked
+-  template for errors html

@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-Server::Server(void)
+Server::Server(void) : _response(_fdTable, _monitor)
 {
   return ;
 }
@@ -104,51 +104,42 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
   return (true);
 }
 
+/*
+**  Order of removals is important. fdTable deletes fileData and cgiData.
+**
+**  IMPORTANT!!!
+**
+**  Closing the fd must be done after using it to remove its associated
+**  data structures, otherwise that fd could be assigned to another connection,
+**  and when removing the data structure, it would be removing one from other
+**  connection.
+*/
+
 void  Server::_endConnection(int fd, size_t connIndex)
 {
-  close(fd);
-  this->_monitor.remove(connIndex);
-  this->_fdTable.remove(fd);
-  return ;
-}
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
+  int               associatedFd;
 
-bool  Server::_launchCgi(int socket, ConnectionData & conn,
-                          std::size_t connIndex)
-{
-  CgiData * cgiData;
-  /*
-  **  ADD CGI write and read pipe fds to this->_monitor
-  **  and to this->_cgiPipes (Future fd direct address table)
-  */
-  cgiData = new CgiData(socket, connIndex, conn.filePath);
-  if (!this->_cgiHandler.initPipes(*cgiData,
-      *this->_cgiHandler.getEnv(conn.req.getHeaders(), conn.urlData, conn.ip)))
-  {
-    delete cgiData;
-    return (false);
+  if (connData.fileData)
+  { // Order of removals is important. fdTable deletes fileData.
+    associatedFd = connData.fileData->fd;
+    this->_monitor.removeByFd(associatedFd);
+    this->_fdTable.remove(associatedFd);
+    close(associatedFd);
+    connData.fileData = 0;
   }
-  //Set non-blocking pipe fds
-  if (fcntl(cgiData->getWInPipe(), F_SETFL, O_NONBLOCK)
-      || fcntl(cgiData->getROutPipe(), F_SETFL, O_NONBLOCK))
-  {
-    std::cerr << "Could not set non-blocking pipe fds" << std::endl;
-    close(cgiData->getWInPipe());
-    close(cgiData->getROutPipe());
-    delete cgiData;
-    return (false);
+  else if (connData.cgiData)
+  { // Order of removals is important. fdTable deletes cgiData.
+    associatedFd = connData.cgiData->getROutPipe();
+    this->_monitor.removeByFd(associatedFd);
+    this->_fdTable.remove(associatedFd);
+    close(associatedFd);
+    connData.cgiData = 0;
   }
-  //Provisional, need to check writen bytes after each call, as it is non-blocking
-  write(cgiData->getWInPipe(), "Hola Mundo!", 11);
-  close(cgiData->getWInPipe());
-  //Associate read pipe fd with cgi class instance
-  this->_fdTable.add(cgiData->getROutPipe(), cgiData);
-  //Check POLLIN event of read pipe fd with poll()
-  /*
-  **  Determine if it makes sense to check for POLLOUT if it is never
-  **  going to be used for listening sockets.
-  */
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
-  return (true);
+  this->_monitor.removeByIndex(connIndex);
+  this->_fdTable.remove(fd);
+  close(fd);
+  return ;
 }
 
 /*
@@ -157,178 +148,31 @@ bool  Server::_launchCgi(int socket, ConnectionData & conn,
 
 bool  Server::_fillFileResponse(int const fd, int const index)
 {
-  std::pair<int, std::size_t> sockPair = this->_fdTable.getFile(fd);
-  ConnectionData &            connData = this->_fdTable.getConnSock(sockPair.first);
+  FileData &        fileData = this->_fdTable.getFile(fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket);
 
   if (!connData.totalBytesRead)
   {
-    if (!this->_fileHandler.readFileFirst(fd, connData))
-    {
-      this->_endConnection(sockPair.first, sockPair.second);
+    if (!this->_response.fileHandler.readFileFirst(fd, connData))
+    { // Maybe try to return 500 error?
+      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
       return (false);
     }
   }
   else
-  {
-    if (!this->_fileHandler.readFileNext(fd, connData))
+  { // Maybe try to return 500 error?
+    if (!this->_response.fileHandler.readFileNext(fd, connData))
     {
-      close(fd);
-      this->_monitor.remove(index);
-	    this->_fdTable.remove(fd);
-      this->_endConnection(sockPair.first, sockPair.second);
+      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
       return (false);
     }
   }
-  if (static_cast<long>(connData.totalBytesRead) == connData.fileSize)
+  if (static_cast<long>(connData.totalBytesRead) == fileData.fileSize)
   {
-    close(fd);
-    this->_monitor.remove(index);
+    this->_monitor.removeByIndex(index);
 	  this->_fdTable.remove(fd);
-  }
-  return (true);
-}
-
-bool  Server::_openFile(int const socket, int const index,
-                          ConnectionData & connData)
-{
-  if (!this->_fileHandler.openFile(connData.filePath, connData.fileFd))
-    return (false);
-  this->_monitor.add(connData.fileFd, POLLIN | POLLOUT);
-  this->_fdTable.add(connData.fileFd,
-                      new std::pair<int,std::size_t>(socket, index));
-  return (true);
-}
-
-/*
-**  Provisional. More than one error page might be available.
-**
-**  Idea. Create folder for each host:port config where error pages
-**  will be stored as errorcode.html. ex: 404.html, 500.html.
-**  And search in that folder for errorFolderPath + '/' + errorCode.html,
-**  if not found, buildError.
-*/
-
-void  Server::_sendError(int const socket, int const index, int error)
-{
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
-
-  if (error == 404) //Not Found
-  {
-    connData.filePath = connData.getServer()->not_found_page;
-    connData.rspStatus = error; //Provisional
-    if (!this->_openFile(socket, index, connData))
-      error = 500; //An error ocurred while opening file
-    else
-      return ;
-  }
-  this->_response.buildError(connData, error);
-  return ;
-}
-
-/*
-**  Provisional, this should be handled in Response class.
-**
-**  A hash table could be implemented to avoid some file I/O and
-**  increase response efficiency.
-**
-**  If user sets a cgi file as default, the complete path,
-**  including the cgi_dir, must be provided in proprty "default_file"
-**  of config file.
-*/
-
-bool  Server::_getFilePath(ConnectionData & connData) const
-{
-  LocationConfig const *  loc = connData.getLocation();
-  std::map<std::string, std::string>::iterator  fileName;
-  std::ifstream           file;
-
-  connData.filePath = loc->root + '/';
-  fileName = connData.urlData.find("FileName");
-  if (fileName != connData.urlData.end()) //FileName present in request uri
-  { //Provisional. Need to check multiple cgi extensions if necessary (php, cgi, py, etc.)
-    if (connData.urlData.find("FileType")->second != ".cgi") //Requested file is not cgi
-      connData.filePath.append(fileName->second);
-    else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
-      connData.filePath = loc->cgi_dir + '/' + fileName->second;
-    else //Requested file is cgi, but no cgi_dir exists in this location
-      return (false);
-  }
-  else //FileName not present in request uri
-    connData.filePath.append(loc->default_file);
-  file.open(connData.filePath.c_str());
-  if (file.is_open()) //Requested file exists
-    file.close();
-  else //Requested file does not exist
-    return (false);
-  return (true);
-}
-
-bool  Server::_prepareGet(int socket, std::size_t index, int & error)
-{
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
-  LocationConfig const *  loc = connData.getLocation();
-
-  if (!this->_getFilePath(connData))
-  {
-    connData.filePath.clear();
-    if (loc->dir_list == true && !connData.urlData.count("FileName"))
-    {
-      this->_response.buildDirList(
-        connData, connData.urlData.find("Path")->second, loc->root);
-    }
-    else
-    {
-      error = 404; // Not Found
-      return (false);
-    }
-  }
-  else
-  {
-    if (connData.filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
-    {
-      if (!this->_launchCgi(socket, connData, index))
-      {
-        error = 500; // Internal Server Error
-        return (false);
-      }
-    }
-    else
-    {
-      if(!this->_openFile(socket, index, connData))
-      {
-        error = 500; // Internal Server Error
-        return (false);
-      }
-      connData.rspStatus = 200; //Provisional
-    }
-  }
-  return (true);
-}
-
-bool  Server::_prepareResponse(int socket, std::size_t index, int & error)
-{
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket);
-  LocationConfig const *  loc = connData.getLocation();
-  std::string const       reqMethod = connData.req.getPetit("Method");
-
-  if (loc->redirection != "")
-  {
-    this->_response.buildRedirect(connData, loc->redirection);
-  }
-  else if (reqMethod == "GET")
-  {
-    if (!this->_prepareGet(socket, index, error))
-      return (false);
-  }
-  else if (reqMethod == "POST")
-  {
-    /*if (!this->_preparePost(socket, index, error))
-      return (false);*/
-  }
-  else //Delete
-  {
-    /*if (!this->_prepareDelete(socket, index, error))
-      return (false);*/
+    close(fd);
+    connData.fileData = 0;
   }
   return (true);
 }
@@ -442,23 +286,24 @@ bool  Server::_validRequest(int socket, int & error)
   return (true);
 }
 
-void  Server::_handleClientRead(int socket, std::size_t index)
+void  Server::_handleClientRead(int socket)
 {
   //int error = 0;
 
-  if (!this->_receiveData(socket))
-    return this->_endConnection(socket, index); //TODO: Handle Error
-  /*if (!this->_fdTable.getConnSock(socket).req.getDataState())
-  {
-    std::cout << "Data received for "
-              << this->_fdTable.getConnSock(socket).req.getPetit("Host")
-              << " with path "
-              << this->_fdTable.getConnSock(socket).req.getPetit("Path")
-              << std::endl;
-    if (!this->_validRequest(socket, error)
-        || !this->_prepareResponse(socket, index, error))
-      this->_sendError(socket, index, error);
-  }*/
+  this->_fdTable.getConnSock(socket).req.getDataSate() = false;
+  this->_fdTable.getConnSock(socket).req.process();
+  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
+                    this->_fdTable.getConnSock(socket).urlData);
+  std::cout << "Data received for "
+            << this->_fdTable.getConnSock(socket).req.getPetit("Host")
+            << " with path "
+            << this->_fdTable.getConnSock(socket).req.getPetit("Path")
+            << " | Buffer reached: "
+			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
+			<< std::endl;
+  if (!this->_validRequest(socket, error)
+      || !this->_response.process(socket, error))
+    this->_response.sendError(socket, error);
 }
 
 /*
@@ -475,15 +320,7 @@ void  Server::_sendData(int socket, std::size_t index)
   ConnectionData &  sockData = this->_fdTable.getConnSock(socket);
 
   if (!this->_response.sendData(socket, sockData))
-  {
-    if (this->_fdTable.getType(sockData.fileFd) == File)
-    { //fileFd is still present in fdTable and therefore, it is still open.
-      close(sockData.fileFd);
-	    this->_fdTable.remove(sockData.fileFd);
-      this->_monitor.remove(sockData.fileFd);
-    }
     this->_endConnection(socket, index);
-  }
 }
 
 /*
@@ -492,26 +329,26 @@ void  Server::_sendData(int socket, std::size_t index)
 
 bool  Server::_receiveData(int socket)
 {
-  std::size_t const buffLen = 500;
-  char              buff[buffLen + 1];
+  ConnectionData &	cone = this->_fdTable.getConnSock(socket);
+  std::string &     reqData = cone.req.getData();
   int               len;
   Request			*req = &this->_fdTable.getConnSock(socket).req;
 
-  /*
-  **  TODO: Handle this recv in a truly non-blocking way.
-  */
-  //std::cout << "RECIEVE DATA" << std::endl;
-  req->getDataState() = true;
-  std::fill(buff, buff + buffLen + 1, 0);
-
-  len = recv(socket, buff, buffLen, 0);
-  std::cout << buff;
+  cone.req.getDataSate() = true;
+  len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
   if (len == 0)
   {
     std::cout << "Client connection closed unexpectedly." << std::endl;
     return (false);
   }
-  req->getData().append(buff, len);
+  /*
+  **  Do not append as string, as it will append the entire buffer size
+  **  instead of only the non null elements encountered before the first
+  **  null element.
+  */
+  reqData.append(&cone.rspBuff[0]);
+  cone.req.updateLoop(true);
+  std::fill(&cone.rspBuff[0], &cone.rspBuff[len], 0);
   return (true);
 }
 
@@ -581,15 +418,49 @@ void  Server::_handleEvent(std::size_t index)
     // New client/s connected to one of listening sockets
     this->_acceptConn(fd);
   }
-  else if (fdType == Pipe)
+  else if (fdType == PipeWrite)
+  {
+    if (!this->_response.cgiHandler.sendBody(fd,
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
+    { // Maybe return 500 error?
+      // End connection, write failed.
+      return ;
+    }
+    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent
+        == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize)
+    {
+      /*
+      **  Close pipe fd, but do not delete CgiData structure,
+      **  only PipeRead type must do it, because it is shared between the two.
+      */
+      /*
+      **  The way of obtaining ConnectionData is provisional. This code will
+      **  be moved to another function.
+      */
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize = 0;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent = 0;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
+      this->_monitor.removeByIndex(index);
+	    this->_fdTable.remove(fd);
+      close(fd); //close pipe write fd
+    }
+  }
+  else if (fdType == PipeRead)
   {
     // Read pipe from cgi program is ready to read
-    if (!this->_cgiHandler.receiveData(fd, this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
-      return ; //Handle Error
+    if (!this->_response.cgiHandler.receiveData(fd,
+        this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
+    { // Maybe try to return 500 error?
+      //Possible _endConnection function overload? this->_endConnection(this->_fdTable.getPipe(fd).socket, fd, index);
+      return ;
+    }
     if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
-		    == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesRead)
+		    == this->_fdTable.getConnSock(
+          this->_fdTable.getPipe(fd).socket).totalBytesRead)
     { //All data was received
-      this->_monitor.remove(index);
+      //Order of removals and close is important!!!
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
+      this->_monitor.removeByIndex(index);
 	    this->_fdTable.remove(fd);
       close(fd); //close pipe read fd
       return ;
@@ -601,38 +472,26 @@ void  Server::_handleEvent(std::size_t index)
     {
       // A file fd is ready to read.
       if (!this->_fillFileResponse(fd, index))
-        std::cout << "Error reading file" << std::endl;
+        std::cout << "Error reading file fd: " << fd << std::endl;
     }
   }
   else
   {
     if (this->_monitor[index].revents & POLLIN)
-    {
-	  //std::cout << "Pollin" << std::endl;
+    {  
       // Connected client socket is ready to read without blocking
-      this->_handleClientRead(fd, index);
-      }
-      if (this->_monitor[index].revents & POLLOUT)
-      {
-   	    if (this->_fdTable.getConnSock(fd).req.getDataState() == true) //THIS MUST NOT BE COMENTED WORK IN PROGRESS
-        {
-          this->_fdTable.getConnSock(fd).req.getDataState() = false;
-          this->_fdTable.getConnSock(fd).req.process();
-          UrlParser().parse(this->_fdTable.getConnSock(fd).req.getPetit("Path"),
-                            this->_fdTable.getConnSock(fd).urlData);
-		  std::cout << "Data received for "
-                    << this->_fdTable.getConnSock(fd).req.getPetit("Host")
-                    << " with path "
-                    << this->_fdTable.getConnSock(fd).req.getPetit("Path")
-                    << std::endl;
-		   int error = 0;
-           if (!this->_validRequest(fd, error)
-             || !this->_prepareResponse(fd, index, error))
-           this->_sendError(fd, index, error);
-        }
-	  //std::cout << "POLLOUT" << std::endl;
+	  if (!this->_receiveData(fd))
+  	  {
+    	this->_endConnection(fd, index); //TODO: Handle Error
+    	return ;
+  	  }
+    }
+    else if (this->_monitor[index].revents & POLLOUT)
+    {
+	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
+      	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
-      if (this->_fdTable.getConnSock(fd).rspBuffSize)
+      if (this->_fdTable.getConnSock(fd).rspBuffSize)    
         this->_sendData(fd, index);
       if (this->_fdTable.getConnSock(fd).totalBytesSent
           == this->_fdTable.getConnSock(fd).rspSize
@@ -673,7 +532,7 @@ bool  Server::start(void)
     handlingCount = 0;
     for (std::size_t i = 0; i < this->_monitor.len(); ++i)
     { // INEFFICIENT!! USE kqueue INSTEAD of poll
-      if (this->_monitor[i].revents == 0)
+      if (this->_monitor[i].revents == 0 || this->_monitor[i].fd == -1)
         continue;
       this->_handleEvent(i);
       // To stop iterating when total events have been handled
@@ -681,6 +540,6 @@ bool  Server::start(void)
         break ;
     }
     this->_monitor.purge();
-  } 
+  }
   return (true);
 }

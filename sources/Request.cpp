@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() {}
+Request::Request() : _dataState(false), _loops(0) {}
 
 Request::~Request() {}
 
@@ -8,12 +8,12 @@ Request::~Request() {}
 *  To avoid generating a copy of reqData, consider passing
 *  std::string const & reqData, but to do this, reqData.erase() cannot be used.
 */
-void  Request::process(void)
+void  Request::process()
 {
-  std::string	buff;
+	std::string	buff;
 	size_t		pos;
 	size_t		rpos;
-	std::string reqData = this->getData();
+	std::string &reqData = this->_data;
 
 	//First line
 	pos = reqData.find(" ");
@@ -32,10 +32,11 @@ void  Request::process(void)
 	{
 		reqData.erase(0, rpos + 1);
 		//This takes the body in case there is
-		if (reqData[0] == '\n')
+		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
 		{
-			reqData.erase(0, 1);
-			this->_values["Body"] = reqData;
+			reqData.erase(0, 2);
+			if (reqData != "")
+				this->_values["Body"] = reqData.substr();
 			break ;
 		}
 		pos = reqData.find(":");
@@ -65,18 +66,24 @@ std::map<std::string, std::string>::iterator	Request::end()
 	return this->_values.end();
 }
 
-std::map<std::string, std::string>	Request::getHeaders(void)
+std::map<std::string, std::string> &	Request::getHeaders(void)
 {
 	return (this->_values);
 }
 
-
-bool &	Request::getDataState(void)
+bool &			Request::getDataSate(void)
 {
-	return this->_fdData.state;
+	return this->_dataState;
 }
 
 std::string &	Request::getData(void)
 {
-	return this->_fdData.data;
+	return this->_data;
+}
+
+size_t	Request::updateLoop(bool loop)
+{
+	if (loop)
+		this->_loops++;
+	return this->_loops;
 }

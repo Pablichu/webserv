@@ -17,7 +17,14 @@ FdTable::~FdTable(void)
 			delete this->_deserializeConnSock(it->second);
 		if (it->first == File)
 			delete this->_deserializeFile(it->second);
-		if (it->first == Pipe)
+    /*
+    **  PipeRead and PipeWrite store a pointer to the same CgiData.
+    **  Therefore, memory deletion of CgiData must be done once.
+    **  As PipeRead will be always used when a CGI program is executed,
+    **  and PipeWrite only if a body is present in the client request,
+    **  CgiData deletion is done only when finding a PipeRead fd.
+    */
+		if (it->first == PipeRead)
 			delete this->_deserializePipe(it->second);
     	it->first = None;
     	it->second = 0;
@@ -60,7 +67,7 @@ FdTable::_serializeConnSock(ConnectionData *  ptr)
 }
 
 uintptr_t
-FdTable::_serializeFile(std::pair< int, std::size_t> *  ptr)
+FdTable::_serializeFile(FileData *  ptr)
 {
 	return reinterpret_cast<uintptr_t>(ptr);
 }
@@ -87,10 +94,10 @@ FdTable::_deserializeConnSock(uintptr_t raw)
 	return reinterpret_cast<ConnectionData * >(raw);
 }
 
-std::pair< int, std::size_t> *
+FileData *
 FdTable::_deserializeFile(uintptr_t raw)
 {
-	return reinterpret_cast<std::pair< int, std::size_t> * >(raw);
+	return reinterpret_cast<FileData * >(raw);
 }
 
 CgiData *
@@ -113,7 +120,7 @@ ConnectionData & FdTable::getConnSock(int const fd)
   return (*this->_deserializeConnSock(this->_table[fd].second));
 }
 
-std::pair< int, std::size_t> & FdTable::getFile(int const fd)
+FileData & FdTable::getFile(int const fd)
 {
   return (*this->_deserializeFile(this->_table[fd].second));
 }
@@ -168,7 +175,7 @@ FdTable::add(int const fd, ConnectionData * data)//Connection Data
 }
 
 bool
-FdTable::add(int const fd, std::pair< int, std::size_t> * data)//File
+FdTable::add(int const fd, FileData * data)//File
 {
 	if (!this->_littleAddChecker(fd))
 		return (false);
@@ -178,11 +185,15 @@ FdTable::add(int const fd, std::pair< int, std::size_t> * data)//File
 }
 
 bool
-FdTable::add(int const fd, CgiData * data)//Pipes
+FdTable::add(int const fd, CgiData * data, bool const read)//Pipes
 {
 	if (!this->_littleAddChecker(fd))
 		return (false);
-	this->_table[fd].first = Pipe;
+  /*
+  **  Two types of pipe can be created to distinguish in which one
+  **  to delete the associated CgiData, which is the same for the two.
+  */
+	this->_table[fd].first = read == true ? PipeRead : PipeWrite;
 	this->_table[fd].second = this->_serializePipe(data);
 	return (true);
 }
@@ -204,7 +215,15 @@ void  FdTable::remove(int const fd)
     delete this->_deserializeConnSock(this->_table[fd].second);
   if (*fdType == File)
     delete this->_deserializeFile(this->_table[fd].second);
-  if (*fdType == Pipe)
+  /*
+  **  PipeRead and PipeWrite store a pointer to the same CgiData.
+  **  PipeRead is the only one that is always used when a CGI
+  **  program is executed. Therefore, memory deletion of CgiData will
+  **  only be done once, when this pipe is closed, because in case
+  **  PipeRead and PipeWrite are used for a CGI program, PipeRead is
+  **  is always closed after PipeWrite.
+  */
+  if (*fdType == PipeRead)
     delete this->_deserializePipe(this->_table[fd].second);
 
   this->_table[fd].second = 0;
