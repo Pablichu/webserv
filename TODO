@@ -46,6 +46,10 @@
   ❌ · your server should work with one CGI (php-cgi, python...)
   ❌ · make the route able to accept uploaded files and configure where it should be saved
 
+	<<<<<< BONUS >>>>>>
+		❌  Multiple CGI
+		❌  Cookies 🍪 
+
 Movidas del Peblo:
 -  chunked
 -  template for errors html
