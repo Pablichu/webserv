@@ -43,10 +43,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
                                   std::string const & filePath) const
 {
   CgiData * cgiData;
-  /*
-  **  ADD CGI write and read pipe fds to this->_monitor
-  **  and to this->_cgiPipes (Future fd direct address table)
-  */
+
   cgiData = new CgiData(sockFd, filePath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
@@ -69,7 +66,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   {
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
-    this->_monitor.add(cgiData->getWInPipe(), /*POLLIN |*/ POLLOUT);
+    this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
     connData.rspSize = connData.req.getPetit("Body").length();
   }
   else
@@ -77,11 +74,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
-  /*
-  **  Determine if it makes sense to check for POLLOUT if it is never
-  **  going to be used for listening sockets.
-  */
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN /*| POLLOUT*/);
+  this->_monitor.add(cgiData->getROutPipe(), POLLIN);
   connData.cgiData = cgiData;
   return (true);
 }

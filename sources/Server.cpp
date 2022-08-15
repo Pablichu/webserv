@@ -334,7 +334,7 @@ bool  Server::_receiveData(int socket)
   int               len;
 
   cone.req.getDataSate() = true;
-  len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
+  len = recv(socket, &cone.buff[0], cone.buffCapacity, 0);
   if (len == 0)
   {
     std::cout << "Client connection closed unexpectedly." << std::endl;
@@ -345,9 +345,9 @@ bool  Server::_receiveData(int socket)
   **  instead of only the non null elements encountered before the first
   **  null element.
   */
-  reqData.append(&cone.rspBuff[0]);
+  reqData.append(&cone.buff[0]);
   cone.req.updateLoop(true);
-  std::fill(&cone.rspBuff[0], &cone.rspBuff[len], 0);
+  std::fill(&cone.buff[0], &cone.buff[len], 0);
   return (true);
 }
 
@@ -473,6 +473,31 @@ void  Server::_handleEvent(std::size_t index)
       if (!this->_fillFileResponse(fd, index))
         std::cout << "Error reading file fd: " << fd << std::endl;
     }
+    else // POLLOUT
+    {
+      /*
+      **  The way of obtaining ConnectionData is provisional. This code will
+      **  be moved to another function.
+      */
+      if (!this->_response.fileHandler.writeFile(fd,
+          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket)))
+      {
+        return ; //Handle error
+      }
+      if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
+          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
+      {
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
+        this->_response.buildCreated(
+          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
+          this->_fdTable.getConnSock(
+            this->_fdTable.getFile(fd).socket).req.getPetit("Path"));
+        this->_monitor.removeByIndex(index);
+        this->_fdTable.remove(fd);
+        close(fd);
+      }
+    }
   }
   else
   {
@@ -490,7 +515,7 @@ void  Server::_handleEvent(std::size_t index)
 	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
       	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
-      if (this->_fdTable.getConnSock(fd).rspBuffSize)    
+      if (this->_fdTable.getConnSock(fd).buffSize)    
         this->_sendData(fd, index);
       if (this->_fdTable.getConnSock(fd).totalBytesSent
           == this->_fdTable.getConnSock(fd).rspSize

@@ -118,23 +118,23 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   std::size_t	endContent;
   int         len;
 
-  endContent = connData.rspBuffSize;
-	if (connData.rspBuffOffset)
+  endContent = connData.buffSize;
+	if (connData.buffOffset)
 	{ //This portion of code is equal to the one in Response::readFileNext
 		//Move the content after offset to the front
-		connData.rspBuff.replace(connData.rspBuff.begin(),
-			connData.rspBuff.begin() + connData.rspBuffOffset,
-			&connData.rspBuff[connData.rspBuffOffset]);
+		connData.buff.replace(connData.buff.begin(),
+			connData.buff.begin() + connData.buffOffset,
+			&connData.buff[connData.buffOffset]);
 		//Fill the content that is duplicated at the back with NULL
-		connData.rspBuff.replace(endContent - connData.rspBuffOffset,
-			connData.rspBuffOffset, 0);
+		connData.buff.replace(endContent - connData.buffOffset,
+			connData.buffOffset, 0);
 		//Update endContent
-		endContent = endContent - connData.rspBuffOffset;
+		endContent = endContent - connData.buffOffset;
 		//Reset offset
-		connData.rspBuffOffset = 0;
+		connData.buffOffset = 0;
 	}
-  len = read(rPipe, &connData.rspBuff[endContent],
-													ConnectionData::rspBuffCapacity - endContent);
+  len = read(rPipe, &connData.buff[endContent],
+													ConnectionData::buffCapacity - endContent);
   if (len == 0)
   { //EOF
     std::cout << "Pipe write end closed. No more data to read." << std::endl;
@@ -157,7 +157,7 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
     */
     connData.rspSize = 0; //Indicates unknown size
   }
-  connData.rspBuffSize = endContent + len;
+  connData.buffSize = endContent + len;
 	connData.totalBytesRead += len;
   return (true);
 }

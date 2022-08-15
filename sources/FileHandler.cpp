@@ -6,13 +6,14 @@ FileHandler::~FileHandler(void) {}
 
 // Open file for reading
 
-bool	FileHandler::openFile(std::string const & filePath, int & fd)
+bool	FileHandler::openFile(std::string const & filePath, int & fd,
+														int const flags, int const mode)
 {
 	/*
 	**	NOT SETTING THIS fd AS NON-BLOCKING, BECAUSE IT HAS NO EFFECT
 	**	ON REGULAR FILES.
 	*/
-	fd = open(filePath.c_str(), O_RDONLY);
+	fd = open(filePath.c_str(), flags, mode);
 	if (fd == -1)
 		return (false);
 	return (true);
@@ -69,15 +70,15 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 							)->second + "; charset=utf-8"
 					<< "\r\n\r\n";
 	headersSize = headers.str().size();
-	connData.rspBuff.replace(0, headersSize, headers.str());
-	bytesRead = read(fd, &connData.rspBuff[headersSize],
-													ConnectionData::rspBuffCapacity - headersSize);
+	connData.buff.replace(0, headersSize, headers.str());
+	bytesRead = read(fd, &connData.buff[headersSize],
+													ConnectionData::buffCapacity - headersSize);
 	if (bytesRead <= 0)
 	{
 		close(fd);
 		return (false);
 	}
-	connData.rspBuffSize = bytesRead + headersSize;
+	connData.buffSize = bytesRead + headersSize;
 	connData.totalBytesRead = bytesRead;
 	connData.rspSize = headersSize + fileData.fileSize;
 	return (true);
@@ -95,26 +96,43 @@ bool	FileHandler::readFileNext(int const fd, ConnectionData & connData)
 	std::size_t	endContent;
 	std::size_t	bytesRead;
 
-	endContent = connData.rspBuffSize;
-	if (connData.rspBuffOffset)
+	endContent = connData.buffSize;
+	if (connData.buffOffset)
 	{
 		//Move the content after offset to the front
-		connData.rspBuff.replace(connData.rspBuff.begin(),
-			connData.rspBuff.begin() + connData.rspBuffOffset,
-			&connData.rspBuff[connData.rspBuffOffset]);
+		connData.buff.replace(connData.buff.begin(),
+			connData.buff.begin() + connData.buffOffset,
+			&connData.buff[connData.buffOffset]);
 		//Fill the content that is duplicated at the back with NULL
-		connData.rspBuff.replace(endContent - connData.rspBuffOffset,
-			connData.rspBuffOffset, 0);
+		connData.buff.replace(endContent - connData.buffOffset,
+			connData.buffOffset, 0);
 		//Update endContent
-		endContent = endContent - connData.rspBuffOffset;
+		endContent = endContent - connData.buffOffset;
 		//Reset offset
-		connData.rspBuffOffset = 0;
+		connData.buffOffset = 0;
 	}
-	bytesRead = read(fd, &connData.rspBuff[endContent],
-													ConnectionData::rspBuffCapacity - endContent);
+	bytesRead = read(fd, &connData.buff[endContent],
+													ConnectionData::buffCapacity - endContent);
 	if (bytesRead <= 0)
 		return (false);
-	connData.rspBuffSize = endContent + bytesRead;
+	connData.buffSize = endContent + bytesRead;
 	connData.totalBytesRead += bytesRead;
+	return (true);
+}
+
+bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
+{
+	std::string const &	body = (connData.req.getHeaders())["Body"];
+	int									len;
+	size_t							remainingBytes;
+	size_t							sendBytes;
+
+	remainingBytes = body.length() - connData.totalBytesSent;
+	sendBytes = remainingBytes <= ConnectionData::buffCapacity
+							? remainingBytes : ConnectionData::buffCapacity;
+	len = write(fd, &body[connData.totalBytesSent], sendBytes);
+	if (len <= 0)
+		return (false);
+	connData.totalBytesSent += len;
 	return (true);
 }

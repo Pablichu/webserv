@@ -11,6 +11,8 @@ InitStatusCode::InitStatusCode(void)
   this->m.insert(
     std::pair<int const, std::string const>(301, "Moved Permanently"));
   this->m.insert(
+    std::pair<int const, std::string const>(303, "See Other"));
+  this->m.insert(
     std::pair<int const, std::string const>(308, "Permanent Redirect"));
   this->m.insert(
     std::pair<int const, std::string const>(400, "Bad Request"));

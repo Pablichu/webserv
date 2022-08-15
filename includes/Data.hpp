@@ -25,10 +25,10 @@ struct	CgiData
 
 struct FileData
 {
-	int								fd;
-	int const					socket;
-	std::string				filePath;
-	long							fileSize;
+	int					fd;
+	int const		socket;
+	std::string	filePath;
+	long				fileSize;
 
 	FileData(std::string const & filePath, int const socket);
 };
@@ -46,14 +46,14 @@ struct	ConnectionData
 	std::size_t													totalBytesRead;
 	std::size_t													totalBytesSent;
 	std::size_t													rspSize;
-	std::size_t													rspBuffSize;
-	std::size_t													rspBuffOffset;
-	std::string													rspBuff;
+	std::size_t													buffSize;
+	std::size_t													buffOffset;
+	std::string													buff;
 	int																	rspStatus;
 	FileData *													fileData;
 	CgiData *														cgiData;
 
-	static std::size_t const						rspBuffCapacity = 8192;
+	static std::size_t const						buffCapacity = 8192;
 
 	ConnectionData(void);
 	~ConnectionData(void);

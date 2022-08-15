@@ -14,6 +14,7 @@
 #include "CgiHandler.hpp"
 #include "GetProcessor.hpp"
 #include "DeleteProcessor.hpp"
+#include "PostProcessor.hpp"
 #include "HttpInfo.hpp"
 
 /*
@@ -24,6 +25,7 @@
 
 class	GetProcessor;
 class	DeleteProcessor;
+class PostProcessor;
 
 class	Response
 {
@@ -34,6 +36,7 @@ private:
 	Monitor &					_monitor;
 	GetProcessor &		_getProcessor;
 	DeleteProcessor &	_deleteProcessor;
+	PostProcessor &		_postProcessor;
 	std::size_t				bytesSent;
 
 	void	_buildResponse(ConnectionData & connData, std::string const & content);
@@ -47,8 +50,10 @@ public:
 	Response(FdTable & fdTable, Monitor & monitor);
 	~Response(void);
 
-	void	buildRedirect(ConnectionData & connData, std::string const & url);
+	void	buildRedirect(ConnectionData & connData, std::string const & url,
+											int const code);
 	void	buildDeleted(ConnectionData & connData);
+	void	buildCreated(ConnectionData & connData, std::string const & url);
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
