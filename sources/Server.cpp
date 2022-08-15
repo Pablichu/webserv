@@ -505,6 +505,7 @@ bool  Server::_receiveData(int socket)
   std::fill(buff, buff + buffLen + 1, 0);
 
   len = recv(socket, buff, buffLen, 0);
+  std::cout << buff;
   if (len == 0)
   {
     std::cout << "Client connection closed unexpectedly." << std::endl;
