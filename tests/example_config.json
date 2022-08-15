@@ -17,9 +17,16 @@
         {
           "uri": "/gallery",
           "root": "WEBSERV_PATH/tests/www/localhost/gallery",
-          "methods": "GET,POST,DELETE",
+          "methods": "GET",
           "redirection": "",
           "dir_list": 1,
+          "default_file": "gallery.html"
+        },
+        {
+          "uri": "/gallery/media",
+          "root": "WEBSERV_PATH/tests/www/localhost/media",
+          "methods": "GET,POST,DELETE",
+          "redirection": "",
           "default_file": "gallery.html",
           "upload_dir": "WEBSERV_PATH/tests/www/localhost/media"
         }
