@@ -288,7 +288,7 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  //int error = 0;
+  int error = 0;
 
   this->_fdTable.getConnSock(socket).req.getDataSate() = false;
   this->_fdTable.getConnSock(socket).req.process();
@@ -332,20 +332,25 @@ bool  Server::_receiveData(int socket)
   ConnectionData &	cone = this->_fdTable.getConnSock(socket);
   std::string &     reqData = cone.req.getData();
   int               len;
-  Request			*req = &this->_fdTable.getConnSock(socket).req;
+  //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
-  cone.req.getDataSate() = true;
   len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
-  if (len == 0)
+  std::cout << cone.rspBuff;
+  if (len <= 0)
   {
-    std::cout << "Client connection closed unexpectedly." << std::endl;
-    return (false);
+    std::cout << "Client connection closed unexpectedly.";
+    if (len == -1)
+		std::cout << " recv throught an -1";
+	std::cout << std::endl;
+	return (false);
   }
   /*
   **  Do not append as string, as it will append the entire buffer size
   **  instead of only the non null elements encountered before the first
   **  null element.
   */
+  cone.req.getDataSate() = true;
+
   reqData.append(&cone.rspBuff[0]);
   cone.req.updateLoop(true);
   std::fill(&cone.rspBuff[0], &cone.rspBuff[len], 0);
