@@ -33,8 +33,7 @@ int	main()
 	std::cout << std::endl << "<<<<<<<_____ Test with Map_____>>>>>>>" << std::endl;
 
 	for (it = req.begin(); it != req.end(); it++) {
-		if (it->first != "body")
-			std::cout << it->first << " = " << it->second << std::endl;
+		std::cout << it->first << " = " << it->second << std::endl;
 	}
 	return 0;
 }

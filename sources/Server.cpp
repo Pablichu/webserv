@@ -290,8 +290,11 @@ void  Server::_handleClientRead(int socket)
 {
   int error = 0;
 
-  this->_fdTable.getConnSock(socket).req.getDataSate() = false;
-  this->_fdTable.getConnSock(socket).req.process();
+  if (this->_fdTable.getConnSock(socket).req.isChunked())
+	this->_fdTable.getConnSock(socket).req.processChunked();
+  else
+  	this->_fdTable.getConnSock(socket).req.process();
+  
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
                     this->_fdTable.getConnSock(socket).urlData);
   std::cout << "Data received for "
@@ -304,6 +307,12 @@ void  Server::_handleClientRead(int socket)
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
+
+	std::cout << std::endl;
+	std::map<std::string, std::string>::iterator  it;
+	/*for (it = this->_fdTable.getConnSock(socket).req.begin(); it != this->_fdTable.getConnSock(socket).req.end(); it++) {
+		std::cout << it->first << " = " << it->second << std::endl;
+	}*/
 }
 
 /*
@@ -335,7 +344,6 @@ bool  Server::_receiveData(int socket)
   //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
   len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
-  std::cout << cone.rspBuff;
   if (len <= 0)
   {
     std::cout << "Client connection closed unexpectedly.";
@@ -494,8 +502,11 @@ void  Server::_handleEvent(std::size_t index)
     else if (this->_monitor[index].revents & POLLOUT)
     {
 	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
+	  {
+		std::cout << "PROCESAMOS" << std::endl;
       	this->_handleClientRead(fd);
-      // Connected client socket is ready to write without blocking
+	  }
+	  // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).rspBuffSize)    
         this->_sendData(fd, index);
       if (this->_fdTable.getConnSock(fd).totalBytesSent

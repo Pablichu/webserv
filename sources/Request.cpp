@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() : _dataState(false), _loops(0) {}
+Request::Request() : _dataState(false), _loops(0), _chunked(false) {}
 
 Request::~Request() {}
 
@@ -35,7 +35,7 @@ void  Request::process()
 		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
 		{
 			reqData.erase(0, 2);
-			if (reqData != "")
+			if (reqData.size())
 				this->_values["Body"] = reqData.substr();
 			break ;
 		}
@@ -47,6 +47,41 @@ void  Request::process()
 			break;
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
+	if (this->_values["Transfer-Encoding"] == "chunked")
+		processChunked();
+	else
+		this->_dataState = false;
+	std::cout << ">> Data allocated: " << reqData.size() << std::endl;
+}
+
+void	Request::processChunked()
+{
+	std::cout << "  >>>>>  PROCESSING CHUNKED BODY <<<<<" << std::endl;
+	std::string &	body = this->_values["Body"];
+	std::string &	data = this->_data;
+	int				pos;
+	int				buffer;
+	//int				rpos;
+	std::stringstream ss;
+
+	if (!_chunked && body.size())
+	{
+		this->_data = body.substr();
+		body.clear();
+	}
+	else if (!_chunked && !body.size())
+	{
+		_chunked = true;
+		return ;
+	}
+
+	pos = data.find("/r/n");
+	//std::cout << data;
+	//rpos = data.rfind("/r/n");
+    ss << std::hex << data.substr(0, pos - 1);
+	std::cout << pos << "/" << data.substr(0, pos - 1) << "/" << ss << std::endl;
+	//exit(0);
+	std::cout << body << std::endl;
 }
 
 const std::string Request::getPetit(std::string petition)
@@ -86,4 +121,9 @@ size_t	Request::updateLoop(bool loop)
 	if (loop)
 		this->_loops++;
 	return this->_loops;
+}
+
+bool		Request::isChunked() const
+{
+	return this->_chunked;
 }

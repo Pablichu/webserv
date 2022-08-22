@@ -10,12 +10,6 @@
 	Finished
 };*/
 
-struct DataState
-{
-	bool		state;
-	std::string	data;
-};
-
 class	Request
 {
 	private:
@@ -24,6 +18,7 @@ class	Request
 		bool		_dataState;
 		std::string	_data;
 		size_t		_loops;
+		bool		_chunked;
 
 	public:
 		Request();
@@ -39,4 +34,6 @@ class	Request
 		bool &			getDataSate(void);
 		std::string &	getData(void);
 		size_t 			updateLoop(bool loop);
+		void			processChunked();
+		bool			isChunked() const;
 };
