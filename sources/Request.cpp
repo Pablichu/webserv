@@ -48,40 +48,51 @@ void  Request::process()
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
 	if (this->_values["Transfer-Encoding"] == "chunked")
+	{
+		std::string &	body = this->_values["Body"];
+		if (!_chunked && body.size())
+		{
+			this->_data = body.substr();
+			body.clear();
+		}
+		else if (!_chunked && !body.size())
+		{
+			_chunked = true;
+			return ;
+		}
 		processChunked();
+	}
 	else
 		this->_dataState = false;
-	std::cout << ">> Data allocated: " << reqData.size() << std::endl;
 }
 
 void	Request::processChunked()
 {
-	std::cout << "  >>>>>  PROCESSING CHUNKED BODY <<<<<" << std::endl;
+	//std::cout << "  >>>>>  PROCESSING CHUNKED BODY <<<<<" << std::endl;
 	std::string &	body = this->_values["Body"];
 	std::string &	data = this->_data;
 	int				pos;
 	int				buffer;
-	//int				rpos;
-	std::stringstream ss;
 
-	if (!_chunked && body.size())
+	while (!data.empty())
 	{
-		this->_data = body.substr();
-		body.clear();
-	}
-	else if (!_chunked && !body.size())
-	{
-		_chunked = true;
-		return ;
-	}
+		if (!data.find("0\r\n\r\n"))
+		{
+			this->_chunked = false;
+			this->_dataState = false;
+			data.clear();
+			std::cout << "Mensaje de felicidad extrema" << std::endl;
+			return ;
+		}
 
-	pos = data.find("/r/n");
-	//std::cout << data;
-	//rpos = data.rfind("/r/n");
-    ss << std::hex << data.substr(0, pos - 1);
-	std::cout << pos << "/" << data.substr(0, pos - 1) << "/" << ss << std::endl;
-	//exit(0);
-	std::cout << body << std::endl;
+		pos = data.find("\r\n");
+		if (pos == -1)
+			return ;
+		buffer = _hextodec(data.substr(0, pos));
+		//std::cout << " >> " << pos << "/" << data.substr(0, pos) << "/" << buffer << std::endl;
+		body.append(data.substr(pos + 2, buffer));
+		data.erase(0, pos + buffer + 4);//this 4 is from two "\r\n"
+	}
 }
 
 const std::string Request::getPetit(std::string petition)
@@ -126,4 +137,14 @@ size_t	Request::updateLoop(bool loop)
 bool		Request::isChunked() const
 {
 	return this->_chunked;
+}
+
+size_t	Request::_hextodec(std::string hex)
+{
+	std::stringstream	ss;
+	size_t				nb;
+
+	ss << std::hex << hex;
+	ss >> nb;
+	return nb;
 }

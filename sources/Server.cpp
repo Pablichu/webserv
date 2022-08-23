@@ -288,12 +288,12 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  int error = 0;
-
   if (this->_fdTable.getConnSock(socket).req.isChunked())
 	this->_fdTable.getConnSock(socket).req.processChunked();
   else
   	this->_fdTable.getConnSock(socket).req.process();
+  if (this->_fdTable.getConnSock(socket).req.isChunked())
+	return ;
   
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
                     this->_fdTable.getConnSock(socket).urlData);
@@ -304,16 +304,11 @@ void  Server::_handleClientRead(int socket)
             << " | Buffer reached: "
 			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
 			<< std::endl;
+
   int error = 0;
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
-
-	std::cout << std::endl;
-	std::map<std::string, std::string>::iterator  it;
-	/*for (it = this->_fdTable.getConnSock(socket).req.begin(); it != this->_fdTable.getConnSock(socket).req.end(); it++) {
-		std::cout << it->first << " = " << it->second << std::endl;
-	}*/
 }
 
 /*
@@ -503,10 +498,7 @@ void  Server::_handleEvent(std::size_t index)
     else if (this->_monitor[index].revents & POLLOUT)
     {
 	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
-	  {
-		std::cout << "PROCESAMOS" << std::endl;
       	this->_handleClientRead(fd);
-	  }
 	  // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).rspBuffSize)    
         this->_sendData(fd, index);

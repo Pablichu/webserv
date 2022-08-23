@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <map>
+#include <sstream>
+#include <stdlib.h>
 
 /*enum	State//May not be necessary
 {
@@ -19,6 +21,8 @@ class	Request
 		std::string	_data;
 		size_t		_loops;
 		bool		_chunked;
+
+		size_t	_hextodec(std::string hex);
 
 	public:
 		Request();
