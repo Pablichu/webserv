@@ -288,7 +288,6 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  //int error = 0;
 
   this->_fdTable.getConnSock(socket).req.getDataSate() = false;
   this->_fdTable.getConnSock(socket).req.process();
@@ -301,6 +300,7 @@ void  Server::_handleClientRead(int socket)
             << " | Buffer reached: "
 			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
 			<< std::endl;
+  int error = 0;
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
@@ -332,10 +332,11 @@ bool  Server::_receiveData(int socket)
   ConnectionData &	cone = this->_fdTable.getConnSock(socket);
   std::string &     reqData = cone.req.getData();
   int               len;
-  Request			*req = &this->_fdTable.getConnSock(socket).req;
+  //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
   cone.req.getDataSate() = true;
   len = recv(socket, &cone.rspBuff[0], cone.rspBuffCapacity, 0);
+  std::cout << cone.rspBuff;
   if (len == 0)
   {
     std::cout << "Client connection closed unexpectedly." << std::endl;
