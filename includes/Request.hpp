@@ -4,23 +4,25 @@
 #include <map>
 #include <sstream>
 #include <stdlib.h>
+#include <string.h>
 
-/*enum	State//May not be necessary
+enum	bodyType
 {
-	Unused,
-	InProgress,
-	Finished
-};*/
+	none,
+	normal,
+	chunked,
+	done
+};
 
 class	Request
 {
 	private:
 		//Everything will be stored in this map
 		std::map<std::string, std::string> _values;
-		bool		_dataState;
 		std::string	_data;
 		size_t		_loops;
-		bool		_chunked;
+		bodyType	_type;
+		size_t		_length;
 
 		size_t	_hextodec(std::string hex);
 
@@ -35,9 +37,9 @@ class	Request
 		std::map<std::string, std::string>::iterator	end();
 		std::map<std::string, std::string> &	getHeaders(void);
 
-		bool &			getDataSate(void);
+		enum bodyType &	getDataSate(void);
 		std::string &	getData(void);
 		size_t 			updateLoop(bool loop);
 		void			processChunked();
-		bool			isChunked() const;
+		void			processBody();
 };

@@ -288,13 +288,15 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  if (this->_fdTable.getConnSock(socket).req.isChunked())
+  if (this->_fdTable.getConnSock(socket).req.getDataSate() == normal)
+	this->_fdTable.getConnSock(socket).req.processBody();
+  else if (this->_fdTable.getConnSock(socket).req.getDataSate() == chunked)
 	this->_fdTable.getConnSock(socket).req.processChunked();
   else
   	this->_fdTable.getConnSock(socket).req.process();
-  if (this->_fdTable.getConnSock(socket).req.isChunked())
+  if (this->_fdTable.getConnSock(socket).req.getDataSate() != done)
 	return ;
-  
+
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
                     this->_fdTable.getConnSock(socket).urlData);
   std::cout << "Data received for "
@@ -339,7 +341,6 @@ bool  Server::_receiveData(int socket)
   int               len;
   //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
-  cone.req.getDataSate() = true;
   len = recv(socket, &cone.buff[0], cone.buffCapacity, 0);
   if (len <= 0)
   {
@@ -521,7 +522,7 @@ void  Server::_handleEvent(std::size_t index)
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {
-	  if (this->_fdTable.getConnSock(fd).req.getDataSate() == true)
+	  if (this->_fdTable.getConnSock(fd).req.getDataSate() != done)
       	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).buffSize)    

@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() : _dataState(false), _loops(0), _chunked(false) {}
+Request::Request() : _loops(0), _type(none), _length(0) {}
 
 Request::~Request() {}
 
@@ -35,8 +35,6 @@ void  Request::process()
 		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
 		{
 			reqData.erase(0, 2);
-			if (reqData.size())
-				this->_values["Body"] = reqData.substr();
 			break ;
 		}
 		pos = reqData.find(":");
@@ -47,28 +45,29 @@ void  Request::process()
 			break;
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
-	if (this->_values["Transfer-Encoding"] == "chunked")
+	/*std::map<std::string, std::string>::iterator  it;
+	for (it = this->_values.begin(); it != this->_values.end(); it++) {
+		std::cout << it->first << " = " << it->second << std::endl;
+	}*/
+	if (this->getPetit("Transfer-Encoding") == "chunked")//Check, maybe some parts are not neccessary
 	{
-		std::string &	body = this->_values["Body"];
-		if (!_chunked && body.size())
-		{
-			this->_data = body.substr();
-			body.clear();
-		}
-		else if (!_chunked && !body.size())
-		{
-			_chunked = true;
-			return ;
-		}
+		this->_type = chunked;
 		processChunked();
 	}
+	else if (this->getPetit("Content-Length") != "")
+	{
+		std::cout << "body process" << std::endl;
+		this->_type = normal;
+		this->_length = std::stoi(this->getPetit("Content-Length"));
+		std::cout << "Length > " << this->_length << std::endl;
+		this->processBody();
+	}
 	else
-		this->_dataState = false;
+		this->_type = done;
 }
 
 void	Request::processChunked()
 {
-	//std::cout << "  >>>>>  PROCESSING CHUNKED BODY <<<<<" << std::endl;
 	std::string &	body = this->_values["Body"];
 	std::string &	data = this->_data;
 	int				pos;
@@ -78,8 +77,7 @@ void	Request::processChunked()
 	{
 		if (!data.find("0\r\n\r\n"))
 		{
-			this->_chunked = false;
-			this->_dataState = false;
+			this->_type = done;
 			data.clear();
 			std::cout << "Mensaje de felicidad extrema" << std::endl;
 			return ;
@@ -93,6 +91,26 @@ void	Request::processChunked()
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 4);//this 4 is from two "\r\n"
 	}
+}
+
+void	Request::processBody()
+{
+	std::string &reqData = this->_data;
+
+	/*if (!reqData.size())
+	{
+		std::cout << " >>>> No body to read" << std::endl;
+		exit(0);
+	}*/
+	if (reqData.size() > this->_length)
+	{
+		std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
+		exit(0);
+	}
+	this->_length -= reqData.size();
+	this->_values["Body"].append(reqData.substr());
+	if (!this->_length)
+		this->_type = done;
 }
 
 const std::string Request::getPetit(std::string petition)
@@ -117,9 +135,9 @@ std::map<std::string, std::string> &	Request::getHeaders(void)
 	return (this->_values);
 }
 
-bool &			Request::getDataSate(void)
+enum bodyType &	Request::getDataSate(void)
 {
-	return this->_dataState;
+	return this->_type;
 }
 
 std::string &	Request::getData(void)
@@ -132,11 +150,6 @@ size_t	Request::updateLoop(bool loop)
 	if (loop)
 		this->_loops++;
 	return this->_loops;
-}
-
-bool		Request::isChunked() const
-{
-	return this->_chunked;
 }
 
 size_t	Request::_hextodec(std::string hex)
