@@ -155,9 +155,33 @@ bool  CgiHandler::_redirect(std::string & buff,
                               std::map<std::string, std::string> const & header,
                               std::size_t & rspSize)
 {
-  (void)buff;
-  (void)header;
-  (void)rspSize;
+  std::map<std::string, std::string>::const_iterator  it;
+  std::string const &                                 location = header.at("Location");
+  std::string                                         data;
+
+  if (location.find("://") != std::string::npos)
+  {//Absolute URI. Send redirection to client, with or without document.
+    if (header.at("body") != "")
+    {
+      it = header.find("Status");
+      if (it == header.end()
+          || it->second != "")
+        return (false);
+      data = "HTTP/1.1 " + it->second + ' '
+            + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
+      buff.replace(0, data.length(), data);
+      data.clear();
+      this->_addProtocolHeaders(buff, header, rspSize);
+      this->_addBody(buff, header.at("body"));
+      return (true);
+    }
+    data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
+    data += "Location: " + header.at("Location") + "\r\n\r\n";
+    buff.replace(0, data.length(), data);
+    rspSize = data.length();
+    return (true);
+  }
+  //Relative URI. Local redirect
   return (true);
 }
 
