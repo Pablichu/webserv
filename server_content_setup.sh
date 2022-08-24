@@ -48,3 +48,12 @@ for k, v in os.environ.items():
 EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
+
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/redir.cgi
+#!/usr/bin/$PYTHON_INTERPRETER
+
+print("Location: http://localhost:8080/gallery")
+print("")
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/redir.cgi
