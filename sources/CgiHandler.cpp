@@ -118,8 +118,7 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
     return (false);
   while(true)
 	{
-		needle = buff.find(":", aux_needle);
-    if (needle == std::string::npos)
+    if (buff[aux_needle] == '\r' || buff[aux_needle] == '\n')
     { //Get body, if it exists
       needle = buff.find_first_of("\r\n", aux_needle);
       if (needle == std::string::npos)
@@ -131,6 +130,9 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
         header["body"] = "";
       break ;
     }
+    needle = buff.find(":", aux_needle);
+    if (needle == std::string::npos)
+      return (false);
 		key = buff.substr(aux_needle, needle - aux_needle);
     if (key != "Status" && key != "Location" && key != "Content-Type")
       std::transform(key.begin(), key.end(), key.begin(), tolower);
