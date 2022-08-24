@@ -35,13 +35,13 @@ FileData::FileData(std::string const & filePath, int const socket)
 }
 
 ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
-  totalBytesRead(0), totalBytesSent(0), rspSize(0), rspBuffSize(0),
-  rspBuffOffset(0), fileData(0), cgiData(0)
+  totalBytesRead(0), totalBytesSent(0), rspSize(0), buffSize(0),
+  buffOffset(0), fileData(0), cgiData(0)
 {
   /*
   **  To simulate a Buffer of 8K
   */
-  this->rspBuff = std::string(ConnectionData::rspBuffCapacity + 1, 0);
+  this->buff = std::string(ConnectionData::buffCapacity + 1, 0);
   return ;
 }
 

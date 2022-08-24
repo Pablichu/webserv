@@ -3,22 +3,24 @@
 Response::Response(FdTable & fdTable, Monitor & monitor)
   : _fdTable(fdTable), _monitor(monitor),
     _getProcessor(*(new GetProcessor(*this, _fdTable, _monitor))),
-    _deleteProcessor(*(new DeleteProcessor(*this, _fdTable, _monitor)))
+    _deleteProcessor(*(new DeleteProcessor(*this, _fdTable, _monitor))),
+    _postProcessor(*(new PostProcessor(*this, _fdTable, _monitor)))
 {}
 
 Response::~Response(void)
 {
   delete &(this->_getProcessor);
   delete &(this->_deleteProcessor);
+  delete &(this->_postProcessor);
   return ;
 }
 
 void  Response::_buildResponse(ConnectionData & connData,
                                 std::string const & content)
 {
-  connData.rspBuff.replace(0, content.size(), content);
-  connData.rspBuffSize = connData.rspBuff.find('\0');
-  connData.rspSize = connData.rspBuffSize;
+  connData.buff.replace(0, content.size(), content);
+  connData.buffSize = connData.buff.find('\0');
+  connData.rspSize = connData.buffSize;
   return ;
 }
 
@@ -27,11 +29,12 @@ void  Response::_buildResponse(ConnectionData & connData,
 */
 
 void  Response::buildRedirect(ConnectionData & connData,
-                              std::string const & url)
+                              std::string const & url, int const code)
 {
   std::string content;
 
-  content = "HTTP/1.1 301 " + HttpInfo::statusCode.find(301)->second + "\r\n";
+  content = "HTTP/1.1 " + utils::toString<int>(code) + ' '
+            + HttpInfo::statusCode.find(code)->second + "\r\n";
   content += "Date: " + utils::getDate() + "\r\n";
   content += "Location: " + url + "\r\n\r\n";
   this->_buildResponse(connData, content);
@@ -46,6 +49,19 @@ void  Response::buildDeleted(ConnectionData & connData)
   content.append("Date: " + utils::getDate() + "\r\n");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   content.append("<html><body><h1>File deleted.</h1></body></html>");
+  this->_buildResponse(connData, content);
+  return ;
+}
+
+void  Response::buildCreated(ConnectionData & connData, std::string const & url)
+{
+  std::string content;
+
+  content = "HTTP/1.1 201 " + HttpInfo::statusCode.find(201)->second + "\r\n";
+  content.append("Date: " + utils::getDate() + "\r\n");
+  content += "Location: " + url + "\r\n";
+  content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
+  content.append("<html><body><h1>File created.</h1></body></html>");
   this->_buildResponse(connData, content);
   return ;
 }
@@ -81,7 +97,7 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
       content.append(elem->d_name);
       content.append("</a>\n");
       //Check to ensure the closing html tags will fit in the buffer
-      if (content.size() >= ConnectionData::rspBuffCapacity - 25)
+      if (content.size() >= ConnectionData::buffCapacity - 25)
       {
         content.erase(content.rfind("<a href"), std::string::npos);
         break ;
@@ -118,22 +134,24 @@ bool  Response::process(int const sockFd, int & error)
   LocationConfig const *  loc = connData.getLocation();
   std::string const       reqMethod = connData.req.getPetit("Method");
 
-  if (loc->redirection != "")
+  if (reqMethod == "GET")
   {
-    this->buildRedirect(connData, loc->redirection);
-  }
-  else if (reqMethod == "GET")
-  {
+    if (loc->redirection != "")
+      this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
     if (!this->_getProcessor.start(sockFd, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
-    /*if (!this->_preparePost(sockFd, monitorIndex, error))
-      return (false);*/
+    if (loc->redirection != "")
+      this->buildRedirect(connData, loc->redirection, 308); //Permanent Redirect
+    if (!this->_postProcessor.start(sockFd, error))
+      return (false);
   }
   else //Delete
   {
+    if (loc->redirection != "")
+      this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
     if (!this->_deleteProcessor.start(sockFd, error))
       return (false);
   }
@@ -158,11 +176,12 @@ void  Response::sendError(int const socket, int error)
   {
     fileData = new FileData(connData.getServer()->not_found_page, socket);
     connData.rspStatus = error; //Provisional
-    if (!this->fileHandler.openFile(fileData->filePath, fileData->fd))
+    if (!this->fileHandler.openFile(fileData->filePath, fileData->fd,
+                                    O_RDONLY, 0))
       error = 500; //An error ocurred while opening file
     else
     {
-      this->_monitor.add(fileData->fd, POLLIN | POLLOUT);
+      this->_monitor.add(fileData->fd, POLLIN);
       this->_fdTable.add(fileData->fd, fileData);
       connData.fileData = fileData;
       return ;
@@ -182,19 +201,19 @@ void  Response::sendError(int const socket, int error)
 
 bool	Response::sendData(int const sockFd, ConnectionData & connData)
 {
-	this->bytesSent = send(sockFd, &connData.rspBuff[0], connData.rspBuffSize, 0);
+	this->bytesSent = send(sockFd, &connData.buff[0], connData.buffSize, 0);
 	if (this->bytesSent <= 0)
 	{
 		std::cout << "Could not send data to client." << std::endl;
 		return (false);
 	}
 	connData.totalBytesSent += this->bytesSent;
-	if (this->bytesSent == connData.rspBuffSize)
+	if (this->bytesSent == connData.buffSize)
 	{
-		connData.rspBuff.replace(0, connData.rspBuffSize, 1, '\0');
-		connData.rspBuffSize = 0;
+		connData.buff.replace(0, connData.buffSize, 1, '\0');
+		connData.buffSize = 0;
 	}
 	else
-		connData.rspBuffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
+		connData.buffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
 	return (true);
 }

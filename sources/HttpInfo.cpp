@@ -11,6 +11,8 @@ InitStatusCode::InitStatusCode(void)
   this->m.insert(
     std::pair<int const, std::string const>(301, "Moved Permanently"));
   this->m.insert(
+    std::pair<int const, std::string const>(303, "See Other"));
+  this->m.insert(
     std::pair<int const, std::string const>(308, "Permanent Redirect"));
   this->m.insert(
     std::pair<int const, std::string const>(400, "Bad Request"));
@@ -21,9 +23,13 @@ InitStatusCode::InitStatusCode(void)
   this->m.insert(
     std::pair<int const, std::string const>(413, "Payload Too Large"));
   this->m.insert(
+    std::pair<int const, std::string const>(414, "URI Too Long"));
+  this->m.insert(
     std::pair<int const, std::string const>(415, "Unsupported Media Type"));
   this->m.insert(
     std::pair<int const, std::string const>(500, "Internal Server Error"));
+  this->m.insert(
+    std::pair<int const, std::string const>(503, "Service Unavailable"));
   this->m.insert(
     std::pair<int const, std::string const>(505, "HTTP Version Not Supported"));
 }

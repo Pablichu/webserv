@@ -16,6 +16,7 @@ SRC =	main.cpp \
 		$(ROOT)/Processor.cpp \
 		$(ROOT)/GetProcessor.cpp \
 		$(ROOT)/DeleteProcessor.cpp \
+		$(ROOT)/PostProcessor.cpp \
 		$(ROOT)/UrlParser.cpp \
 		$(ROOT)/utils.cpp \
 		$(ROOT)/Response.cpp \

@@ -106,6 +106,157 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   return (env);
 }
 
+bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
+                                    std::map<std::string, std::string> & header)
+{
+  std::size_t needle;
+  std::size_t aux_needle;
+  std::string key;
+
+  aux_needle = 0;
+  if (buff.find_first_of("\r\n") < buff.find(':'))
+    return (false);
+  while(true)
+	{
+		needle = buff.find(":", aux_needle);
+    if (needle == std::string::npos)
+    { //Get body, if it exists
+      needle = buff.find_first_of("\r\n", aux_needle);
+      if (needle == std::string::npos)
+        return (false);
+      needle += buff[needle] == '\r' ? 2 : 1;
+      if (static_cast<std::size_t>(buffSize) > needle + 1)
+        header["body"] = buff.substr(needle);
+      else
+        header["body"] = "";
+      break ;
+    }
+		key = buff.substr(aux_needle, needle - aux_needle);
+    if (key != "Status" && key != "Location" && key != "Content-Type")
+      std::transform(key.begin(), key.end(), key.begin(), tolower);
+		needle = buff.find_first_not_of(' ', needle + 1);
+    if (needle == std::string::npos)
+      return (false);
+		aux_needle = buff.find_first_of("\r\n", needle);
+		if (aux_needle == std::string::npos)
+      return (false);
+    //It will only insert unique keys
+    header.insert(std::pair<std::string, std::string>(key,
+                  buff.substr(needle, aux_needle - needle)));
+    aux_needle += buff[aux_needle] == '\r' ? 2 : 1;
+	}
+  std::fill(&buff[0], &buff[buffSize], 0);
+  return (true);
+}
+
+bool  CgiHandler::_redirect(std::string & buff,
+                              std::map<std::string, std::string> const & header,
+                              std::size_t & rspSize)
+{
+  (void)buff;
+  (void)header;
+  (void)rspSize;
+  return (true);
+}
+
+void  CgiHandler::_addProtocolHeaders(std::string & buff,
+                              std::map<std::string, std::string> const & header,
+                              std::size_t & rspSize)
+{
+  std::map<std::string, std::string>::const_iterator  it;
+  std::size_t                                         needle;
+  std::string                                         data;
+
+  needle = buff.find('\0');
+  for (it = header.begin(); it != header.end(); ++it)
+  {
+    if (it->first == "Status"
+        || it ->first == "body")
+      continue ;
+    data = it->first + ": " + it->second + "\r\n";
+    buff.replace(needle, data.length(), data);
+    needle += data.length();
+  }
+  buff.replace(needle, 2, "\r\n");
+  needle += 2;
+  it = header.find("content-length");
+  if (it != header.end() && it->second != "")
+    rspSize = needle + std::atoi(it->second.c_str());
+  else
+    rspSize = 0;
+  return ;
+}
+
+void  CgiHandler::_addBody(std::string & buff, std::string const & body)
+{
+  if (!body.length())
+    return ;
+  buff.replace(buff.find('\0'), body.length(), body);
+  return ;
+}
+
+bool  CgiHandler::_document(std::string & buff,
+                              std::map<std::string, std::string> const & header,
+                              std::size_t & rspSize)
+{
+  std::map<std::string, std::string>::const_iterator  it;
+  std::string                                         data;
+
+  it = header.find("Status");
+  if (it != header.end() && it->second != "")
+  {
+    if (!HttpInfo::statusCode.count(atoi(it->second.c_str())))
+      data = "HTTP/1.1 200 OK\r\n";
+    else
+    {
+      data = "HTTP/1.1 " + it->second + ' '
+            + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
+    }
+    buff.replace(0, data.length(), data);
+    return (true);
+  }
+  else
+  {
+    if (!header.count("Content-Type"))
+      return (false);
+    data = "HTTP/1.1 200 OK\r\n";
+    buff.replace(0, data.length(), data);
+  }
+  data.clear();
+  this->_addProtocolHeaders(buff, header, rspSize);
+  this->_addBody(buff, header.at("body"));
+  return (true);
+}
+
+bool  CgiHandler::_reWriteResponse(std::string & buff,
+                                    std::map<std::string, std::string> const & header,
+                                    std::size_t & rspSize)
+{
+  std::map<std::string, std::string>::const_iterator  it;
+
+  it = header.find("Location");
+  if (it != header.end() && it->second != "")
+  { //Handle redirect
+    return (this->_redirect(buff, header, rspSize));
+  }
+  else
+  { //Handle document response
+    return (this->_document(buff, header, rspSize));
+  }
+}
+
+bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
+                                    std::size_t & rspSize)
+{
+  std::map<std::string, std::string>  header;
+
+  if (!this->_parseCgiResponse(buff, buffSize, header))
+    return (false);
+  if (!this->_reWriteResponse(buff, header, rspSize))
+    return (false);
+  return (true);
+}
+
 /*
 **  Receive data from a cgi pipe's read end.
 **
@@ -118,23 +269,23 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   std::size_t	endContent;
   int         len;
 
-  endContent = connData.rspBuffSize;
-	if (connData.rspBuffOffset)
+  endContent = connData.buffSize;
+	if (connData.buffOffset)
 	{ //This portion of code is equal to the one in Response::readFileNext
 		//Move the content after offset to the front
-		connData.rspBuff.replace(connData.rspBuff.begin(),
-			connData.rspBuff.begin() + connData.rspBuffOffset,
-			&connData.rspBuff[connData.rspBuffOffset]);
+		connData.buff.replace(connData.buff.begin(),
+			connData.buff.begin() + connData.buffOffset,
+			&connData.buff[connData.buffOffset]);
 		//Fill the content that is duplicated at the back with NULL
-		connData.rspBuff.replace(endContent - connData.rspBuffOffset,
-			connData.rspBuffOffset, 0);
+		connData.buff.replace(endContent - connData.buffOffset,
+			connData.buffOffset, 0);
 		//Update endContent
-		endContent = endContent - connData.rspBuffOffset;
+		endContent = endContent - connData.buffOffset;
 		//Reset offset
-		connData.rspBuffOffset = 0;
+		connData.buffOffset = 0;
 	}
-  len = read(rPipe, &connData.rspBuff[endContent],
-													ConnectionData::rspBuffCapacity - endContent);
+  len = read(rPipe, &connData.buff[endContent],
+													ConnectionData::buffCapacity - endContent);
   if (len == 0)
   { //EOF
     std::cout << "Pipe write end closed. No more data to read." << std::endl;
@@ -147,18 +298,16 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
     return (false);
   if (!connData.totalBytesRead) //First call to receiveData
   {
-    /*
-    **  Provisional. rspSize must be obtained by parsing the Content-length
-    **  header sent by cgi program
-    */
-    /*
-    **  Here there should be a call to another method that parses
-    **  the cgi response headers
-    */
-    connData.rspSize = 0; //Indicates unknown size
+    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize))
+      return (false);
+    connData.buffSize = connData.buff.find('\0');
+	  connData.totalBytesRead = connData.buffSize; //Fake value, because headers are modified
   }
-  connData.rspBuffSize = endContent + len;
-	connData.totalBytesRead += len;
+  else
+  {
+    connData.buffSize = endContent + len;
+	  connData.totalBytesRead += len;
+  }
   return (true);
 }
 

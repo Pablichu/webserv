@@ -40,8 +40,7 @@ cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
 import sys
 import os
 
-print("HTTP/1.1 200 OK")
-print("Content-type: text/plain")
+print("Content-Type: text/plain; charset=utf-8")
 print("")
 print(sys.stdin.read())
 for k, v in os.environ.items():
