@@ -153,7 +153,7 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
 
 bool  CgiHandler::_redirect(std::string & buff,
                               std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize)
+                              std::size_t & rspSize, std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string const &                                 location = header.at("Location");
@@ -182,6 +182,8 @@ bool  CgiHandler::_redirect(std::string & buff,
     return (true);
   }
   //Relative URI. Local redirect
+  localPath = location;
+  rspSize = 0;
   return (true);
 }
 
@@ -256,14 +258,14 @@ bool  CgiHandler::_document(std::string & buff,
 
 bool  CgiHandler::_reWriteResponse(std::string & buff,
                                     std::map<std::string, std::string> const & header,
-                                    std::size_t & rspSize)
+                                    std::size_t & rspSize, std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
 
   it = header.find("Location");
   if (it != header.end() && it->second != "")
   { //Handle redirect
-    return (this->_redirect(buff, header, rspSize));
+    return (this->_redirect(buff, header, rspSize, localPath));
   }
   else
   { //Handle document response
@@ -272,13 +274,13 @@ bool  CgiHandler::_reWriteResponse(std::string & buff,
 }
 
 bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
-                                    std::size_t & rspSize)
+                                    std::size_t & rspSize, std::string & localPath)
 {
   std::map<std::string, std::string>  header;
 
   if (!this->_parseCgiResponse(buff, buffSize, header))
     return (false);
-  if (!this->_reWriteResponse(buff, header, rspSize))
+  if (!this->_reWriteResponse(buff, header, rspSize, localPath))
     return (false);
   return (true);
 }
@@ -294,6 +296,7 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 {
   std::size_t	endContent;
   int         len;
+  std::string localPath;
 
   endContent = connData.buffSize;
 	if (connData.buffOffset)
@@ -324,8 +327,14 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
     return (false);
   if (!connData.totalBytesRead) //First call to receiveData
   {
-    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize))
+    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize, localPath))
       return (false);
+    if (localPath != "")
+    {
+      connData.req.getHeaders()["Method"] = "GET";
+      connData.req.getHeaders()["Path"] = localPath;
+      UrlParser().parse(localPath, connData.urlData);
+    }
     connData.buffSize = connData.buff.find('\0');
 	  connData.totalBytesRead = connData.buffSize; //Fake value, because headers are modified
   }

@@ -6,6 +6,7 @@
 
 #include "Data.hpp"
 #include "HttpInfo.hpp"
+#include "UrlParser.hpp"
 #include "utils.hpp"
 
 class CgiHandler
@@ -19,7 +20,7 @@ private:
                           std::map<std::string, std::string> & header);
   bool  _redirect(std::string & buff,
                   std::map<std::string, std::string> const & header,
-                  std::size_t & rspSize);
+                  std::size_t & rspSize, std::string & localPath);
   void  _addProtocolHeaders(std::string & buff,
                           std::map<std::string, std::string> const & header,
                           std::size_t & rspSize);
@@ -29,9 +30,9 @@ private:
                   std::size_t & rspSize);
   bool  _reWriteResponse(std::string & buff,
                           std::map<std::string, std::string> const & header,
-                          std::size_t & rspSize);
+                          std::size_t & rspSize, std::string & localPath);
   bool  _buildHttpHeaders(std::string & buff, int const buffSize,
-                          std::size_t & rspSize);
+                          std::size_t & rspSize, std::string & localPath);
 
 public:
 
