@@ -57,3 +57,12 @@ print("")
 EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/redir.cgi
+
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.cgi
+#!/usr/bin/python
+
+print("Location: /index.html")
+print("")
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.cgi
