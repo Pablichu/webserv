@@ -23,12 +23,20 @@ struct	CgiData
   int getWOutPipe(void) const;
 };
 
+enum	FileOp
+{
+	Read,
+	Create,
+	Append
+};
+
 struct FileData
 {
 	int					fd;
 	int const		socket;
 	std::string	filePath;
 	long				fileSize;
+	FileOp			fileOp;
 
 	FileData(std::string const & filePath, int const socket);
 };

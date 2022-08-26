@@ -118,8 +118,7 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
     return (false);
   while(true)
 	{
-		needle = buff.find(":", aux_needle);
-    if (needle == std::string::npos)
+    if (buff[aux_needle] == '\r' || buff[aux_needle] == '\n')
     { //Get body, if it exists
       needle = buff.find_first_of("\r\n", aux_needle);
       if (needle == std::string::npos)
@@ -131,6 +130,9 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
         header["body"] = "";
       break ;
     }
+    needle = buff.find(":", aux_needle);
+    if (needle == std::string::npos)
+      return (false);
 		key = buff.substr(aux_needle, needle - aux_needle);
     if (key != "Status" && key != "Location" && key != "Content-Type")
       std::transform(key.begin(), key.end(), key.begin(), tolower);
@@ -151,11 +153,37 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
 
 bool  CgiHandler::_redirect(std::string & buff,
                               std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize)
+                              std::size_t & rspSize, std::string & localPath)
 {
-  (void)buff;
-  (void)header;
-  (void)rspSize;
+  std::map<std::string, std::string>::const_iterator  it;
+  std::string const &                                 location = header.at("Location");
+  std::string                                         data;
+
+  if (location.find("://") != std::string::npos)
+  {//Absolute URI. Send redirection to client, with or without document.
+    if (header.at("body") != "")
+    {
+      it = header.find("Status");
+      if (it == header.end()
+          || it->second != "")
+        return (false);
+      data = "HTTP/1.1 " + it->second + ' '
+            + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
+      buff.replace(0, data.length(), data);
+      data.clear();
+      this->_addProtocolHeaders(buff, header, rspSize);
+      this->_addBody(buff, header.at("body"));
+      return (true);
+    }
+    data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
+    data += "Location: " + header.at("Location") + "\r\n\r\n";
+    buff.replace(0, data.length(), data);
+    rspSize = data.length();
+    return (true);
+  }
+  //Relative URI. Local redirect
+  localPath = location;
+  rspSize = 0;
   return (true);
 }
 
@@ -230,14 +258,14 @@ bool  CgiHandler::_document(std::string & buff,
 
 bool  CgiHandler::_reWriteResponse(std::string & buff,
                                     std::map<std::string, std::string> const & header,
-                                    std::size_t & rspSize)
+                                    std::size_t & rspSize, std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
 
   it = header.find("Location");
   if (it != header.end() && it->second != "")
   { //Handle redirect
-    return (this->_redirect(buff, header, rspSize));
+    return (this->_redirect(buff, header, rspSize, localPath));
   }
   else
   { //Handle document response
@@ -246,13 +274,13 @@ bool  CgiHandler::_reWriteResponse(std::string & buff,
 }
 
 bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
-                                    std::size_t & rspSize)
+                                    std::size_t & rspSize, std::string & localPath)
 {
   std::map<std::string, std::string>  header;
 
   if (!this->_parseCgiResponse(buff, buffSize, header))
     return (false);
-  if (!this->_reWriteResponse(buff, header, rspSize))
+  if (!this->_reWriteResponse(buff, header, rspSize, localPath))
     return (false);
   return (true);
 }
@@ -268,6 +296,7 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 {
   std::size_t	endContent;
   int         len;
+  std::string localPath;
 
   endContent = connData.buffSize;
 	if (connData.buffOffset)
@@ -298,8 +327,14 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
     return (false);
   if (!connData.totalBytesRead) //First call to receiveData
   {
-    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize))
+    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize, localPath))
       return (false);
+    if (localPath != "")
+    {
+      connData.req.getHeaders()["Method"] = "GET";
+      connData.req.getHeaders()["Path"] = localPath;
+      UrlParser().parse(localPath, connData.urlData);
+    }
     connData.buffSize = connData.buff.find('\0');
 	  connData.totalBytesRead = connData.buffSize; //Fake value, because headers are modified
   }

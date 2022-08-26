@@ -252,13 +252,33 @@ bool  Server::_matchConfig(int socket)
   return (true);
 }
 
-/*
-**  Depending on the request path, it will:
-**
-**  1. Open the file that has to be sent.
-**  2. Create the pipe that connects a cgi program to the server.
-**  3. Create an html listing directory contents.
-*/
+void  Server::_handlePipeRead(int const fd, std::size_t const index)
+{
+  int const         socket = this->_fdTable.getPipe(fd).socket;
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  int               error = 0;
+
+  // Read pipe from cgi program is ready to read
+  if (!this->_response.cgiHandler.receiveData(fd, connData))
+  { // Maybe try to return 500 error?
+    //Possible _endConnection function overload? this->_endConnection(socket, fd, index);
+    return ;
+  }
+  if (connData.rspSize == connData.totalBytesRead)
+  { //All data was received
+    //Order of removals and close is important!!!
+    connData.cgiData = 0;
+    this->_monitor.removeByIndex(index);
+    this->_fdTable.remove(fd);
+    close(fd); //close pipe read fd
+    if (connData.rspSize == 0)
+    {
+      if (!this->_response.process(socket, error))
+        this->_response.sendError(socket, error);
+    }
+    return ;
+  }
+}
 
 bool  Server::_validRequest(int socket, int & error)
 {
@@ -456,24 +476,7 @@ void  Server::_handleEvent(std::size_t index)
   }
   else if (fdType == PipeRead)
   {
-    // Read pipe from cgi program is ready to read
-    if (!this->_response.cgiHandler.receiveData(fd,
-        this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
-    { // Maybe try to return 500 error?
-      //Possible _endConnection function overload? this->_endConnection(this->_fdTable.getPipe(fd).socket, fd, index);
-      return ;
-    }
-    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize
-		    == this->_fdTable.getConnSock(
-          this->_fdTable.getPipe(fd).socket).totalBytesRead)
-    { //All data was received
-      //Order of removals and close is important!!!
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
-      this->_monitor.removeByIndex(index);
-	    this->_fdTable.remove(fd);
-      close(fd); //close pipe read fd
-      return ;
-    }
+    this->_handlePipeRead(fd, index);
   }
   else if (fdType == File)
   {
@@ -497,12 +500,13 @@ void  Server::_handleEvent(std::size_t index)
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
           == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
       {
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
-        this->_response.buildCreated(
+        //Order of statements is important!!
+        this->_response.buildUploaded(
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
           this->_fdTable.getConnSock(
             this->_fdTable.getFile(fd).socket).req.getPetit("Path"));
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
         this->_monitor.removeByIndex(index);
         this->_fdTable.remove(fd);
         close(fd);

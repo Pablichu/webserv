@@ -53,7 +53,7 @@ public:
 	void	buildRedirect(ConnectionData & connData, std::string const & url,
 											int const code);
 	void	buildDeleted(ConnectionData & connData);
-	void	buildCreated(ConnectionData & connData, std::string const & url);
+	void	buildUploaded(ConnectionData & connData, std::string const & url);
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);

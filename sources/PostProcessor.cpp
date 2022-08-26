@@ -36,37 +36,6 @@ bool  PostProcessor::_getFilePath(ConnectionData & connData,
         **  in the request validation part.
         */
         filePath = loc->upload_dir + '/' + fileName->second;
-        file.open(filePath.c_str());
-        if (file.is_open())
-        { //There is a file with the same name.
-          /*
-          ** POST can create a new resource or append to an existing one.
-          */
-          file.seekg(0, file.end);
-          if (std::atoi(connData.req.getPetit("Content-Length").c_str())
-              <= file.tellg())
-          {
-            /*
-            **  It cannot be an append.
-            **
-            **  An append is considered as uploading the existing content of
-            **  a file plus new content.
-            */
-            file.close();
-            return (false);
-          }
-          else
-          {
-            /*
-            **  It could be an append.
-            **
-            **  Check if the request payload contains all the existent file's
-            **  content. If that's the case, it is an append.
-            */
-            file.close();
-            return (false);
-          }
-        }
         return (true);
       }
     }
@@ -80,6 +49,19 @@ bool  PostProcessor::_getFilePath(ConnectionData & connData,
         return (true);
       }
     }
+  }
+  return (false);
+}
+
+bool  PostProcessor::_isAppend(std::string const & filePath) const
+{
+  std::ifstream file;
+
+  file.open(filePath.c_str());
+  if (file.is_open())
+  { //There is a file with the same name.
+    file.close();
+    return (true);
   }
   return (false);
 }
@@ -125,19 +107,35 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
 }
 
 bool  PostProcessor::_openFile(ConnectionData & connData, int const sockFd,
-                              std::string const & filePath) const
+                                std::string const & filePath,
+                                bool const append) const
 {
   FileData *  fileData = new FileData(filePath, sockFd);
 
-  /*
-  **  Create file with Read/Write permission for user, and Read permission
-  **  for group and other.
-  */
-  if (!this->_response.fileHandler.openFile(fileData->filePath, fileData->fd,
-      O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+  if (append)
   {
-    delete fileData;
-    return (false);
+    //  Append to existing file.
+    if (!this->_response.fileHandler.openFile(fileData->filePath, fileData->fd,
+        O_WRONLY | O_APPEND, 0))
+    {
+      delete fileData;
+      return (false);
+    }
+    fileData->fileOp = Append;
+  }
+  else
+  {
+    /*
+    **  Create file with Read/Write permission for user, and Read permission
+    **  for group and other.
+    */
+    if (!this->_response.fileHandler.openFile(fileData->filePath, fileData->fd,
+        O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+    {
+      delete fileData;
+      return (false);
+    }
+    fileData->fileOp = Create;
   }
   this->_monitor.add(fileData->fd, POLLOUT);
   this->_fdTable.add(fileData->fd, fileData);
@@ -148,18 +146,10 @@ bool  PostProcessor::_openFile(ConnectionData & connData, int const sockFd,
 bool  PostProcessor::start(int const sockFd, int & error) const
 {
   ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
-  LocationConfig const *  loc = connData.getLocation();
   std::string             filePath;
 
   if (!this->_getFilePath(connData, filePath))
   {
-    if (filePath.find(loc->upload_dir) != std::string::npos)
-    { //A file with the same name already exists
-      this->_response.buildRedirect(connData, connData.req.getPetit("Path"),
-                                    303); // See Other
-      filePath.clear();
-      return (true);
-    }
     filePath.clear();
     error = 400; // Bad Request
     return (false);
@@ -176,7 +166,8 @@ bool  PostProcessor::start(int const sockFd, int & error) const
     }
     else
     {
-      if(!this->_openFile(connData, sockFd, filePath))
+      if(!this->_openFile(connData, sockFd, filePath,
+          this->_isAppend(filePath)))
       {
         error = 500; // Internal Server Error
         return (false);
