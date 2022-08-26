@@ -25,6 +25,7 @@ class	Request
 		size_t		_length;
 
 		size_t	_hextodec(std::string hex);
+		size_t	_stoi_mine(std::string nb);
 
 	public:
 		Request();

@@ -58,7 +58,7 @@ void  Request::process()
 	{
 		std::cout << "body process" << std::endl;
 		this->_type = normal;
-		this->_length = std::stoi(this->getPetit("Content-Length"));
+		this->_length = this->_stoi_mine(this->getPetit("Content-Length"));
 		std::cout << "Length > " << this->_length << std::endl;
 		this->processBody();
 	}
@@ -160,4 +160,13 @@ size_t	Request::_hextodec(std::string hex)
 	ss << std::hex << hex;
 	ss >> nb;
 	return nb;
+}
+
+size_t	Request::_stoi_mine(std::string nb)
+{
+	std::istringstream	is(nb);
+	size_t				realNb;
+	if (is >> realNb)
+		return realNb;
+	return 0;
 }

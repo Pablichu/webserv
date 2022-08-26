@@ -9,6 +9,11 @@ then
   PYTHON_INTERPRETER=python
 fi
 
+if [ -d $SERVER_LOCALHOST_PATH/media ]
+then
+  rm $SERVER_LOCALHOST_PATH/media/*
+fi
+
 mkdir -p $SERVER_LOCALHOST_PATH
 mkdir -p $SERVER_LOCALHOST_PATH/gallery
 mkdir -p $SERVER_LOCALHOST_PATH/media
