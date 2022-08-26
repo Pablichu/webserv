@@ -53,15 +53,25 @@ void  Response::buildDeleted(ConnectionData & connData)
   return ;
 }
 
-void  Response::buildCreated(ConnectionData & connData, std::string const & url)
+void  Response::buildUploaded(ConnectionData & connData,
+                              std::string const & url)
 {
   std::string content;
+  int const   code = connData.fileData->fileOp == Create ? 201 : 200;
 
-  content = "HTTP/1.1 201 " + HttpInfo::statusCode.find(201)->second + "\r\n";
+  content = "HTTP/1.1 ";
+  content.append(utils::toString(code) + ' ');
+  content.append(HttpInfo::statusCode.find(code)->second + "\r\n");
   content.append("Date: " + utils::getDate() + "\r\n");
   content += "Location: " + url + "\r\n";
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
-  content.append("<html><body><h1>File created.</h1></body></html>");
+  content.append("<html><body><h1>");
+  if (code == 201)
+    content.append("File created at: ");
+  else
+    content.append("Content appended to existing file at: ");
+  content.append(url);
+  content.append("</h1></body></html>");
   this->_buildResponse(connData, content);
   return ;
 }

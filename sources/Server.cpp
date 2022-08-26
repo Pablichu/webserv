@@ -490,12 +490,13 @@ void  Server::_handleEvent(std::size_t index)
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
           == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
       {
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
-        this->_response.buildCreated(
+        //Order of statements is important!!
+        this->_response.buildUploaded(
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
           this->_fdTable.getConnSock(
             this->_fdTable.getFile(fd).socket).req.getPetit("Path"));
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
         this->_monitor.removeByIndex(index);
         this->_fdTable.remove(fd);
         close(fd);
