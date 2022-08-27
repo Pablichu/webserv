@@ -153,11 +153,12 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
 
 bool  CgiHandler::_redirect(std::string & buff,
                               std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize, std::string & localPath)
+                              std::size_t & rspSize,
+                              std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
-  std::string const &                                 location = header.at("Location");
   std::string                                         data;
+  std::string const & location = header.at("Location");
 
   if (location.find("://") != std::string::npos)
   {//Absolute URI. Send redirection to client, with or without document.
@@ -256,9 +257,11 @@ bool  CgiHandler::_document(std::string & buff,
   return (true);
 }
 
-bool  CgiHandler::_reWriteResponse(std::string & buff,
-                                    std::map<std::string, std::string> const & header,
-                                    std::size_t & rspSize, std::string & localPath)
+bool
+CgiHandler::_reWriteResponse(std::string & buff,
+                              std::map<std::string, std::string> const & header,
+                              std::size_t & rspSize,
+                              std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
 
@@ -274,7 +277,8 @@ bool  CgiHandler::_reWriteResponse(std::string & buff,
 }
 
 bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
-                                    std::size_t & rspSize, std::string & localPath)
+                                    std::size_t & rspSize,
+                                    std::string & localPath)
 {
   std::map<std::string, std::string>  header;
 
@@ -286,10 +290,53 @@ bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
 }
 
 /*
+**  -1: Exit failure.
+**   0: No exit yet.
+**   1: Exit success.
+*/
+
+int  CgiHandler::getExitStatus(pid_t const pID)
+{
+  int res;
+  int status;
+
+  errno = 0;
+  res = waitpid(pID, &status, WNOHANG);
+  if (res < 0)
+  {
+    std::cout << "waitpid failed with error: " << strerror(errno) << std::endl;
+    return (-1);
+  }
+  else if (res > 0)
+  {
+    if (WIFEXITED(status))
+    {
+      if (WEXITSTATUS(status) != EXIT_SUCCESS)
+      {
+        std::cout << "CGI process exited with error." << std::endl;
+        return (-1);
+      }
+      std::cout << "CGI process exited correctly." << std::endl;
+      return (1);
+    }
+    else
+    {
+      std::cout << "CGI process was terminated by a signal." << std::endl;
+      return (-1);
+    }
+  }
+  return (0);
+}
+
+void  CgiHandler::terminateProcess(pid_t const pID)
+{
+  kill(pID, SIGKILL);
+  waitpid(pID, NULL, 0);
+  return ;
+}
+
+/*
 **  Receive data from a cgi pipe's read end.
-**
-**  Need to check Content-length header from cgi response to know when
-**  all the data from cgi program has been read.
 */
 
 bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
@@ -325,9 +372,10 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   // An error occurred. EAGAIN is not possible, because POLLIN was emitted.
   if (len < 0)
     return (false);
-  if (!connData.totalBytesRead) //First call to receiveData
-  {
-    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize, localPath))
+  if (!connData.totalBytesRead)
+  {// First call to receiveData
+    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize,
+                                  localPath))
       return (false);
     if (localPath != "")
     {
@@ -415,7 +463,6 @@ bool  CgiHandler::initPipes(CgiData & cgiData, std::vector<char *> & env)
     close(cgiData.inPipe[1]);
     close(cgiData.outPipe[0]);
     this->_execProgram(cgiData, env);
-    std::cout << "exec failed" << std::endl;
     exit(EXIT_FAILURE);
   }
   else
@@ -423,6 +470,7 @@ bool  CgiHandler::initPipes(CgiData & cgiData, std::vector<char *> & env)
     close(cgiData.inPipe[0]);
     close(cgiData.outPipe[1]);
     this->_deleteEnv(env);
+    cgiData.pID = child;
     return (true);
   }
 }

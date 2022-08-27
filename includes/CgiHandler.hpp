@@ -3,6 +3,9 @@
 #include <map>
 #include <algorithm>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <cstring>
 
 #include "Data.hpp"
 #include "HttpInfo.hpp"
@@ -39,10 +42,12 @@ public:
   CgiHandler(void);
   ~CgiHandler(void);
 
+  int   getExitStatus(pid_t const pID);
+  void  terminateProcess(pid_t const pID);
   std::vector<char *> *
-  getEnv(std::map<std::string, std::string> const & reqHeader,
-          std::map<std::string, std::string> const & urlData,
-          std::string const & ip);
+        getEnv(std::map<std::string, std::string> const & reqHeader,
+                std::map<std::string, std::string> const & urlData,
+                std::string const & ip);
   bool	receiveData(int rPipe, ConnectionData & connData);
   bool  sendBody(int wPipe, ConnectionData & connData);
   bool  initPipes(CgiData & cgiData, std::vector<char *> & env);

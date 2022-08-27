@@ -14,6 +14,7 @@ struct	CgiData
 	std::string	const	filePath;
   int         			inPipe[2];
   int         			outPipe[2];
+	pid_t							pID;
 
 	CgiData(int const socket, std::string const & filePath);
 
