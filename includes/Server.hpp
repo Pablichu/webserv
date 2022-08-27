@@ -26,9 +26,6 @@ class	Server
 		void	_endConnection(int fd, size_t connIndex);
 		void	_sendData(int socket, std::size_t index);
 		bool	_fillFileResponse(int const fd, int const index);
-		bool  _openFile(int const socket, int const index,
-										ConnectionData & connData);
-		void  _sendError(int const socket, int const index, int error);
 		bool	_matchLocation(std::vector<LocationConfig> const & servers,
 													std::size_t & index, std::string const & reqUri);
 		void  _matchServer(std::vector<ServerConfig const *> & servers,
