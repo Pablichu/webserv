@@ -308,26 +308,28 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  if (this->_fdTable.getConnSock(socket).req.getDataSate() == normal)
-	this->_fdTable.getConnSock(socket).req.processBody();
-  else if (this->_fdTable.getConnSock(socket).req.getDataSate() == chunked)
-	this->_fdTable.getConnSock(socket).req.processChunked();
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  Request &         req = connData.req;
+  bodyType const    typeBody = req.getDataSate();
+  int               error = 0;
+
+  if (typeBody == normal)
+    req.processBody();
+  else if (typeBody == chunked)
+    req.processChunked();
   else
-  	this->_fdTable.getConnSock(socket).req.process();
-  if (this->_fdTable.getConnSock(socket).req.getDataSate() != done)
-	return ;
-
-  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
-                    this->_fdTable.getConnSock(socket).urlData);
+    req.process();
+  if (typeBody != done)
+    return ;
+  UrlParser().parse(req.getPetit("Path"),
+                    connData.urlData);
   std::cout << "Data received for "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Host")
+            << req.getPetit("Host")
             << " with path "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Path")
+            << req.getPetit("Path")
             << " | Buffer reached: "
-			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
+			<< req.updateLoop(false)
 			<< std::endl;
-
-  int error = 0;
   if (!this->_validRequest(socket, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
@@ -359,7 +361,6 @@ bool  Server::_receiveData(int socket)
   ConnectionData &	cone = this->_fdTable.getConnSock(socket);
   std::string &     reqData = cone.req.getData();
   int               len;
-  //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
   len = recv(socket, &cone.buff[0], cone.buffCapacity, 0);
   if (len <= 0)
@@ -370,12 +371,8 @@ bool  Server::_receiveData(int socket)
 	std::cout << std::endl;
 	return (false);
   }
-  /*
-  **  Do not append as string, as it will append the entire buffer size
-  **  instead of only the non null elements encountered before the first
-  **  null element.
-  */
-  reqData.append(&cone.buff[0]);
+  // Do not append as string, as it will append the entire buffer size.
+  reqData.append(&cone.buff[0], len);
   cone.req.updateLoop(true);
   std::fill(&cone.buff[0], &cone.buff[len], 0);
   return (true);
@@ -518,18 +515,17 @@ void  Server::_handleEvent(std::size_t index)
     if (this->_monitor[index].revents & POLLIN)
     {  
       // Connected client socket is ready to read without blocking
-	  if (!this->_receiveData(fd))
+	    if (!this->_receiveData(fd))
   	  {
-    	this->_endConnection(fd, index); //TODO: Handle Error
-    	return ;
+        this->_endConnection(fd, index); //TODO: Handle Error
+        return ;
   	  }
+    	this->_handleClientRead(fd);
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {
-	  if (this->_fdTable.getConnSock(fd).req.getDataSate() != done)
-      	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
-      if (this->_fdTable.getConnSock(fd).buffSize)    
+      if (this->_fdTable.getConnSock(fd).buffSize)
         this->_sendData(fd, index);
       if (this->_fdTable.getConnSock(fd).totalBytesSent
           == this->_fdTable.getConnSock(fd).rspSize

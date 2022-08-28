@@ -18,37 +18,30 @@ void  Request::process()
 	//First line
 	pos = reqData.find(" ");
 	this->_values["Method"] = reqData.substr(0, pos);
-	pos++;
-	rpos = reqData.find("H") - 1;
+	pos = reqData.find_first_not_of(' ', pos);
+	rpos = reqData.find(' ', pos);
 	this->_values["Path"] = reqData.substr(pos, rpos - pos);
-	pos = this->_values["Path"].rfind("/");
-	this->_values["File"] = this->_values["Path"].substr(pos, rpos - pos);
-	pos = rpos + 1;
-	rpos = reqData.find("\n");
+	pos = reqData.find_first_not_of(' ', rpos);
+	rpos = reqData.find_first_of("\r\n", pos);
 	this->_values["Protocol"] = reqData.substr(pos, rpos - pos);
-
 	//Get rest of reqData
 	while(true)
 	{
-		reqData.erase(0, rpos + 1);
+		reqData.erase(0, rpos + (reqData[rpos] == '\r' ? 2 : 1));
 		//This takes the body in case there is
-		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
+		if (reqData[0] == '\r' || reqData[0] == '\n') // Line terminations in HTTP messages are \r\n
 		{
-			reqData.erase(0, 2);
+			reqData.erase(0, reqData[0] == '\r' ? 2 : 1);
 			break ;
 		}
 		pos = reqData.find(":");
 		buff = reqData.substr(0, pos);
 		pos += 2;
-		rpos = reqData.find("\n");
+		rpos = reqData.find_first_of("\r\n");
 		if (rpos == std::string::npos)
 			break;
-		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
+		this->_values[buff] = reqData.substr(pos, rpos - pos);
 	}
-	/*std::map<std::string, std::string>::iterator  it;
-	for (it = this->_values.begin(); it != this->_values.end(); it++) {
-		std::cout << it->first << " = " << it->second << std::endl;
-	}*/
 	if (this->getPetit("Transfer-Encoding") == "chunked")//Check, maybe some parts are not neccessary
 	{
 		this->_type = chunked;
@@ -56,10 +49,8 @@ void  Request::process()
 	}
 	else if (this->getPetit("Content-Length") != "")
 	{
-		std::cout << "body process" << std::endl;
 		this->_type = normal;
 		this->_length = this->_stoi_mine(this->getPetit("Content-Length"));
-		std::cout << "Length > " << this->_length << std::endl;
 		this->processBody();
 	}
 	else
@@ -68,48 +59,63 @@ void  Request::process()
 
 void	Request::processChunked()
 {
-	std::string &	body = this->_values["Body"];
-	std::string &	data = this->_data;
-	int				pos;
-	int				buffer;
+	std::string &				body = this->_values["Body"];
+	std::string &				data = this->_data;
+	std::size_t					pos;
+	std::size_t					chunkSize;
+	static std::size_t	chunkDataLeft = 0;
 
 	while (!data.empty())
 	{
-		if (!data.find("0\r\n\r\n"))
+		if (data.find("0\r\n\r\n") == 0) //found at position 0
 		{
 			this->_type = done;
 			data.clear();
 			std::cout << "Mensaje de felicidad extrema" << std::endl;
 			return ;
 		}
-
-		pos = data.find("\r\n");
-		if (pos == -1)
-			return ;
-		buffer = _hextodec(data.substr(0, pos));
-		//std::cout << " >> " << pos << "/" << data.substr(0, pos) << "/" << buffer << std::endl;
-		body.append(data.substr(pos + 2, buffer));
-		data.erase(0, pos + buffer + 4);//this 4 is from two "\r\n"
+		if (!chunkDataLeft)
+		{
+			pos = data.find("\r\n");
+			if (pos == std::string::npos)
+				return ;
+			chunkDataLeft = _hextodec(data.substr(0, pos));
+			data.erase(0, pos + 2);
+		}
+		/*
+		**	If data length is smaller than the remaining size of the current chunk,
+		**	it means that all data's content is part of the current chunk.
+		**
+		**	If data length is bigger or equal to the remaining size of the current
+		**	chunk, it means that data has more content in addition to the current
+		**	chunk's content.
+		*/
+		chunkSize = data.length() < chunkDataLeft ? data.length() : chunkDataLeft;
+		body.append(data.substr(0, chunkSize));
+		data.erase(0, chunkSize);
+		chunkDataLeft -= chunkSize;
+		if(data[0] == '\r')
+			data.erase(0, 2);
 	}
 }
 
 void	Request::processBody()
 {
-	std::string &reqData = this->_data;
+	std::string &				reqData = this->_data;
+	static std::size_t	bodyDataLeft = 0;
 
-	/*if (!reqData.size())
-	{
-		std::cout << " >>>> No body to read" << std::endl;
-		exit(0);
-	}*/
-	if (reqData.size() > this->_length)
-	{
-		std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
-		exit(0);
-	}
-	this->_length -= reqData.size();
+	if (!reqData.length())
+		return ;
+	if (!bodyDataLeft) //First call to read body
+		bodyDataLeft = this->_length; //How much data must be read in total
 	this->_values["Body"].append(reqData.substr());
-	if (!this->_length)
+	bodyDataLeft -= reqData.length();
+	/*
+	**	Always empty reqData after appending to Body to prevent
+	**	unnecessary duplicates
+	*/
+	reqData.clear();
+	if (!bodyDataLeft)
 		this->_type = done;
 }
 
