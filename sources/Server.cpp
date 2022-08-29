@@ -361,6 +361,7 @@ bool  Server::_receiveData(int socket)
   int               len;
   //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
+  cone.req.dataAvailible() = true;
   len = recv(socket, &cone.buff[0], cone.buffCapacity, 0);
   if (len <= 0)
   {
@@ -375,7 +376,7 @@ bool  Server::_receiveData(int socket)
   **  instead of only the non null elements encountered before the first
   **  null element.
   */
-  reqData.append(&cone.buff[0]);
+  reqData.append(&cone.buff[0], len);
   cone.req.updateLoop(true);
   std::fill(&cone.buff[0], &cone.buff[len], 0);
   return (true);
@@ -526,7 +527,7 @@ void  Server::_handleEvent(std::size_t index)
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {
-	  if (this->_fdTable.getConnSock(fd).req.getDataSate() != done)
+	  if (this->_fdTable.getConnSock(fd).req.getDataSate() != done && this->_fdTable.getConnSock(fd).req.dataAvailible())
       	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).buffSize)    

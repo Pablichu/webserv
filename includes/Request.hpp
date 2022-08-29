@@ -23,6 +23,7 @@ class	Request
 		size_t		_loops;
 		bodyType	_type;
 		size_t		_length;
+		bool		_dataAvailible;
 
 		size_t	_hextodec(std::string hex);
 		size_t	_stoi_mine(std::string nb);
@@ -40,6 +41,7 @@ class	Request
 
 		enum bodyType &	getDataSate(void);
 		std::string &	getData(void);
+		bool &			dataAvailible(void);
 		size_t 			updateLoop(bool loop);
 		void			processChunked();
 		void			processBody();

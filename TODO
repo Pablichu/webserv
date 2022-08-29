@@ -41,9 +41,9 @@
   ⏳ ◦ limit client body size
   ⏳ · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
   ⏳ · Your program should call the cgi with the file requested as first argument
+  ⏳ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ⏳ ∗ execute CGI based on certain file extension (for example .php)
   👁🐽👁🔍· Because you won’t call the CGI directly use the full path as PATH_INFO
-  ❌ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ❌ · your server should work with one CGI (php-cgi, python...)
 
 	<<<<<< BONUS >>>>>>
@@ -51,5 +51,7 @@
 		❌  Cookies 🍪 
 
 Movidas del Peblo:
--  chunked
+-  chunked limit body with error
 -  template for errors html
+-  frontend pagina de fotos
+-  cookies

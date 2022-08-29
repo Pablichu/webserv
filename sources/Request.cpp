@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() : _loops(0), _type(none), _length(0) {}
+Request::Request() : _loops(0), _type(none), _length(0), _dataAvailible(false) {}
 
 Request::~Request() {}
 
@@ -45,11 +45,7 @@ void  Request::process()
 			break;
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
-	/*std::map<std::string, std::string>::iterator  it;
-	for (it = this->_values.begin(); it != this->_values.end(); it++) {
-		std::cout << it->first << " = " << it->second << std::endl;
-	}*/
-	if (this->getPetit("Transfer-Encoding") == "chunked")//Check, maybe some parts are not neccessary
+	if (this->getPetit("Transfer-Encoding") == "chunked")
 	{
 		this->_type = chunked;
 		processChunked();
@@ -87,7 +83,6 @@ void	Request::processChunked()
 		if (pos == -1)
 			return ;
 		buffer = _hextodec(data.substr(0, pos));
-		//std::cout << " >> " << pos << "/" << data.substr(0, pos) << "/" << buffer << std::endl;
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 4);//this 4 is from two "\r\n"
 	}
@@ -143,6 +138,11 @@ enum bodyType &	Request::getDataSate(void)
 std::string &	Request::getData(void)
 {
 	return this->_data;
+}
+
+bool &			Request::dataAvailible(void)
+{
+	return this->_dataAvailible;
 }
 
 size_t	Request::updateLoop(bool loop)
