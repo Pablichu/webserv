@@ -51,3 +51,22 @@ std::string utils::getDate(void)
   res.append("GMT");
   return (res);
 }
+
+void  utils::removeWhiteSpace(std::string & input)
+{
+  std::size_t needle;
+
+  needle = input.find_last_not_of(' ');
+  //Remove trailing white space
+  if (needle != input.length() - 1)
+    input.erase(needle + 1);
+  //Reduce inner white space
+  while (true)
+  {
+    needle = input.find("  ");
+    if (needle == std::string::npos)
+      break ;
+    input.erase(needle + 1, input.find_first_not_of(' ', needle));
+  }
+  return ;
+}

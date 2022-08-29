@@ -142,7 +142,7 @@ bool  Response::process(int const sockFd, int & error)
 {
   ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
   LocationConfig const *  loc = connData.getLocation();
-  std::string const       reqMethod = connData.req.getPetit("Method");
+  std::string const       reqMethod = connData.req.getPetit("METHOD");
 
   if (reqMethod == "GET")
   {

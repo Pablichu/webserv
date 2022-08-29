@@ -2,9 +2,12 @@
 
 #include <iostream>
 #include <map>
+#include <algorithm>
 #include <sstream>
 #include <stdlib.h>
 #include <string.h>
+
+#include "utils.hpp"
 
 enum	bodyType
 {

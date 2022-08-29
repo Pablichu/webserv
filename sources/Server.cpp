@@ -242,7 +242,7 @@ bool  Server::_matchConfig(int socket)
 
   this->_matchServer(
     *(connData.portConfigs),
-    connData.serverIndex, utils::extractHost(connData.req.getPetit("Host")));
+    connData.serverIndex, utils::extractHost(connData.req.getPetit("HOST")));
   if (connData.urlData.count("FileName"))
     path.erase(path.rfind("/"));
   if (!this->_matchLocation(
@@ -289,7 +289,7 @@ bool  Server::_validRequest(int socket, int & error)
     error = 404; // Not Found
     return (false);
   }
-  if (!connData.getLocation()->methods.count(connData.req.getPetit("Method")))
+  if (!connData.getLocation()->methods.count(connData.req.getPetit("METHOD")))
   { //Request method is not allowed in target location
     error = 405; // Method Not Allowed
   }
@@ -310,7 +310,7 @@ void  Server::_handleClientRead(int socket)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(socket);
   Request &         req = connData.req;
-  bodyType const    typeBody = req.getDataSate();
+  bodyType &        typeBody = req.getDataSate();
   int               error = 0;
 
   if (typeBody == normal)
@@ -321,12 +321,12 @@ void  Server::_handleClientRead(int socket)
     req.process();
   if (typeBody != done)
     return ;
-  UrlParser().parse(req.getPetit("Path"),
+  UrlParser().parse(req.getPetit("PATH"),
                     connData.urlData);
   std::cout << "Data received for "
-            << req.getPetit("Host")
+            << req.getPetit("HOST")
             << " with path "
-            << req.getPetit("Path")
+            << req.getPetit("PATH")
             << " | Buffer reached: "
 			<< req.updateLoop(false)
 			<< std::endl;
@@ -495,13 +495,13 @@ void  Server::_handleEvent(std::size_t index)
         return ; //Handle error
       }
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
-          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
+          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["BODY"].length())
       {
         //Order of statements is important!!
         this->_response.buildUploaded(
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
           this->_fdTable.getConnSock(
-            this->_fdTable.getFile(fd).socket).req.getPetit("Path"));
+            this->_fdTable.getFile(fd).socket).req.getPetit("PATH"));
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
         this->_monitor.removeByIndex(index);

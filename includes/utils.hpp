@@ -18,4 +18,5 @@ namespace utils
   std::string extractHost(std::string const & input);
   std::string extractPort(std::string const & input);
   std::string getDate(void);
+  void        removeWhiteSpace(std::string & input);
 }

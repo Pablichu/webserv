@@ -10,47 +10,50 @@ Request::~Request() {}
 */
 void  Request::process()
 {
-	std::string	buff;
-	size_t		pos;
-	size_t		rpos;
-	std::string &reqData = this->_data;
+	std::string		headerName;
+	size_t				pos;
+	size_t				rpos;
+	std::string &	reqData = this->_data;
 
 	//First line
 	pos = reqData.find(" ");
-	this->_values["Method"] = reqData.substr(0, pos);
+	this->_values["METHOD"] = reqData.substr(0, pos);
 	pos = reqData.find_first_not_of(' ', pos);
 	rpos = reqData.find(' ', pos);
-	this->_values["Path"] = reqData.substr(pos, rpos - pos);
+	this->_values["PATH"] = reqData.substr(pos, rpos - pos);
 	pos = reqData.find_first_not_of(' ', rpos);
 	rpos = reqData.find_first_of("\r\n", pos);
-	this->_values["Protocol"] = reqData.substr(pos, rpos - pos);
+	this->_values["PROTOCOL"] = reqData.substr(pos, rpos - pos);
 	//Get rest of reqData
 	while(true)
 	{
 		reqData.erase(0, rpos + (reqData[rpos] == '\r' ? 2 : 1));
 		//This takes the body in case there is
-		if (reqData[0] == '\r' || reqData[0] == '\n') // Line terminations in HTTP messages are \r\n
-		{
+		if (reqData[0] == '\r' || reqData[0] == '\n')
+		{// Line terminations in HTTP messages are \r\n
 			reqData.erase(0, reqData[0] == '\r' ? 2 : 1);
 			break ;
 		}
 		pos = reqData.find(":");
-		buff = reqData.substr(0, pos);
-		pos += 2;
+		headerName = reqData.substr(0, pos);
+		std::transform(headerName.begin(), headerName.end(), headerName.begin(),
+										toupper);
+		pos = reqData.find_first_not_of(' ', pos + 2);
 		rpos = reqData.find_first_of("\r\n");
 		if (rpos == std::string::npos)
 			break;
-		this->_values[buff] = reqData.substr(pos, rpos - pos);
+		this->_values[headerName] = reqData.substr(pos, rpos - pos);
+		utils::removeWhiteSpace(this->_values[headerName]);
 	}
-	if (this->getPetit("Transfer-Encoding") == "chunked")//Check, maybe some parts are not neccessary
+	if (this->getPetit("TRANSFER-ENCODING") == "chunked")//Check, maybe some parts are not neccessary
 	{
 		this->_type = chunked;
 		processChunked();
 	}
-	else if (this->getPetit("Content-Length") != "")
+	else if (this->getPetit("CONTENT-LENGTH") != "")
 	{
 		this->_type = normal;
-		this->_length = this->_stoi_mine(this->getPetit("Content-Length"));
+		this->_length = this->_stoi_mine(this->getPetit("CONTENT-LENGTH"));
 		this->processBody();
 	}
 	else
@@ -59,7 +62,7 @@ void  Request::process()
 
 void	Request::processChunked()
 {
-	std::string &				body = this->_values["Body"];
+	std::string &				body = this->_values["BODY"];
 	std::string &				data = this->_data;
 	std::size_t					pos;
 	std::size_t					chunkSize;
@@ -108,7 +111,7 @@ void	Request::processBody()
 		return ;
 	if (!bodyDataLeft) //First call to read body
 		bodyDataLeft = this->_length; //How much data must be read in total
-	this->_values["Body"].append(reqData.substr());
+	this->_values["BODY"].append(reqData.substr());
 	bodyDataLeft -= reqData.length();
 	/*
 	**	Always empty reqData after appending to Body to prevent

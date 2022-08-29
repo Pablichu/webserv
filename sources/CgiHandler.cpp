@@ -51,12 +51,12 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   content = "Auth_Type";
   this->_addEnvVar(*env, content);
   content = "Content_Length";
-  headerIt = reqHeader.find("Content-Length");
+  headerIt = reqHeader.find("CONTENT-LENGTH");
   if (headerIt != reqHeader.end())
     content += '=' + headerIt->second;
   this->_addEnvVar(*env, content);
   content = "Content_Type";
-  headerIt = reqHeader.find("Content-Type");
+  headerIt = reqHeader.find("CONTENT-TYPE");
   if (headerIt != reqHeader.end())
    content += '=' + headerIt->second;
   this->_addEnvVar(*env, content);
@@ -84,7 +84,7 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   this->_addEnvVar(*env, content);
   //REMOTE_IDENT unset. Not mandatory
   //REMOTE_USER unset. Not mandatory
-  content = "Request_Method=" + reqHeader.find("Method")->second;
+  content = "Request_Method=" + reqHeader.find("METHOD")->second;
   this->_addEnvVar(*env, content);
   /*
   **  Check if need to add cgi_bin folder path at the front.
@@ -94,9 +94,9 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   */
   content = "Script_Name=" + urlData.find("FileName")->second;
   this->_addEnvVar(*env, content);
-  content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
+  content = "Server_Name=" + utils::extractHost(reqHeader.find("HOST")->second);
   this->_addEnvVar(*env, content);
-  content = "Server_Port=" + utils::extractPort(reqHeader.find("Host")->second);
+  content = "Server_Port=" + utils::extractPort(reqHeader.find("HOST")->second);
   this->_addEnvVar(*env, content);
   content = "Server_Protocol=HTTP/1.1";
   this->_addEnvVar(*env, content);
@@ -331,8 +331,8 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
       return (false);
     if (localPath != "")
     {
-      connData.req.getHeaders()["Method"] = "GET";
-      connData.req.getHeaders()["Path"] = localPath;
+      connData.req.getHeaders()["METHOD"] = "GET";
+      connData.req.getHeaders()["PATH"] = localPath;
       UrlParser().parse(localPath, connData.urlData);
     }
     connData.buffSize = connData.buff.find('\0');
@@ -350,7 +350,7 @@ bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
 {
   int                 len;
   std::size_t &       totalBytesSent = connData.totalBytesSent;
-  std::string const & body = (connData.req.getHeaders())["Body"];
+  std::string const & body = (connData.req.getHeaders())["BODY"];
 
   len = write(wPipe, &body[totalBytesSent], body.length() - totalBytesSent);
   if (len == 0)
