@@ -2,7 +2,7 @@
 
 # Need to run "make && make start" before executing this test script
 
-# dirname removes "/filename.extensension" from path
+# dirname removes "/filename.extension" from path
 RELATIVE_SCRIPT_PATH=$(dirname $BASH_SOURCE)
 TARGET_FILE_NAME="tmp_hello.txt"
 TARGET_FILE_PATH="${RELATIVE_SCRIPT_PATH}/www/localhost/media/${TARGET_FILE_NAME}"
