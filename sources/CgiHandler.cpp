@@ -424,13 +424,12 @@ bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
 void  CgiHandler::_execProgram(CgiData const & cgiData,
                                 std::vector<char *> env)
 {
-  std::string programPath;
-  char *      argv[1 + 1];
+  char *      argv[2 + 1];
   char **     envArr;
 
-  programPath = cgiData.filePath;
-  argv[1] = 0;
-  argv[0] = const_cast<char *>(programPath.c_str());
+  argv[2] = 0;
+  argv[0] = const_cast<char *>(cgiData.interpreterPath.c_str());
+  argv[1] = const_cast<char *>(cgiData.scriptPath.c_str());
   envArr = new char *[env.size() + 1];
   std::copy(env.begin(), env.end(), envArr);
   envArr[env.size()] = 0;
@@ -438,7 +437,7 @@ void  CgiHandler::_execProgram(CgiData const & cgiData,
   close(cgiData.inPipe[0]);
   dup2(cgiData.outPipe[1], STDOUT_FILENO);
   close(cgiData.outPipe[1]);
-  execve(programPath.c_str(), argv, envArr);
+  execve(cgiData.interpreterPath.c_str(), argv, envArr);
   delete [] envArr;
 }
 

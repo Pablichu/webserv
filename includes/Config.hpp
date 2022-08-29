@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <stack>
+#include <map>
 #include <set>
 #include <iostream>
 #include <fstream>
@@ -35,12 +36,13 @@ private:
 
 struct	ServerConfig
 {
-	std::size_t										port; // max. port number 65535
-	std::set<std::string>					server_name; // host
-	std::string										not_found_page;
-	std::size_t										max_body_size;
+	std::size_t													port; // max. port number 65535
+	std::set<std::string>								server_name; // host
+	std::string													not_found_page;
+	std::size_t													max_body_size;
+	std::map<std::string, std::string>	cgiInterpreter;
 	//Dynamic array to store different location configs
-	std::vector< LocationConfig >	location;
+	std::vector< LocationConfig >				location;
 
 	ServerConfig(void);
 
@@ -53,6 +55,8 @@ private:
 	std::set<std::string>	_userDefined;
 
 	bool	_setServerName(std::string const & value);
+	bool	_processCgiPair(std::string const & value);
+	bool	_setCgiInterpreter(std::string const & value);
 };
 
 /*
