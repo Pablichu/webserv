@@ -45,6 +45,13 @@ response:
 request:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Request.cpp ./tests/requestTest.cpp -o request
 
+request_body:
+	$(CXX) $(CXXFLAGS) $(ROOT)/Request.cpp \
+											$(ROOT)/utils.cpp \
+											./tests/request_body.cpp -o request_body
+	@./request_body
+	@rm request_body
+
 config:
 	$(CXX) $(CXXFLAGS) $(ROOT)/Config.cpp ./tests/config.cpp -o config
 
