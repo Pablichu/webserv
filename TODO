@@ -38,7 +38,7 @@
   👍 ∗ define an HTTP redirection.
   👍 · make the route able to accept uploaded files and configure where it should be saved
   ⏳ ◦ setup the server_names or not
-  ⏳ ◦ limit client body size
+  ⏳ ◦ limit client body size (needs to be tested)
   ⏳ · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
   ⏳ · Your program should call the cgi with the file requested as first argument
   ⏳ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.

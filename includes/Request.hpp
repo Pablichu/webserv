@@ -43,6 +43,7 @@ class	Request
 		std::string &	getData(void);
 		bool &			dataAvailible(void);
 		size_t 			updateLoop(bool loop);
-		void			processChunked();
-		void			processBody();
+		const bool		processWhat();
+		bool			processChunked();
+		bool			processBody();
 };

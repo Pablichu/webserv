@@ -62,7 +62,7 @@ void  Request::process()
 		this->_type = done;
 }
 
-void	Request::processChunked()
+bool	Request::processChunked()
 {
 	std::string &	body = this->_values["Body"];
 	std::string &	data = this->_data;
@@ -84,11 +84,19 @@ void	Request::processChunked()
 			return ;
 		buffer = _hextodec(data.substr(0, pos));
 		body.append(data.substr(pos + 2, buffer));
-		data.erase(0, pos + buffer + 4);//this 4 is from two "\r\n"
+		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
+		if (data.find("\r\n"))
+		{
+			std::cout << " >>>> Chunk is too large " << data.size() << "/" << buffer << std::endl
+					  << "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;
+			return true;
+		}
+		data.erase(0, 2);
 	}
+	return false;
 }
 
-void	Request::processBody()
+bool	Request::processBody()
 {
 	std::string &reqData = this->_data;
 
@@ -100,19 +108,31 @@ void	Request::processBody()
 	if (reqData.size() > this->_length)
 	{
 		std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
-		exit(0);
+		return true;
 	}
 	this->_length -= reqData.size();
 	this->_values["Body"].append(reqData.substr());
 	if (!this->_length)
 		this->_type = done;
+	return false;
 }
 
 const std::string Request::getPetit(std::string petition)
 {
-  if (this->_values.count(petition))
-	  return this->_values[petition];
-  return ("");
+	if (this->_values.count(petition))
+		return this->_values[petition];
+	return ("");
+}
+
+const bool		Request::processWhat()
+{
+	if (this->getDataSate() == normal)
+		return this->processBody();
+	else if (this->getDataSate() == chunked)
+		return this->processChunked();
+	else
+		this->process();
+	return false;
 }
 
 std::map<std::string, std::string>::iterator	Request::begin()

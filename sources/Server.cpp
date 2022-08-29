@@ -308,12 +308,11 @@ bool  Server::_validRequest(int socket, int & error)
 
 void  Server::_handleClientRead(int socket)
 {
-  if (this->_fdTable.getConnSock(socket).req.getDataSate() == normal)
-	this->_fdTable.getConnSock(socket).req.processBody();
-  else if (this->_fdTable.getConnSock(socket).req.getDataSate() == chunked)
-	this->_fdTable.getConnSock(socket).req.processChunked();
-  else
-  	this->_fdTable.getConnSock(socket).req.process();
+  if (this->_fdTable.getConnSock(socket).req.processWhat())
+  {
+    this->_response.sendError(socket, 413);
+	return ;
+  }
   if (this->_fdTable.getConnSock(socket).req.getDataSate() != done)
 	return ;
 
