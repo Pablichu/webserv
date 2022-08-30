@@ -75,11 +75,6 @@ bool  Config::_checkMinData(void)
 		std::cout << "Error: Port not setted" << std::endl;
 	  	return (false);
 	  }
-	  if (!this->_serverConfig[i].server_name.size())
-	  {
-		std::cout << "Error: No server_name" << std::endl;
-	  	return (false);
-	  }
 	  if (this->_serverConfig[i].not_found_page.empty())
 	  {
 		if (access(".default/404.html", F_OK))
