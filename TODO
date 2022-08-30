@@ -42,8 +42,8 @@
   👍 · Your program should call the cgi with the file requested as first argument
   👍 · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   👍 ◦ setup the server_names or not
+  👍 Because you won’t call the CGI directly use the full path as PATH_INFO
   ⏳ ◦ limit client body size (needs to be tested)
-  ⏳ Because you won’t call the CGI directly use the full path as PATH_INFO
   ⏳ · your server should work with one CGI (php-cgi, python...)
 
 	<<<<<< BONUS >>>>>>
