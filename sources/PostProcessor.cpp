@@ -24,11 +24,11 @@ bool  PostProcessor::_getFilePath(ConnectionData & connData,
   std::map<std::string, std::string>::iterator  fileName;
   std::ifstream                                 file;
 
-  fileName = connData.urlData.find("FileName");
+  fileName = connData.urlData.find("FILENAME");
   if (fileName != connData.urlData.end()) //FileName present in request uri
   {
     if (this->_getCgiInterpreter(connData,
-        connData.urlData.find("FileType")->second) == "")
+        connData.urlData.find("FILETYPE")->second) == "")
     {// Requested file is not cgi
       if (loc->upload_dir != "")
       {

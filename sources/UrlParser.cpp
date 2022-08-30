@@ -14,7 +14,7 @@ bool  UrlParser::parse(std::string url,
   needle = url.find("?");
   if (needle != std::string::npos)
   {
-    data["Query_String"] = url.substr(needle + 1);
+    data["QUERY_STRING"] = url.substr(needle + 1);
     url.erase(needle, std::string::npos);
   }
   needle = url.find(".");
@@ -24,8 +24,8 @@ bool  UrlParser::parse(std::string url,
     data["PATH"] = url.substr(0, needle);
     url.erase(0, needle);
     needle = data["PATH"].rfind("/");
-    data["FileName"] = data["PATH"].substr(needle + 1);
-    data["FileType"] = data["FileName"].substr(data["FileName"].rfind(".") + 1);
+    data["FILENAME"] = data["PATH"].substr(needle + 1);
+    data["FILETYPE"] = data["FILENAME"].substr(data["FILENAME"].rfind(".") + 1);
   }
   else
   {
@@ -34,7 +34,7 @@ bool  UrlParser::parse(std::string url,
   }
   if (!url.empty())
   {
-    data["Path_Info"] = url.substr();
+    data["PATH_INFO"] = url.substr();
     url.clear();
   }  
   return (true);

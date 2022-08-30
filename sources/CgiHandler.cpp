@@ -62,8 +62,8 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   this->_addEnvVar(*env, content);
   content = "Gateway_Interface=CGI/1.1";
   this->_addEnvVar(*env, content);
-  content = "Path_Info";
-  urlDataIt = urlData.find("Path_Info");
+  content = "PATH_INFO";
+  urlDataIt = urlData.find("PATH_INFO");
   if (urlDataIt != urlData.end())
     content += '=' + urlDataIt->second;
   this->_addEnvVar(*env, content);
@@ -71,8 +71,8 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   if (urlDataIt != urlData.end())
     content += '=' + /* location.root + */ urlDataIt->second;
   this->_addEnvVar(*env, content);
-  content = "Query_String";
-  urlDataIt = urlData.find("Query_String");
+  content = "QUERY_STRING";
+  urlDataIt = urlData.find("QUERY_STRING");
   if (urlDataIt != urlData.end())
     content += '=' + urlDataIt->second;
   this->_addEnvVar(*env, content);
@@ -92,7 +92,7 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   **  This key must exist, as the presence of a valid CGI script filename
   **  in the request uri activates CGI processing operations.
   */
-  content = "Script_Name=" + urlData.find("FileName")->second;
+  content = "Script_Name=" + urlData.find("FILENAME")->second;
   this->_addEnvVar(*env, content);
   content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);

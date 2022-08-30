@@ -25,11 +25,11 @@ bool  GetProcessor::_getFilePath(ConnectionData & connData,
   std::ifstream                                 file;
 
   filePath = loc->root + '/';
-  fileName = connData.urlData.find("FileName");
+  fileName = connData.urlData.find("FILENAME");
   if (fileName != connData.urlData.end()) //FileName present in request uri
   {
     if (this->_getCgiInterpreter(connData,
-        connData.urlData.find("FileType")->second) == "") //Requested file is not cgi
+        connData.urlData.find("FILETYPE")->second) == "") //Requested file is not cgi
       filePath.append(fileName->second);
     else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
       filePath = loc->cgi_dir + '/' + fileName->second;
@@ -114,7 +114,7 @@ bool  GetProcessor::start(int const sockFd, int & error) const
   if (!this->_getFilePath(connData, filePath))
   {
     filePath.clear();
-    if (loc->dir_list == true && !connData.urlData.count("FileName"))
+    if (loc->dir_list == true && !connData.urlData.count("FILENAME"))
     {
       this->_response.buildDirList(
         connData, connData.urlData.find("PATH")->second, loc->root);
