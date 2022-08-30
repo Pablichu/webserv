@@ -76,7 +76,9 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
-                                          connData.urlData, connData.ip)))
+                                          connData.urlData,
+                                          connData.getLocation()->root,
+                                          connData.ip)))
   {
     delete cgiData;
     return (false);

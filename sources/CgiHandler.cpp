@@ -40,6 +40,7 @@ void  CgiHandler::_addEnvVar(std::vector<char *> & env, std::string const & var)
 std::vector<char *> *
 CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
                     std::map<std::string, std::string> const & urlData,
+                    std::string const & locationRoot,
                     std::string const & ip)
 {
   std::vector<char *> *                               env;
@@ -69,7 +70,7 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   this->_addEnvVar(*env, content);
   content = "Path_Translated";
   if (urlDataIt != urlData.end())
-    content += '=' + /* location.root + */ urlDataIt->second;
+    content += '=' + locationRoot + urlDataIt->second;
   this->_addEnvVar(*env, content);
   content = "QUERY_STRING";
   urlDataIt = urlData.find("QUERY_STRING");
@@ -87,12 +88,11 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   content = "Request_Method=" + reqHeader.find("METHOD")->second;
   this->_addEnvVar(*env, content);
   /*
-  **  Check if need to add cgi_bin folder path at the front.
-  **
-  **  This key must exist, as the presence of a valid CGI script filename
+  **  The FILENAME key must exist, as the presence of a valid CGI script filename
   **  in the request uri activates CGI processing operations.
   */
-  content = "Script_Name=" + urlData.find("FILENAME")->second;
+  content = "Script_Name=" + locationRoot;
+  content += '/' + urlData.find("FILENAME")->second;
   this->_addEnvVar(*env, content);
   content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
   this->_addEnvVar(*env, content);

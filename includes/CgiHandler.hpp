@@ -48,6 +48,7 @@ public:
   std::vector<char *> *
         getEnv(std::map<std::string, std::string> const & reqHeader,
                 std::map<std::string, std::string> const & urlData,
+                std::string const & locationRoot,
                 std::string const & ip);
   bool	receiveData(int rPipe, ConnectionData & connData);
   bool  sendBody(int wPipe, ConnectionData & connData);
