@@ -21,15 +21,15 @@ bool  UrlParser::parse(std::string url,
   if (needle != std::string::npos)
   {
     needle = url.find("/", needle);
-    data["Path"] = url.substr(0, needle);
+    data["PATH"] = url.substr(0, needle);
     url.erase(0, needle);
-    needle = data["Path"].rfind("/");
-    data["FileName"] = data["Path"].substr(needle + 1);
+    needle = data["PATH"].rfind("/");
+    data["FileName"] = data["PATH"].substr(needle + 1);
     data["FileType"] = data["FileName"].substr(data["FileName"].rfind("."));
   }
   else
   {
-    data["Path"] = url.substr();
+    data["PATH"] = url.substr();
     url.clear();
   }
   if (!url.empty())

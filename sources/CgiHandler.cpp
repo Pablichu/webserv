@@ -51,7 +51,7 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   content = "Auth_Type";
   this->_addEnvVar(*env, content);
   content = "Content_Length";
-  headerIt = reqHeader.find("Content-Length");
+  headerIt = reqHeader.find("CONTENT-LENGTH");
   if (headerIt != reqHeader.end())
     content += '=' + headerIt->second;
   this->_addEnvVar(*env, content);
@@ -84,7 +84,7 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   this->_addEnvVar(*env, content);
   //REMOTE_IDENT unset. Not mandatory
   //REMOTE_USER unset. Not mandatory
-  content = "Request_Method=" + reqHeader.find("Method")->second;
+  content = "Request_Method=" + reqHeader.find("METHOD")->second;
   this->_addEnvVar(*env, content);
   /*
   **  Check if need to add cgi_bin folder path at the front.
@@ -207,7 +207,7 @@ void  CgiHandler::_addProtocolHeaders(std::string & buff,
   }
   buff.replace(needle, 2, "\r\n");
   needle += 2;
-  it = header.find("content-length");
+  it = header.find("CONTENT-LENGTH");
   if (it != header.end() && it->second != "")
     rspSize = needle + std::atoi(it->second.c_str());
   else
@@ -331,8 +331,8 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
       return (false);
     if (localPath != "")
     {
-      connData.req.getHeaders()["Method"] = "GET";
-      connData.req.getHeaders()["Path"] = localPath;
+      connData.req.getHeaders()["METHOD"] = "GET";
+      connData.req.getHeaders()["PATH"] = localPath;
       UrlParser().parse(localPath, connData.urlData);
     }
     connData.buffSize = connData.buff.find('\0');

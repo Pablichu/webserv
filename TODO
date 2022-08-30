@@ -22,9 +22,9 @@
 ⏳ • A request to your server should never hang forever.
 ⏳ • Your HTTP response status codes must be accurate.
 ⏳ • poll (or equivalent) should check read and write at the same time.
-👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 ❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
 ❌ • Stress tests your server it must stay available at all cost.
+👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 
 ◦ setup routes with one or multiple of the following rules/configuration (routes wont be using regexp):
   👍 ∗ define a directory or a file from where the file should be search (for example if url /kapouet is rooted to /tmp/www, url /kapouet/pouic/toto/pouet is /tmp/www/pouic/toto/pouet)
@@ -37,21 +37,21 @@
   👍 ◦ setup default error pages
   👍 ∗ define an HTTP redirection.
   👍 · make the route able to accept uploaded files and configure where it should be saved
+  👍 ∗ execute CGI based on certain file extension (for example .php)
+  👍 · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
+  👍 · Your program should call the cgi with the file requested as first argument
+  👍 · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
   ⏳ ◦ setup the server_names or not
   ⏳ ◦ limit client body size (needs to be tested)
-  ⏳ · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
-  ⏳ · Your program should call the cgi with the file requested as first argument
-  ⏳ · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
-  ⏳ ∗ execute CGI based on certain file extension (for example .php)
-  👁🐽👁🔍· Because you won’t call the CGI directly use the full path as PATH_INFO
-  ❌ · your server should work with one CGI (php-cgi, python...)
+  ⏳ Because you won’t call the CGI directly use the full path as PATH_INFO
+  ⏳ · your server should work with one CGI (php-cgi, python...)
 
 	<<<<<< BONUS >>>>>>
-		❌  Multiple CGI
-		❌  Cookies 🍪 
+		👍  Multiple CGI
+		⏳  Cookies 🍪 
 
 Movidas del Peblo:
--  chunked limit body with error
+-  upper o lower para las keys del request
 -  template for errors html
 -  frontend pagina de fotos
 -  cookies

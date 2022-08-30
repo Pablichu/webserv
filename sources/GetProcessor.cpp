@@ -114,7 +114,7 @@ bool  GetProcessor::start(int const sockFd, int & error) const
     if (loc->dir_list == true && !connData.urlData.count("FileName"))
     {
       this->_response.buildDirList(
-        connData, connData.urlData.find("Path")->second, loc->root);
+        connData, connData.urlData.find("PATH")->second, loc->root);
     }
     else
     {

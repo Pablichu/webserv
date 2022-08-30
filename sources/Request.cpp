@@ -17,15 +17,13 @@ void  Request::process()
 
 	//First line
 	pos = reqData.find(" ");
-	this->_values["Method"] = reqData.substr(0, pos);
+	this->_values["METHOD"] = reqData.substr(0, pos);
 	pos++;
 	rpos = reqData.find("H") - 1;
-	this->_values["Path"] = reqData.substr(pos, rpos - pos);
-	pos = this->_values["Path"].rfind("/");
-	this->_values["File"] = this->_values["Path"].substr(pos, rpos - pos);
+	this->_values["PATH"] = reqData.substr(pos, rpos - pos);
 	pos = rpos + 1;
-	rpos = reqData.find("\n");
-	this->_values["Protocol"] = reqData.substr(pos, rpos - pos);
+	rpos = reqData.find("\r\n");
+	this->_values["PROTOCOL"] = reqData.substr(pos, rpos - pos);
 
 	//Get rest of reqData
 	while(true)
@@ -38,23 +36,23 @@ void  Request::process()
 			break ;
 		}
 		pos = reqData.find(":");
-		buff = reqData.substr(0, pos);
+		buff = this->stoupper(reqData.substr(0, pos));
 		pos += 2;
 		rpos = reqData.find("\n");
 		if (rpos == std::string::npos)
 			break;
 		this->_values[buff] = reqData.substr(pos, rpos - pos - 1);
 	}
-	if (this->getPetit("Transfer-Encoding") == "chunked")
+	if (this->getPetit("TRANSFER-ENCODING") == "chunked")
 	{
 		this->_type = chunked;
 		processChunked();
 	}
-	else if (this->getPetit("Content-Length") != "")
+	else if (this->getPetit("CONTENT-LENGTH") != "")
 	{
 		std::cout << "body process" << std::endl;
 		this->_type = normal;
-		this->_length = this->_stoi_mine(this->getPetit("Content-Length"));
+		this->_length = this->_stoi_mine(this->getPetit("CONTENT-LENGTH"));
 		std::cout << "Length > " << this->_length << std::endl;
 		this->processBody();
 	}
@@ -75,13 +73,13 @@ bool	Request::processChunked()
 		{
 			this->_type = done;
 			data.clear();
-			std::cout << "Mensaje de felicidad extrema" << std::endl;
-			return ;
+			std::cout << "CHUNKED FINISHED, HAPPY UH?" << std::endl;
+			return false;
 		}
 
 		pos = data.find("\r\n");
 		if (pos == -1)
-			return ;
+			return false;
 		buffer = _hextodec(data.substr(0, pos));
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
@@ -89,6 +87,7 @@ bool	Request::processChunked()
 		{
 			std::cout << " >>>> Chunk is too large " << data.size() << "/" << buffer << std::endl
 					  << "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;
+			data.empty();
 			return true;
 		}
 		data.erase(0, 2);
@@ -96,7 +95,7 @@ bool	Request::processChunked()
 	return false;
 }
 
-bool	Request::processBody()
+bool	Request::processBody()//posible error hablarlo con el compa
 {
 	std::string &reqData = this->_data;
 
@@ -124,7 +123,7 @@ const std::string Request::getPetit(std::string petition)
 	return ("");
 }
 
-const bool		Request::processWhat()
+bool		Request::processWhat()
 {
 	if (this->getDataSate() == normal)
 		return this->processBody();
@@ -189,4 +188,17 @@ size_t	Request::_stoi_mine(std::string nb)
 	if (is >> realNb)
 		return realNb;
 	return 0;
+}
+
+const std::string	Request::stoupper(std::string src)
+{
+	size_t	i = 0;
+
+	while (src[i])
+	{
+		if (islower(src[i]))
+			src[i] = toupper(src[i]);
+		i++;
+	}
+	return src;	
 }

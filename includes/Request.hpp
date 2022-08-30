@@ -39,11 +39,12 @@ class	Request
 		std::map<std::string, std::string>::iterator	end();
 		std::map<std::string, std::string> &	getHeaders(void);
 
-		enum bodyType &	getDataSate(void);
-		std::string &	getData(void);
-		bool &			dataAvailible(void);
-		size_t 			updateLoop(bool loop);
-		const bool		processWhat();
-		bool			processChunked();
-		bool			processBody();
+		enum bodyType &		getDataSate(void);
+		std::string &		getData(void);
+		bool &				dataAvailible(void);
+		size_t 				updateLoop(bool loop);
+		bool				processWhat();
+		bool				processChunked();
+		bool				processBody();
+		const std::string	stoupper(std::string src);
 };

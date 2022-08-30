@@ -238,7 +238,7 @@ void  Server::_matchServer(std::vector<ServerConfig const *> & servers,
 bool  Server::_matchConfig(int socket)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(socket);
-  std::string       path = connData.urlData.find("Path")->second;
+  std::string       path = connData.urlData.find("PATH")->second;
 
   this->_matchServer(
     *(connData.portConfigs),
@@ -289,18 +289,19 @@ bool  Server::_validRequest(int socket, int & error)
     error = 404; // Not Found
     return (false);
   }
-  if (!connData.getLocation()->methods.count(connData.req.getPetit("Method")))
+  if (!connData.getLocation()->methods.count(connData.req.getPetit("METHOD")))
   { //Request method is not allowed in target location
     error = 405; // Method Not Allowed
   }
-  //else if (!validBodySize)
-    //error = 413; // Payload Too Large
   //else if (!validFileExtension)
     //error = 415; // Unsupported Media Type
   //else if (!validStandardHeaders)
     //error = 400; // Bad Request
-  //else if (!validHTTPVersion)
-    //error = 505; // HTTP Version Not Supported
+  else if (strcmp(connData.req.getPetit("PROTOCOL").c_str(), "HTTP/1.1"))
+  {
+	  std::cout << connData.req.getPetit("PROTOCOL") << " | " << connData.req.getPetit("PROTOCOL").size() << std::endl;
+    error = 505; // HTTP Version Not Supported
+  }
   if (error)
     return (false);
   return (true);
@@ -316,12 +317,12 @@ void  Server::_handleClientRead(int socket)
   if (this->_fdTable.getConnSock(socket).req.getDataSate() != done)
 	return ;
 
-  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("Path"),
+  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("PATH"),
                     this->_fdTable.getConnSock(socket).urlData);
   std::cout << "Data received for "
             << this->_fdTable.getConnSock(socket).req.getPetit("Host")
             << " with path "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Path")
+            << this->_fdTable.getConnSock(socket).req.getPetit("PATH")
             << " | Buffer reached: "
 			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
 			<< std::endl;
@@ -504,7 +505,7 @@ void  Server::_handleEvent(std::size_t index)
         this->_response.buildUploaded(
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
           this->_fdTable.getConnSock(
-            this->_fdTable.getFile(fd).socket).req.getPetit("Path"));
+            this->_fdTable.getFile(fd).socket).req.getPetit("PATH"));
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
         this->_monitor.removeByIndex(index);
