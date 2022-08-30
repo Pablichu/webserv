@@ -129,11 +129,7 @@ void  Response::buildError(ConnectionData & connData, int const error)
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
-  content.append("<html><head><title>");
-  content.append(errorCode + ' ' + errorDescription);
-  content.append("</title></head><body><h1>");
-  content.append(errorCode + ' ' + errorDescription);
-  content.append("</h1></body></html>");
+  content.append(this->buildErrorHtml(errorCode, errorDescription));
   this->_buildResponse(connData, content);
   return ;
 }
@@ -226,4 +222,58 @@ bool	Response::sendData(int const sockFd, ConnectionData & connData)
 	else
 		connData.buffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
 	return (true);
+}
+
+const std::string	Response::buildErrorHtml(std::string const errorCode, std::string const errorDescription)
+{
+	std::string		content;
+	std::ifstream	in_file(".default/template_error.html");
+	std::string		buffer;
+
+
+	if (!in_file.is_open())
+	{
+		std::cout << "Cannot access template html" << std::endl;
+		content.append("<html><head><title>");
+		content.append(errorCode + ' ' + errorDescription);
+		content.append("</title></head><body><h1>");
+		content.append(errorCode + ' ' + errorDescription);
+		content.append("</h1></body></html>\r\n\r\n");
+		return content;
+	}
+
+	while (true)
+	{
+		std::getline(in_file, buffer);
+		content.append(buffer);
+		if (in_file.eof())
+		{
+			content.append("\r\n\r\n");
+			break ;
+		}
+		else
+			content.append("\n");
+	}
+	in_file.close();
+	//replace keys from html
+	this->replace(content, "|REPLACE-TITTLE|", errorCode);
+	this->replace(content, "|REPLACE-BODY|", errorDescription);
+	return content;
+}
+
+void	Response::replace(std::string & content, std::string thisStr, std::string forthisStr)
+{
+	size_t		found;
+
+	while (true)
+	{
+		found = content.find(thisStr);
+		if (found == std::string::npos)
+			break ;
+		else
+		{
+			content.erase(found, thisStr.length());
+			content.insert(found, forthisStr);
+		}
+	}
 }

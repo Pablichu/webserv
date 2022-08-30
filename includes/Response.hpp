@@ -61,4 +61,6 @@ public:
 	void	sendError(int const socket, int error);
 	bool	sendData(int const sockFd, ConnectionData & connData);
 
+	const std::string	buildErrorHtml(std::string const errorCode, std::string const errorDescription);
+	void				replace(std::string & content, std::string thisStr, std::string forthisStr);
 };
