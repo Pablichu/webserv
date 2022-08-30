@@ -50,10 +50,8 @@ void  Request::process()
 	}
 	else if (this->getPetit("CONTENT-LENGTH") != "")
 	{
-		std::cout << "body process" << std::endl;
 		this->_type = normal;
 		this->_length = this->_stoi_mine(this->getPetit("CONTENT-LENGTH"));
-		std::cout << "Length > " << this->_length << std::endl;
 		this->processBody();
 	}
 	else
