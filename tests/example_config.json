@@ -10,7 +10,6 @@
           "uri": "/",
           "root": "WEBSERV_PATH/tests/www/localhost",
           "methods": "GET",
-          "redirection": "",
           "dir_list": 0,
           "default_file": "index.html"
         },
@@ -18,7 +17,6 @@
           "uri": "/gallery",
           "root": "WEBSERV_PATH/tests/www/localhost/gallery",
           "methods": "GET",
-          "redirection": "",
           "dir_list": 1,
           "default_file": "gallery.html"
         },
@@ -26,7 +24,6 @@
           "uri": "/gallery/media",
           "root": "WEBSERV_PATH/tests/www/localhost/media",
           "methods": "GET,POST,DELETE",
-          "redirection": "",
           "default_file": "gallery.html",
           "upload_dir": "WEBSERV_PATH/tests/www/localhost/media"
         }
@@ -39,7 +36,7 @@
       "cgi_interpreter": "py,PYTHON_PATH:pl,PERL_PATH",
       "location": {
         "uri": "/",
-        "root": "WEBSERV_PATH/tests/www/localhost",
+        "root": "WEBSERV_PATH/tests/www/localhost/",
         "methods":"GET",
         "default_file": "index.html",
         "cgi_dir": "WEBSERV_PATH/tests/www/localhost/cgi-bin"
@@ -53,7 +50,6 @@
           "uri": "/",
           "root": "WEBSERV_PATH/tests/www/localhost",
           "methods": "GET",
-          "redirection": "",
           "dir_list": 0,
           "default_file": "index.html"
         },
@@ -61,7 +57,6 @@
           "uri": "/gallery",
           "root": "WEBSERV_PATH/tests/www/localhost/gallery",
           "methods": "GET,POST,DELETE",
-          "redirection": "",
           "dir_list": 1,
           "default_file": "missing.html",
           "upload_dir": "WEBSERV_PATH/tests/www/localhost/media"
@@ -83,7 +78,6 @@
           "uri": "/",
           "root": "WEBSERV_PATH/tests/www/localhost",
           "methods": "GET",
-          "redirection": "",
           "dir_list": 1,
           "default_file": "nonexistent.html"
         }

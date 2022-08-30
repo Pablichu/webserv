@@ -28,7 +28,7 @@ bool  Config::parseFile(void)
 {
   std::vector<std::string>  tokens;
 
-  if (this->_path == "" || !this->_validPath())
+  if (this->_path == "" || !this->_validConfigPath())
     return (false);
   this->_tokenizeFile(tokens);
   if (!this->_validateSyntax(tokens))
@@ -47,7 +47,7 @@ std::vector< ServerConfig > const &	Config::getConfig(void) const
 
 //PRIVATE METHODS
 
-bool  Config::_validPath(void) const
+bool  Config::_validConfigPath(void) const
 {
   std::size_t   file_type_pos;
   std::ifstream file;
@@ -654,17 +654,20 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
 
   prop = pr.first;
   val = pr.second;
-  if (prop == "uri" && (this->_userDefined.insert(prop)).second)
-    this->uri = val; // validate uri
-  else if (prop == "root" && (this->_userDefined.insert(prop)).second)
-    this->root = val; // validate path
+  if (prop == "uri" && this->_validUri(val)
+      && (this->_userDefined.insert(prop)).second)
+    this->uri = val;
+  else if (prop == "root" && this->_validDirectoryPath(val)
+            && (this->_userDefined.insert(prop)).second)
+    this->root = val;
   else if (prop == "methods" && (this->_userDefined.insert(prop)).second)
   {
     if (!this->_setMethods(val))
       return (false);
   }
-  else if (prop == "redirection" && (this->_userDefined.insert(prop)).second)
-    this->redirection = val; // validate uri
+  else if (prop == "redirection" && this->_validUri(val)
+            && (this->_userDefined.insert(prop)).second)
+    this->redirection = val;
   else if (prop == "dir_list" && (this->_userDefined.insert(prop)).second)
   {
     if (atoi(val.c_str()) == 1)
@@ -675,10 +678,12 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
       return (false);
   }
   else if (prop == "default_file" && (this->_userDefined.insert(prop)).second)
-    this->default_file = val; // validate path
-  else if (prop == "upload_dir" && (this->_userDefined.insert(prop)).second)
+    this->default_file = val;
+  else if (prop == "upload_dir" && this->_validDirectoryPath(val)
+            && (this->_userDefined.insert(prop)).second)
     this->upload_dir = val; // validate path
-  else if (prop == "cgi_dir" && (this->_userDefined.insert(prop)).second)
+  else if (prop == "cgi_dir" && this->_validDirectoryPath(val)
+            && (this->_userDefined.insert(prop)).second)
     this->cgi_dir = val; // validate path
   else
     return (false);
@@ -721,5 +726,35 @@ bool  LocationConfig::_setMethods(std::string const & value)
   }
   if (value[value.length() - 1] == ',') //Found comma at the end
     return (false);
+  return (true);
+}
+
+bool  LocationConfig::_validUri(std::string const & uri)
+{
+  std::size_t needle;
+
+  if (uri.front() != '/')
+  {
+    needle = uri.find("http://");
+    if (needle != std::string::npos && needle == 0)
+      return (true);
+    needle = uri.find("https://");
+    if (needle != std::string::npos && needle == 0)
+      return (true);
+    return (false);
+  }
+  return (true);
+}
+
+bool  LocationConfig::_validDirectoryPath(std::string & path)
+{
+  struct stat info;
+
+  if (stat(path.c_str(), &info))
+    return (false);
+  if (!S_ISDIR(info.st_mode))
+    return (false);
+  if (path.back() == '/')
+    path.erase(path.size() - 1);
   return (true);
 }
