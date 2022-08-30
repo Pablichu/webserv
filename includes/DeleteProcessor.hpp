@@ -18,7 +18,8 @@ private:
 
   bool  _getFilePath(ConnectionData & connData, std::string & filePath) const;
   bool  _launchCGI(ConnectionData & connData, int const sockFd,
-                    std::string const & filePath) const;
+                    std::string const & interpreterPath,
+                    std::string const & scriptPath) const;
   bool  _removeFile(ConnectionData & connData,
                     std::string const & filePath) const;
   DeleteProcessor(void);

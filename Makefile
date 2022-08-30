@@ -35,8 +35,6 @@ $(NAME): $(OBJ)
 
 start:
 	@sh server_content_setup.sh
-	@sed s#WEBSERV_PATH#$(PWD)#g tests/example_config.json \
-		> tests/tmp_config.json
 	./webserv tests/tmp_config.json
 
 response:

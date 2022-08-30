@@ -257,15 +257,26 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
   int const         socket = this->_fdTable.getPipe(fd).socket;
   ConnectionData &  connData = this->_fdTable.getConnSock(socket);
   int               error = 0;
+  int               exitStatus;
 
-  // Read pipe from cgi program is ready to read
-  if (!this->_response.cgiHandler.receiveData(fd, connData))
+  exitStatus = this->_response.cgiHandler.getExitStatus(connData.cgiData->pID);
+  if (exitStatus < 0
+      || !this->_response.cgiHandler.receiveData(fd, connData))
   { // Maybe try to return 500 error?
     //Possible _endConnection function overload? this->_endConnection(socket, fd, index);
+    std::cout << "Pipe read failed, closing read pipe." << std::endl;
+    if (!exitStatus)
+      this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
+    connData.cgiData = 0;
+    this->_monitor.removeByIndex(index);
+    this->_fdTable.remove(fd);
+    close(fd); //close pipe read fd
     return ;
   }
   if (connData.rspSize == connData.totalBytesRead)
   { //All data was received
+    if (!exitStatus)
+      this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
     //Order of removals and close is important!!!
     connData.cgiData = 0;
     this->_monitor.removeByIndex(index);
@@ -477,6 +488,7 @@ void  Server::_handleEvent(std::size_t index)
   }
   else if (fdType == PipeRead)
   {
+    // Read pipe from cgi program is ready to read
     this->_handlePipeRead(fd, index);
   }
   else if (fdType == File)

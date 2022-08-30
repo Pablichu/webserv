@@ -1,7 +1,9 @@
 #include "Data.hpp"
 
-CgiData::CgiData(int const socket, std::string const & filePath)
-                : socket(socket), filePath(filePath)
+CgiData::CgiData(int const socket, std::string const & interpreterPath,
+                  std::string const & scriptPath)
+                : socket(socket), interpreterPath(interpreterPath),
+                scriptPath(scriptPath)
 {
   std::fill(this->inPipe, this->inPipe + 2, 0);
   std::fill(this->outPipe, this->outPipe + 2, 0);

@@ -11,11 +11,14 @@ struct  LocationConfig;
 struct	CgiData
 {
 	int const        	socket;
-	std::string	const	filePath;
+	std::string const interpreterPath;
+	std::string	const	scriptPath;
   int         			inPipe[2];
   int         			outPipe[2];
+	pid_t							pID;
 
-	CgiData(int const socket, std::string const & filePath);
+	CgiData(int const socket, std::string const & interpreterPath,
+					std::string const & scriptPath);
 
 	int getRInPipe(void) const;
   int getWInPipe(void) const;

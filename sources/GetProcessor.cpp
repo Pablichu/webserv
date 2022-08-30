@@ -27,8 +27,9 @@ bool  GetProcessor::_getFilePath(ConnectionData & connData,
   filePath = loc->root + '/';
   fileName = connData.urlData.find("FileName");
   if (fileName != connData.urlData.end()) //FileName present in request uri
-  { //Provisional. Need to check multiple cgi extensions if necessary (php, cgi, py, etc.)
-    if (connData.urlData.find("FileType")->second != ".cgi") //Requested file is not cgi
+  {
+    if (this->_getCgiInterpreter(connData,
+        connData.urlData.find("FileType")->second) == "") //Requested file is not cgi
       filePath.append(fileName->second);
     else if (loc->cgi_dir != "") //Requested file is cgi, and cgi_dir exists
       filePath = loc->cgi_dir + '/' + fileName->second;
@@ -46,11 +47,12 @@ bool  GetProcessor::_getFilePath(ConnectionData & connData,
 }
 
 bool  GetProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
-                                std::string const & filePath) const
+                                std::string const & interpreterPath,
+                                std::string const & scriptPath) const
 {
   CgiData * cgiData;
 
-  cgiData = new CgiData(sockFd, filePath);
+  cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData, connData.ip)))
@@ -107,6 +109,7 @@ bool  GetProcessor::start(int const sockFd, int & error) const
   ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
   LocationConfig const *  loc = connData.getLocation();
   std::string             filePath;
+  std::string             cgiInterpreterPath;
 
   if (!this->_getFilePath(connData, filePath))
   {
@@ -124,9 +127,11 @@ bool  GetProcessor::start(int const sockFd, int & error) const
   }
   else
   {
-    if (filePath.rfind(".cgi") != std::string::npos) //Provisional. TODO: substr and able to check multiple cgi extensions if necessary
+    cgiInterpreterPath = this->_getCgiInterpreter(connData,
+      filePath.substr(filePath.rfind('.') + 1));
+    if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, sockFd, filePath))
+      if (!this->_launchCGI(connData, sockFd, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);

@@ -36,6 +36,7 @@
       "port": 9000,
       "server_name": "localhost",
       "not_found_page": "WEBSERV_PATH/tests/www/404.html",
+      "cgi_interpreter": "py,PYTHON_PATH:pl,PERL_PATH",
       "location": {
         "uri": "/",
         "root": "WEBSERV_PATH/tests/www/localhost",

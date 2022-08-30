@@ -4,7 +4,7 @@ SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 PYTHON_INTERPRETER=python3
 
-if ! type python3 > /dev/null
+if ! type python3 &> /dev/null
 then
   PYTHON_INTERPRETER=python
 fi
@@ -13,6 +13,9 @@ if [ -d $SERVER_LOCALHOST_PATH/media ]
 then
   rm $SERVER_LOCALHOST_PATH/media/*
 fi
+
+PYTHON_INTERPRETER_PATH=$(command -v $PYTHON_INTERPRETER)
+PERL_INTERPRETER_PATH=$(command -v perl)
 
 mkdir -p $SERVER_LOCALHOST_PATH
 mkdir -p $SERVER_LOCALHOST_PATH/gallery
@@ -39,8 +42,7 @@ sed s/INDEX/GALLERY/g $SERVER_LOCALHOST_PATH/index.html \
 sed s/INDEX/NOT_FOUND/g $SERVER_LOCALHOST_PATH/index.html \
   > $SERVER_PATH/404.html
 
-cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
-#!/usr/bin/$PYTHON_INTERPRETER
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.py
 
 import sys
 import os
@@ -52,22 +54,27 @@ for k, v in os.environ.items():
   print(k, v)
 EOF
 
-chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.cgi
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.py
 
-cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/redir.cgi
-#!/usr/bin/$PYTHON_INTERPRETER
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/redir.py
 
 print("Location: http://localhost:8080/gallery")
 print("")
 EOF
 
-chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/redir.cgi
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/redir.py
 
-cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.cgi
-#!/usr/bin/python
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.py
 
 print("Location: /index.html")
 print("")
 EOF
 
-chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.cgi
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.py
+
+sed s:WEBSERV_PATH:$(PWD):g tests/example_config.json \
+		> tests/tmp_config.json
+
+sed -i '' s:PYTHON_PATH:$PYTHON_INTERPRETER_PATH:g tests/tmp_config.json
+
+sed -i '' s:PERL_PATH:$PERL_INTERPRETER_PATH:g tests/tmp_config.json

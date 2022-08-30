@@ -19,7 +19,8 @@ private:
   bool  _getFilePath(ConnectionData & connData, std::string & filePath) const;
   bool  _isAppend(std::string const & filePath) const;
   bool  _launchCGI(ConnectionData & connData, int const sockFd,
-                    std::string const & filePath) const;
+                    std::string const & interpreterPath,
+                    std::string const & scriptPath) const;
   bool  _openFile(ConnectionData & connData, int const sockFd,
                   std::string const & filePath, bool const append) const;
   PostProcessor(void);

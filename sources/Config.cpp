@@ -114,6 +114,16 @@ bool  Config::_checkMinData(void)
 			std::cout << "Error: no methods defined in " << i << " " << j << std::endl;
 			return (false);
 		  }
+      if (this->_serverConfig[i].location[j].cgi_dir != "")
+      {
+        if (this->_serverConfig[i].cgiInterpreter.size() == 0)
+        {
+          std::cout
+          << "Error: cgi_dir set, but cgiInterpreter not set in Sever number "
+          << i << " Location number " << j << std::endl;
+          return (false);
+        }
+      }
 	  }
   }
   return (true);
@@ -123,7 +133,7 @@ bool  Config::_isServerProperty(std::string const & prop)
 {
   if (prop != "port" && prop != "server_name"
         && prop != "not_found_page" && prop != "max_body_size"
-        && prop != "location")
+        && prop != "location" && prop != "cgi_interpreter")
     return (false);
   return (true);
 }
@@ -529,6 +539,11 @@ bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
     if (this->max_body_size > 8192)
       return (false);
   }
+  else if (prop == "cgi_interpreter" && (this->_userDefined.insert(prop)).second)
+  {
+    if (!this->_setCgiInterpreter(val))
+      return (false);
+  }
   else
     return (false);
   return (true);
@@ -568,6 +583,59 @@ bool  ServerConfig::_setServerName(std::string const & value)
       return (false);
   }
   if (value != "" && value[value.length() - 1] == ',') //Found comma at the end
+    return (false);
+  return (true);
+}
+
+bool  ServerConfig::_processCgiPair(std::string const & value)
+{
+  std::stringstream                   ss;
+  std::string                         payload;
+  std::pair<std::string, std::string> pair;
+  bool                                no_repeat;
+
+  ss << value;
+  while (std::getline(ss, payload, ',')) //If value is empty doesn't enter loop
+  {
+    if (payload == "") //Double comma or starting comma found
+      return (false);
+    if (pair.first == "")
+       pair.first = payload;
+    else if (pair.second == "")
+    {
+      pair.second = payload;
+      no_repeat = (this->cgiInterpreter.insert(pair)).second;
+      if (!no_repeat) // PAIR WAS ALREADY INSERTED IN map
+        return (false);
+    }
+    else
+      return (false);
+  }
+  if (value != "" && value[value.length() - 1] == ',') //Found comma at the end
+    return (false);
+  return (true);
+}
+
+/*
+**  Insert one or more cgi extensions along with their interpreter paths
+**  as key value pairs of the cgi map. extensions and paths are delimited
+**  by commas, and cgi pairs are delimited by :.
+*/
+
+bool  ServerConfig::_setCgiInterpreter(std::string const & value)
+{
+  std::stringstream ss;
+  std::string       payload;
+
+  ss << value;
+  while (std::getline(ss, payload, ':')) //If value is empty doesn't enter loop
+  {
+    if (payload == "") //Double comma or starting comma found
+      return (false);
+    if (!this->_processCgiPair(payload))
+      return (false);
+  }
+  if (value != "" && value[value.length() - 1] == ':') //Found colon(:) at the end
     return (false);
   return (true);
 }
