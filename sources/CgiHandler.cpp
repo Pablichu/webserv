@@ -123,7 +123,11 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
   std::string key;
 
   aux_needle = 0;
-  if (buff.find_first_of("\r\n") < buff.find(':'))
+  /*
+  **  The condition is equal when none of the characters are found,
+  **  having both sides a value of std::string::npos.
+  */
+  if (buff.find_first_of("\r\n") <= buff.find(':'))
     return (false);
   while(true)
 	{
