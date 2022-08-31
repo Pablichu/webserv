@@ -102,7 +102,16 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   this->_addEnvVar(*env, content);
   content = "SERVER_SOFTWARE=42WebServer/1.0";
   this->_addEnvVar(*env, content);
-  //Protocol headers unset. Not mandatory
+  //Add other Protocol headers.
+  for (headerIt = reqHeader.begin(); headerIt != reqHeader.end(); ++headerIt)
+  {
+    if (HttpInfo::otherHeader.count(headerIt->first))
+    {
+      content = "HTTP_" + headerIt->first + '=' + headerIt->second;
+      std::replace(content.begin(), content.end(), '-', '_');
+      this->_addEnvVar(*env, content);
+    }
+  }
   return (env);
 }
 

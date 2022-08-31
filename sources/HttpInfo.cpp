@@ -87,3 +87,18 @@ InitContentType::InitContentType(void)
 
 std::map<std::string const, std::string const> const
   HttpInfo::contentType(InitContentType().m);
+
+InitOtherHeader::InitOtherHeader(void)
+{
+  this->s.insert("ACCEPT");
+  this->s.insert("ACCEPT-ENCODING");
+  this->s.insert("ACCEPT-LANGUAGE");
+  this->s.insert("ACCEPT-POST");
+  this->s.insert("COOKIE");
+  this->s.insert("ORIGIN");
+  this->s.insert("REFERER");
+  this->s.insert("USER-AGENT");  
+}
+
+std::set<std::string> const
+  HttpInfo::otherHeader(InitOtherHeader().s);
