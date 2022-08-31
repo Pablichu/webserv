@@ -16,18 +16,25 @@ EXIT_CODE=""
 # POST big text file
 
 # -f makes curl return an error for response codes >= 400
-curl -v -f --data-binary @"${UPLOAD_FILE_PATH}" $REQUEST_URI &> $LOG_FILE_PATH
+#
+# &> is not portable. 2>&1 redirects stderr to stdout
+#
+curl -v -f --data-binary @"${UPLOAD_FILE_PATH}" $REQUEST_URI \
+  > $LOG_FILE_PATH 2>&1
 
 EXIT_CODE="$?"
 
 if [ "$EXIT_CODE" -ne "0" ] || [ ! -f "$TARGET_FILE_PATH" ]
 then
-  echo "First POST request failed."
+  if [ "$EXIT_CODE" -ne "22" ]; then
+    echo "Run make && make start before executing this test script."
+  else
+    echo "First POST request failed."; fi
   if [ -f "$TARGET_FILE_PATH" ]; then rm $TARGET_FILE_PATH; fi
   exit $EXIT_CODE
 fi
 
-cat $LOG_FILE_PATH | grep "HTTP/1.1 201 Created" &> /dev/null
+cat $LOG_FILE_PATH | grep "HTTP/1.1 201 Created" > /dev/null 2>&1
 
 EXIT_CODE="$?"
 
@@ -38,7 +45,7 @@ then
   exit $EXIT_CODE
 fi
 
-diff $UPLOAD_FILE_PATH $TARGET_FILE_PATH &> /dev/null
+diff $UPLOAD_FILE_PATH $TARGET_FILE_PATH > /dev/null 2>&1
 
 EXIT_CODE="$?"
 
@@ -51,7 +58,8 @@ fi
 
 # POST to existing file to append
 
-curl -v -f --data-binary @"${UPLOAD_FILE_PATH}" $REQUEST_URI &> $LOG_FILE_PATH
+curl -v -f --data-binary @"${UPLOAD_FILE_PATH}" $REQUEST_URI \
+  > $LOG_FILE_PATH 2>&1
 
 EXIT_CODE="$?"
 
@@ -62,7 +70,7 @@ then
   exit $EXIT_CODE
 fi
 
-cat $LOG_FILE_PATH | grep "HTTP/1.1 200 OK" &> /dev/null
+cat $LOG_FILE_PATH | grep "HTTP/1.1 200 OK" > /dev/null 2>&1
 
 EXIT_CODE="$?"
 
@@ -77,7 +85,7 @@ fi
 # So if diff determines that files are equal, it means that the file
 # was overwritten.
 
-diff $UPLOAD_FILE_PATH $TARGET_FILE_PATH &> /dev/null
+diff $UPLOAD_FILE_PATH $TARGET_FILE_PATH > /dev/null 2>&1
 
 EXIT_CODE="$?"
 
@@ -90,7 +98,7 @@ fi
 
 # DELETE uploaded file
 
-curl -f -s -X DELETE $REQUEST_URI > /dev/null
+curl -f -s -X DELETE $REQUEST_URI > /dev/null 2>&1
 
 EXIT_CODE="$?"
 
