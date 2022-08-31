@@ -242,7 +242,7 @@ bool  Server::_matchConfig(int socket)
 
   this->_matchServer(
     *(connData.portConfigs),
-    connData.serverIndex, utils::extractHost(connData.req.getPetit("Host")));
+    connData.serverIndex, utils::extractHost(connData.req.getPetit("HOST")));
   if (connData.urlData.count("FILENAME"))
     path.erase(path.rfind("/"));
   if (!this->_matchLocation(
@@ -331,7 +331,7 @@ void  Server::_handleClientRead(int socket)
   UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("PATH"),
                     this->_fdTable.getConnSock(socket).urlData);
   std::cout << "Data received for "
-            << this->_fdTable.getConnSock(socket).req.getPetit("Host")
+            << this->_fdTable.getConnSock(socket).req.getPetit("HOST")
             << " with path "
             << this->_fdTable.getConnSock(socket).req.getPetit("PATH")
             << " | Buffer reached: "
@@ -511,7 +511,7 @@ void  Server::_handleEvent(std::size_t index)
         return ; //Handle error
       }
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
-          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
+          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["BODY"].length())
       {
         //Order of statements is important!!
         this->_response.buildUploaded(
