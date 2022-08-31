@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
+#include <sys/stat.h>
 
 struct LocationConfig
 {
@@ -31,6 +32,8 @@ private:
 	std::set<std::string>	_userDefined;
 
 	bool	_setMethods(std::string const & value);
+	bool	_validUri(std::string const & uri);
+	bool	_validDirectoryPath(std::string & path);
 };
 
 
@@ -72,7 +75,7 @@ private:
 	//Dynamic array to store different server configs
 	std::vector< ServerConfig >	_serverConfig;
 
-	bool	_validPath(void) const;
+	bool	_validConfigPath(void) const;
 
 	bool	_checkMinData(void);
 

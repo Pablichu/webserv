@@ -49,7 +49,9 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
-                                          connData.urlData, connData.ip)))
+                                          connData.urlData,
+                                          connData.getLocation()->root,
+                                          connData.ip)))
   {
     delete cgiData;
     return (false);
@@ -64,12 +66,12 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
     delete cgiData;
     return (false);
   }
-  if (connData.req.getHeaders().find("Body") != connData.req.getHeaders().end())
+  if (connData.req.getHeaders().find("BODY") != connData.req.getHeaders().end())
   {
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
     this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
-    connData.rspSize = connData.req.getPetit("Body").length();
+    connData.rspSize = connData.req.getPetit("BODY").length();
   }
   else
     close(cgiData->getWInPipe());

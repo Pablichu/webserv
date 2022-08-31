@@ -40,6 +40,7 @@ void  CgiHandler::_addEnvVar(std::vector<char *> & env, std::string const & var)
 std::vector<char *> *
 CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
                     std::map<std::string, std::string> const & urlData,
+                    std::string const & locationRoot,
                     std::string const & ip)
 {
   std::vector<char *> *                               env;
@@ -48,59 +49,58 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   std::string                                         content;
 
   env = new std::vector<char *>();
-  content = "Auth_Type";
+  content = "AUTH_TYPE";
   this->_addEnvVar(*env, content);
-  content = "Content_Length";
+  content = "CONTENT_LENGTH";
   headerIt = reqHeader.find("CONTENT-LENGTH");
   if (headerIt != reqHeader.end())
     content += '=' + headerIt->second;
   this->_addEnvVar(*env, content);
-  content = "Content_Type";
-  headerIt = reqHeader.find("Content-Type");
+  content = "CONTENT-TYPE";
+  headerIt = reqHeader.find("CONTENT-TYPE");
   if (headerIt != reqHeader.end())
    content += '=' + headerIt->second;
   this->_addEnvVar(*env, content);
-  content = "Gateway_Interface=CGI/1.1";
+  content = "GATEWAY_INTERFACE=CGI/1.1";
   this->_addEnvVar(*env, content);
   content = "PATH_INFO";
   urlDataIt = urlData.find("PATH_INFO");
   if (urlDataIt != urlData.end())
     content += '=' + urlDataIt->second;
   this->_addEnvVar(*env, content);
-  content = "Path_Translated";
+  content = "PATH_TRANSLATED";
   if (urlDataIt != urlData.end())
-    content += '=' + /* location.root + */ urlDataIt->second;
+    content += '=' + locationRoot + urlDataIt->second;
   this->_addEnvVar(*env, content);
   content = "QUERY_STRING";
   urlDataIt = urlData.find("QUERY_STRING");
   if (urlDataIt != urlData.end())
     content += '=' + urlDataIt->second;
   this->_addEnvVar(*env, content);
-  content = "Remote_Addr";
+  content = "REMOTE_ADDR";
   if (!ip.empty())
     content += '=' + ip;
   this->_addEnvVar(*env, content);
-  content = "Remote_Host";
+  content = "REMOTE_HOST";
   this->_addEnvVar(*env, content);
   //REMOTE_IDENT unset. Not mandatory
   //REMOTE_USER unset. Not mandatory
-  content = "Request_Method=" + reqHeader.find("METHOD")->second;
+  content = "REQUEST_METHOD=" + reqHeader.find("METHOD")->second;
   this->_addEnvVar(*env, content);
   /*
-  **  Check if need to add cgi_bin folder path at the front.
-  **
-  **  This key must exist, as the presence of a valid CGI script filename
+  **  The FILENAME key must exist, as the presence of a valid CGI script filename
   **  in the request uri activates CGI processing operations.
   */
-  content = "Script_Name=" + urlData.find("FILENAME")->second;
+  content = "SCRIPT_NAME=" + locationRoot;
+  content += '/' + urlData.find("FILENAME")->second;
   this->_addEnvVar(*env, content);
-  content = "Server_Name=" + utils::extractHost(reqHeader.find("Host")->second);
+  content = "SERVER_NAME=" + utils::extractHost(reqHeader.find("HOST")->second);
   this->_addEnvVar(*env, content);
-  content = "Server_Port=" + utils::extractPort(reqHeader.find("Host")->second);
+  content = "SERVER_PORT=" + utils::extractPort(reqHeader.find("HOST")->second);
   this->_addEnvVar(*env, content);
-  content = "Server_Protocol=HTTP/1.1";
+  content = "SERVER_PROTOCOL=HTTP/1.1";
   this->_addEnvVar(*env, content);
-  content = "Server_Software=42WebServer/1.0";
+  content = "SERVER_SOFTWARE=42WebServer/1.0";
   this->_addEnvVar(*env, content);
   //Protocol headers unset. Not mandatory
   return (env);
@@ -125,17 +125,16 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
         return (false);
       needle += buff[needle] == '\r' ? 2 : 1;
       if (static_cast<std::size_t>(buffSize) > needle + 1)
-        header["body"] = buff.substr(needle);
+        header["BODY"] = buff.substr(needle);
       else
-        header["body"] = "";
+        header["BODY"] = "";
       break ;
     }
     needle = buff.find(":", aux_needle);
     if (needle == std::string::npos)
       return (false);
 		key = buff.substr(aux_needle, needle - aux_needle);
-    if (key != "Status" && key != "Location" && key != "Content-Type")
-      std::transform(key.begin(), key.end(), key.begin(), tolower);
+    std::transform(key.begin(), key.end(), key.begin(), toupper);
 		needle = buff.find_first_not_of(' ', needle + 1);
     if (needle == std::string::npos)
       return (false);
@@ -158,13 +157,13 @@ bool  CgiHandler::_redirect(std::string & buff,
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
-  std::string const & location = header.at("Location");
+  std::string const & location = header.at("LOCATION");
 
   if (location.find("://") != std::string::npos)
   {//Absolute URI. Send redirection to client, with or without document.
-    if (header.at("body") != "")
+    if (header.at("BODY") != "")
     {
-      it = header.find("Status");
+      it = header.find("STATUS");
       if (it == header.end()
           || it->second != "")
         return (false);
@@ -173,11 +172,11 @@ bool  CgiHandler::_redirect(std::string & buff,
       buff.replace(0, data.length(), data);
       data.clear();
       this->_addProtocolHeaders(buff, header, rspSize);
-      this->_addBody(buff, header.at("body"));
+      this->_addBody(buff, header.at("BODY"));
       return (true);
     }
     data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
-    data += "Location: " + header.at("Location") + "\r\n\r\n";
+    data += "Location: " + header.at("LOCATION") + "\r\n\r\n";
     buff.replace(0, data.length(), data);
     rspSize = data.length();
     return (true);
@@ -199,8 +198,8 @@ void  CgiHandler::_addProtocolHeaders(std::string & buff,
   needle = buff.find('\0');
   for (it = header.begin(); it != header.end(); ++it)
   {
-    if (it->first == "Status"
-        || it ->first == "body")
+    if (it->first == "STATUS"
+        || it ->first == "BODY")
       continue ;
     data = it->first + ": " + it->second + "\r\n";
     buff.replace(needle, data.length(), data);
@@ -231,7 +230,7 @@ bool  CgiHandler::_document(std::string & buff,
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
 
-  it = header.find("Status");
+  it = header.find("STATUS");
   if (it != header.end() && it->second != "")
   {
     if (!HttpInfo::statusCode.count(atoi(it->second.c_str())))
@@ -246,14 +245,14 @@ bool  CgiHandler::_document(std::string & buff,
   }
   else
   {
-    if (!header.count("Content-Type"))
+    if (!header.count("CONTENT-TYPE"))
       return (false);
     data = "HTTP/1.1 200 OK\r\n";
     buff.replace(0, data.length(), data);
   }
   data.clear();
   this->_addProtocolHeaders(buff, header, rspSize);
-  this->_addBody(buff, header.at("body"));
+  this->_addBody(buff, header.at("BODY"));
   return (true);
 }
 
@@ -265,7 +264,7 @@ CgiHandler::_reWriteResponse(std::string & buff,
 {
   std::map<std::string, std::string>::const_iterator  it;
 
-  it = header.find("Location");
+  it = header.find("LOCATION");
   if (it != header.end() && it->second != "")
   { //Handle redirect
     return (this->_redirect(buff, header, rspSize, localPath));
@@ -398,7 +397,7 @@ bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
 {
   int                 len;
   std::size_t &       totalBytesSent = connData.totalBytesSent;
-  std::string const & body = (connData.req.getHeaders())["Body"];
+  std::string const & body = (connData.req.getHeaders())["BODY"];
 
   len = write(wPipe, &body[totalBytesSent], body.length() - totalBytesSent);
   if (len == 0)

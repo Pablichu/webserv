@@ -511,7 +511,7 @@ void  Server::_handleEvent(std::size_t index)
         return ; //Handle error
       }
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
-          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
+          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["BODY"].length())
       {
         //Order of statements is important!!
         this->_response.buildUploaded(

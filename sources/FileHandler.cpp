@@ -122,7 +122,7 @@ bool	FileHandler::readFileNext(int const fd, ConnectionData & connData)
 
 bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
 {
-	std::string const &	body = (connData.req.getHeaders())["Body"];
+	std::string const &	body = (connData.req.getHeaders())["BODY"];
 	int									len;
 	size_t							remainingBytes;
 	size_t							sendBytes;

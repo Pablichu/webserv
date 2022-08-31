@@ -4,7 +4,8 @@ SERVER_PATH=tests/www
 SERVER_LOCALHOST_PATH=$SERVER_PATH/localhost
 PYTHON_INTERPRETER=python3
 
-if ! type python3 &> /dev/null
+# &> is not portable, and it might be deprecated
+if ! type python3 > /dev/null 2>&1
 then
   PYTHON_INTERPRETER=python
 fi
@@ -72,9 +73,19 @@ EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.py
 
-sed s:WEBSERV_PATH:$(PWD):g tests/example_config.json \
-		> tests/tmp_config.json
+sed s:WEBSERV_PATH:$PWD:g tests/example_config.json \
+	> tests/tmp_config.json
 
-sed -i '' s:PYTHON_PATH:$PYTHON_INTERPRETER_PATH:g tests/tmp_config.json
+# sed -i is not portable
+sed s:PYTHON_PATH:$PYTHON_INTERPRETER_PATH:g tests/tmp_config.json \
+  > tests/inter_config.json
 
-sed -i '' s:PERL_PATH:$PERL_INTERPRETER_PATH:g tests/tmp_config.json
+# Replace content of tmp_config with that of inter_config
+cp -f tests/inter_config.json tests/tmp_config.json
+rm tests/inter_config.json
+
+sed s:PERL_PATH:$PERL_INTERPRETER_PATH:g tests/tmp_config.json \
+  > tests/inter_config.json
+
+cp -f tests/inter_config.json tests/tmp_config.json
+rm tests/inter_config.json

@@ -60,7 +60,7 @@ void  Request::process()
 
 bool	Request::processChunked()
 {
-	std::string &	body = this->_values["Body"];
+	std::string &	body = this->_values["BODY"];
 	std::string &	data = this->_data;
 	int				pos;
 	int				buffer;
@@ -108,7 +108,7 @@ bool	Request::processBody()//posible error hablarlo con el compa
 		return true;
 	}
 	this->_length -= reqData.size();
-	this->_values["Body"].append(reqData.substr());
+	this->_values["BODY"].append(reqData.substr());
 	if (!this->_length)
 		this->_type = done;
 	return false;
