@@ -681,10 +681,10 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
     this->default_file = val;
   else if (prop == "upload_dir" && this->_validDirectoryPath(val)
             && (this->_userDefined.insert(prop)).second)
-    this->upload_dir = val; // validate path
+    this->upload_dir = val;
   else if (prop == "cgi_dir" && this->_validDirectoryPath(val)
             && (this->_userDefined.insert(prop)).second)
-    this->cgi_dir = val; // validate path
+    this->cgi_dir = val;
   else
     return (false);
   return (true);
@@ -733,7 +733,7 @@ bool  LocationConfig::_validUri(std::string const & uri)
 {
   std::size_t needle;
 
-  if (uri.front() != '/')
+  if (uri[0] != '/')
   {
     needle = uri.find("http://");
     if (needle != std::string::npos && needle == 0)
@@ -754,7 +754,7 @@ bool  LocationConfig::_validDirectoryPath(std::string & path)
     return (false);
   if (!S_ISDIR(info.st_mode))
     return (false);
-  if (path.back() == '/')
+  if (*(path.end() - 1) == '/')
     path.erase(path.size() - 1);
   return (true);
 }
