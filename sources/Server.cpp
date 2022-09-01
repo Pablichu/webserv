@@ -576,7 +576,6 @@ bool  Server::start(void)
       std::cerr << "poll() error" << std::endl;
       return (false);
     }
-    std::cout << "ALIVE" << std::endl;
     /* IF TIMEOUT IS NOT SET TO -1 ADD THIS BLOCK TO HANDLE TIMEOUTS
     if (numEvents == 0)
     {
