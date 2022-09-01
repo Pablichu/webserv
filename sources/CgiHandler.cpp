@@ -172,6 +172,7 @@ bool  CgiHandler::_redirect(InputOutput & io,
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
+  int                                                 statusCode;
   std::string const & location = header.at("LOCATION");
 
   if (location.find("://") != std::string::npos)
@@ -182,8 +183,13 @@ bool  CgiHandler::_redirect(InputOutput & io,
       if (it == header.end()
           || it->second != "")
         return (false);
+      statusCode = atoi(it->second.c_str());
+      if (statusCode < 300
+          || (statusCode > 304 && statusCode < 307)
+          || statusCode > 308)
+        return (false);
       data = "HTTP/1.1 " + it->second + ' '
-            + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
+            + HttpInfo::statusCode.at(statusCode) + "\r\n";
       io.pushBack(data);
       data.clear();
       this->_addProtocolHeaders(io, header);
@@ -347,10 +353,25 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   int           len;
   std::string   localPath;
   InputOutput & io = connData.io;
+  std::size_t   reserveSpace = 0;
 
   if (io.getBufferSize() == InputOutput::buffCapacity)
 		return (true);
-  len = read(rPipe, io.inputBuffer(), io.getAvailableBufferSize());
+  /*
+  **  Reserve space to prevent full buffer in first read, which could lead
+  **  to insufficient space to insert the response's HTTP start line.
+  **
+  **  The longest start line a CGI executed in this server can
+  **  currently provide is: HTTP/1.1 505 HTTP Version Not Supported\r\n
+  **
+  **  If the CGI provides a status code that is not included in HttpInfo
+  **  struct, 200 is returned, or the response is considered invalid,
+  **  depending on the response type.
+  */
+  if (io.isFirstRead())
+    reserveSpace = 41;
+  len = read(rPipe, io.inputBuffer(),
+              io.getAvailableBufferSize() - reserveSpace);
   if (len == 0)
   { //EOF
     std::cout << "Pipe write end closed. No more data to read." << std::endl;
