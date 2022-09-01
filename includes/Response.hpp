@@ -37,7 +37,6 @@ private:
 	GetProcessor &		_getProcessor;
 	DeleteProcessor &	_deleteProcessor;
 	PostProcessor &		_postProcessor;
-	std::size_t				bytesSent;
 
 	void	_buildResponse(ConnectionData & connData, std::string const & content);
 	Response(void);

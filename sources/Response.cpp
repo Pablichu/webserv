@@ -18,9 +18,10 @@ Response::~Response(void)
 void  Response::_buildResponse(ConnectionData & connData,
                                 std::string const & content)
 {
-  connData.buff.replace(0, content.size(), content);
-  connData.buffSize = connData.buff.find('\0');
-  connData.rspSize = connData.buffSize;
+  InputOutput & io = connData.io;
+
+  io.pushBack(content);
+  io.setPayloadSize(io.getBufferSize());
   return ;
 }
 
@@ -107,7 +108,7 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
       content.append(elem->d_name);
       content.append("</a>\n");
       //Check to ensure the closing html tags will fit in the buffer
-      if (content.size() >= ConnectionData::buffCapacity - 25)
+      if (content.size() >= InputOutput::buffCapacity - 25)
       {
         content.erase(content.rfind("<a href"), std::string::npos);
         break ;
@@ -211,19 +212,15 @@ void  Response::sendError(int const socket, int error)
 
 bool	Response::sendData(int const sockFd, ConnectionData & connData)
 {
-	this->bytesSent = send(sockFd, &connData.buff[0], connData.buffSize, 0);
-	if (this->bytesSent <= 0)
+  std::size_t   bytesSent;
+  InputOutput & io = connData.io;
+
+	bytesSent = send(sockFd, io.outputBuffer(), io.getBufferSize(), 0);
+	if (bytesSent <= 0)
 	{
 		std::cout << "Could not send data to client." << std::endl;
 		return (false);
 	}
-	connData.totalBytesSent += this->bytesSent;
-	if (this->bytesSent == connData.buffSize)
-	{
-		connData.buff.replace(0, connData.buffSize, 1, '\0');
-		connData.buffSize = 0;
-	}
-	else
-		connData.buffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
+	io.addBytesSent(bytesSent);
 	return (true);
 }

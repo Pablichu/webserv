@@ -77,7 +77,7 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
     this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
-    connData.rspSize = connData.req.getPetit("BODY").length();
+    connData.io.setPayloadSize(connData.req.getPetit("BODY").length());
   }
   else
     close(cgiData->getWInPipe());

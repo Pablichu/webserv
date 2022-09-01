@@ -115,9 +115,10 @@ CgiHandler::getEnv(std::map<std::string, std::string> const & reqHeader,
   return (env);
 }
 
-bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
+bool  CgiHandler::_parseCgiResponse(InputOutput & io,
                                     std::map<std::string, std::string> & header)
 {
+  std::string const & buff = io.outputStrBuffer();
   std::size_t needle;
   std::size_t aux_needle;
   std::string key;
@@ -137,8 +138,10 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
       if (needle == std::string::npos)
         return (false);
       needle += buff[needle] == '\r' ? 2 : 1;
-      if (static_cast<std::size_t>(buffSize) > needle + 1)
-        header["BODY"] = buff.substr(needle);
+      // Removes needle buffer bytes and updates bufferSize
+      io.addBytesSent(needle);
+      if (io.getBufferSize())
+        header["BODY"] = buff.substr(0, io.getBufferSize());
       else
         header["BODY"] = "";
       break ;
@@ -159,13 +162,12 @@ bool  CgiHandler::_parseCgiResponse(std::string & buff, int const buffSize,
                   buff.substr(needle, aux_needle - needle)));
     aux_needle += buff[aux_needle] == '\r' ? 2 : 1;
 	}
-  std::fill(&buff[0], &buff[buffSize], 0);
+  io.clear();
   return (true);
 }
 
-bool  CgiHandler::_redirect(std::string & buff,
+bool  CgiHandler::_redirect(InputOutput & io,
                               std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize,
                               std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
@@ -182,63 +184,54 @@ bool  CgiHandler::_redirect(std::string & buff,
         return (false);
       data = "HTTP/1.1 " + it->second + ' '
             + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
-      buff.replace(0, data.length(), data);
+      io.pushBack(data);
       data.clear();
-      this->_addProtocolHeaders(buff, header, rspSize);
-      this->_addBody(buff, header.at("BODY"));
+      this->_addProtocolHeaders(io, header);
+      this->_addBody(io, header.at("BODY"));
       return (true);
     }
     data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
     data += "Location: " + header.at("LOCATION") + "\r\n\r\n";
-    buff.replace(0, data.length(), data);
-    rspSize = data.length();
+    io.pushBack(data);
+    io.setPayloadSize(data.length());
     return (true);
   }
   //Relative URI. Local redirect
   localPath = location;
-  rspSize = 0;
   return (true);
 }
 
-void  CgiHandler::_addProtocolHeaders(std::string & buff,
-                              std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize)
+void  CgiHandler::_addProtocolHeaders(InputOutput & io,
+                              std::map<std::string, std::string> const & header)
 {
   std::map<std::string, std::string>::const_iterator  it;
-  std::size_t                                         needle;
   std::string                                         data;
 
-  needle = buff.find('\0');
   for (it = header.begin(); it != header.end(); ++it)
   {
     if (it->first == "STATUS"
         || it ->first == "BODY")
       continue ;
     data = it->first + ": " + it->second + "\r\n";
-    buff.replace(needle, data.length(), data);
-    needle += data.length();
+    io.pushBack(data);
   }
-  buff.replace(needle, 2, "\r\n");
-  needle += 2;
+  io.pushBack("\r\n");
   it = header.find("CONTENT-LENGTH");
   if (it != header.end() && it->second != "")
-    rspSize = needle + std::atoi(it->second.c_str());
-  else
-    rspSize = 0;
+    io.setPayloadSize(io.getBufferSize() + std::atoi(it->second.c_str()));
   return ;
 }
 
-void  CgiHandler::_addBody(std::string & buff, std::string const & body)
+void  CgiHandler::_addBody(InputOutput & io, std::string const & body)
 {
   if (!body.length())
     return ;
-  buff.replace(buff.find('\0'), body.length(), body);
+  io.pushBack(body);
   return ;
 }
 
-bool  CgiHandler::_document(std::string & buff,
-                              std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize)
+bool  CgiHandler::_document(InputOutput & io,
+                            std::map<std::string, std::string> const & header)
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
@@ -253,7 +246,7 @@ bool  CgiHandler::_document(std::string & buff,
       data = "HTTP/1.1 " + it->second + ' '
             + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
     }
-    buff.replace(0, data.length(), data);
+    io.pushBack(data);
     return (true);
   }
   else
@@ -261,18 +254,17 @@ bool  CgiHandler::_document(std::string & buff,
     if (!header.count("CONTENT-TYPE"))
       return (false);
     data = "HTTP/1.1 200 OK\r\n";
-    buff.replace(0, data.length(), data);
+    io.pushBack(data);
   }
   data.clear();
-  this->_addProtocolHeaders(buff, header, rspSize);
-  this->_addBody(buff, header.at("BODY"));
+  this->_addProtocolHeaders(io, header);
+  this->_addBody(io, header.at("BODY"));
   return (true);
 }
 
 bool
-CgiHandler::_reWriteResponse(std::string & buff,
+CgiHandler::_reWriteResponse(InputOutput & io,
                               std::map<std::string, std::string> const & header,
-                              std::size_t & rspSize,
                               std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
@@ -280,23 +272,22 @@ CgiHandler::_reWriteResponse(std::string & buff,
   it = header.find("LOCATION");
   if (it != header.end() && it->second != "")
   { //Handle redirect
-    return (this->_redirect(buff, header, rspSize, localPath));
+    return (this->_redirect(io, header, localPath));
   }
   else
   { //Handle document response
-    return (this->_document(buff, header, rspSize));
+    return (this->_document(io, header));
   }
 }
 
-bool  CgiHandler::_buildHttpHeaders(std::string & buff, int const buffSize,
-                                    std::size_t & rspSize,
+bool  CgiHandler::_buildHttpHeaders(InputOutput & io,
                                     std::string & localPath)
 {
   std::map<std::string, std::string>  header;
 
-  if (!this->_parseCgiResponse(buff, buffSize, header))
+  if (!this->_parseCgiResponse(io, header))
     return (false);
-  if (!this->_reWriteResponse(buff, header, rspSize, localPath))
+  if (!this->_reWriteResponse(io, header, localPath))
     return (false);
   return (true);
 }
@@ -353,41 +344,27 @@ void  CgiHandler::terminateProcess(pid_t const pID)
 
 bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 {
-  std::size_t	endContent;
-  int         len;
-  std::string localPath;
+  int           len;
+  std::string   localPath;
+  InputOutput & io = connData.io;
 
-  endContent = connData.buffSize;
-	if (connData.buffOffset)
-	{ //This portion of code is equal to the one in Response::readFileNext
-		//Move the content after offset to the front
-		connData.buff.replace(connData.buff.begin(),
-			connData.buff.begin() + connData.buffOffset,
-			&connData.buff[connData.buffOffset]);
-		//Fill the content that is duplicated at the back with NULL
-		connData.buff.replace(endContent - connData.buffOffset,
-			connData.buffOffset, 0);
-		//Update endContent
-		endContent = endContent - connData.buffOffset;
-		//Reset offset
-		connData.buffOffset = 0;
-	}
-  len = read(rPipe, &connData.buff[endContent],
-													ConnectionData::buffCapacity - endContent);
+  if (io.getBufferSize() == InputOutput::buffCapacity)
+		return (true);
+  len = read(rPipe, io.inputBuffer(), io.getAvailableBufferSize());
   if (len == 0)
   { //EOF
     std::cout << "Pipe write end closed. No more data to read." << std::endl;
-    if (!connData.rspSize)
-      connData.rspSize = connData.totalBytesRead;
+    if (io.getPayloadSize() == 0)
+      io.setFinishedRead();
     return (true);
   }
   // An error occurred. EAGAIN is not possible, because POLLIN was emitted.
   if (len < 0)
     return (false);
-  if (!connData.totalBytesRead)
+  io.addBytesRead(len);
+  if (io.isFirstRead())
   {// First call to receiveData
-    if (!this->_buildHttpHeaders(connData.buff, len, connData.rspSize,
-                                  localPath))
+    if (!this->_buildHttpHeaders(io, localPath))
       return (false);
     if (localPath != "")
     {
@@ -395,13 +372,6 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
       connData.req.getHeaders()["PATH"] = localPath;
       UrlParser().parse(localPath, connData.urlData);
     }
-    connData.buffSize = connData.buff.find('\0');
-	  connData.totalBytesRead = connData.buffSize; //Fake value, because headers are modified
-  }
-  else
-  {
-    connData.buffSize = endContent + len;
-	  connData.totalBytesRead += len;
   }
   return (true);
 }
@@ -409,15 +379,15 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
 bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
 {
   int                 len;
-  std::size_t &       totalBytesSent = connData.totalBytesSent;
-  std::string const & body = (connData.req.getHeaders())["BODY"];
+  InputOutput &       io = connData.io;
+  std::string &       body = (connData.req.getHeaders())["BODY"];
 
-  len = write(wPipe, &body[totalBytesSent], body.length() - totalBytesSent);
+  io.pushBack(body);
+  len = write(wPipe, io.outputBuffer(), io.getBufferSize());
   if (len == 0)
   {
     std::cout << "Could not write to pipe. It may be closed." << std::endl;
-    totalBytesSent = 0;
-    connData.rspSize = 0;
+    io.clear();
     return (true);
   }
   if (len < 0)
@@ -427,7 +397,7 @@ bool  CgiHandler::sendBody(int wPipe, ConnectionData & connData)
               << std::endl;
     return (false);
   }
-  totalBytesSent += len;
+  io.addBytesSent(len);
   return (true);
 }
 

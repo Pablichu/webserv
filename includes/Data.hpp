@@ -4,6 +4,7 @@
 
 #include "Config.hpp"
 #include "Request.hpp"
+#include "InputOutput.hpp"
 
 struct  ServerConfig;
 struct  LocationConfig;
@@ -54,17 +55,10 @@ struct	ConnectionData
 	Request															req;
 	std::string													ip;
 	std::map<std::string, std::string>	urlData;
-	std::size_t													totalBytesRead;
-	std::size_t													totalBytesSent;
-	std::size_t													rspSize;
-	std::size_t													buffSize;
-	std::size_t													buffOffset;
-	std::string													buff;
+	InputOutput													io;
 	int																	rspStatus;
 	FileData *													fileData;
 	CgiData *														cgiData;
-
-	static std::size_t const						buffCapacity = 8192;
 
 	ConnectionData(void);
 	~ConnectionData(void);
