@@ -37,7 +37,7 @@
       "location": {
         "uri": "/",
         "root": "WEBSERV_PATH/tests/www/localhost/",
-        "methods":"GET",
+        "methods":"GET,POST",
         "default_file": "index.html",
         "cgi_dir": "WEBSERV_PATH/tests/www/localhost/cgi-bin"
       }

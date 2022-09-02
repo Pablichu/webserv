@@ -117,6 +117,75 @@ EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/query.pl
 
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/form.pl
+
+use strict;
+use warnings;
+use CGI;
+
+# Inserting '\' before dollar sign to prevent variable substitution from bash
+my \$cgi = CGI->new;
+# Array of form keys
+my @f_keys;
+
+# Subroutine to add an HTML paragraph
+sub addParagraph {
+  print "<p>";
+  # Extracts the first item off the list of arguments and prints it
+  print shift;
+  print "</p>";
+}
+# Prints Content-Type: text/html
+print \$cgi->header;
+# Opens html and body tags and sets the argument as title
+print \$cgi->start_html("Form Data");
+if (\$ENV{REQUEST_METHOD} eq 'GET')
+{
+  # Non-interpolating heredoc
+  print <<'END_FORM'
+  <form action="/form.pl" method="post">
+    <div style="padding: 20px 0">
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name">
+    </div>
+    <div style="padding: 20px 0">
+      <label for="mail">Email:</label>
+      <input type="email" id="mail" name="email">
+    </div>
+    <div style="padding: 20px 0">
+      <label for="msg">Message:</label>
+      <textarea id="msg" name="message" style="vertical-align: top"></textarea>
+    </div>
+    <div style="padding: 20px 0">
+      <button type="submit">Submit</button>
+    </div>
+  </form>
+END_FORM
+}
+else
+{
+  # Inserts form keys into array
+  @f_keys = \$cgi->param();
+  # Checks if array is empty
+  if (@f_keys == 0) {
+    addParagraph("Received an empty form.");
+  }
+  else {
+    my \$key;
+    my \$value;
+
+    foreach \$key (@f_keys) {
+      \$value = \$cgi->param(\$key);
+      addParagraph("\$key = \$value");
+    }
+  }
+}
+# Closes html and body tags
+print \$cgi->end_html;
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/form.pl
+
 sed s:WEBSERV_PATH:$PWD:g tests/example_config.json \
 	> tests/tmp_config.json
 
