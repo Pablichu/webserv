@@ -484,7 +484,6 @@ void  Server::_handleEvent(std::size_t index)
       **  be moved to another function.
       */
       this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).io.clear();
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
       this->_monitor.removeByIndex(index);
 	    this->_fdTable.remove(fd);
       close(fd); //close pipe write fd
