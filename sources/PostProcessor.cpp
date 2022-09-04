@@ -71,7 +71,8 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
                                 std::string const & interpreterPath,
                                 std::string const & scriptPath) const
 {
-  CgiData * cgiData;
+  CgiData *                                           cgiData;
+  std::map<std::string, std::string>::const_iterator  bodyPair;
 
   cgiData = new CgiData(socket, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
@@ -93,12 +94,13 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     delete cgiData;
     return (false);
   }
-  if (connData.req.getHeaders().find("BODY") != connData.req.getHeaders().end())
+  bodyPair = connData.req.getHeaders().find("BODY");
+  if (bodyPair != connData.req.getHeaders().end())
   {
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
     this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
-    connData.io.setPayloadSize(connData.req.getPetit("BODY").length());
+    connData.io.setPayloadSize(bodyPair->second.length());
   }
   else
     close(cgiData->getWInPipe());
