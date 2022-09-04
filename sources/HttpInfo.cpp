@@ -65,6 +65,8 @@ InitContentType::InitContentType(void)
   this->m.insert(
     std::pair<std::string const, std::string const>(".mp3", "audio/mpeg"));
   this->m.insert(
+    std::pair<std::string const, std::string const>(".mp4", "video/mp4"));
+  this->m.insert(
     std::pair<std::string const, std::string const>(".png", "image/png"));
   this->m.insert(
     std::pair<std::string const, std::string const>(
