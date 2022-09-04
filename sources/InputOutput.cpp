@@ -34,7 +34,7 @@ void  InputOutput::pushBack(std::string & input)
     return ;
   spaceAvailable = this->getAvailableBufferSize();
   pushAmount = input.size() <= spaceAvailable ? input.size() : spaceAvailable;
-  this->_buff.replace(this->_buffSize, pushAmount, input);
+  this->_buff.replace(this->_buffSize, pushAmount, input, 0, pushAmount);
   input.erase(0, pushAmount);
   this->_buffSize += pushAmount;
   this->_totalBytesRead += pushAmount;
@@ -50,7 +50,7 @@ void  InputOutput::pushBack(std::string const & input)
     return ;
   spaceAvailable = this->getAvailableBufferSize();
   pushAmount = input.size() <= spaceAvailable ? input.size() : spaceAvailable;
-  this->_buff.replace(this->_buffSize, pushAmount, input);
+  this->_buff.replace(this->_buffSize, pushAmount, input, 0, pushAmount);
   this->_buffSize += pushAmount;
   this->_totalBytesRead += pushAmount;
   return ;
