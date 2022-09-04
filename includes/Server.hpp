@@ -33,7 +33,7 @@ class	Server
 		bool	_matchConfig(int socket);
 		bool	_validRequest(int socket, int & error);
 		void	_handlePipeRead(int const fd, std::size_t const index);
-		void	_handleClientRead(int socket);
+		void	_handleClientRead(pollfd & socket);
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);

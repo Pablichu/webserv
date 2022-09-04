@@ -107,7 +107,7 @@ bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
 	int						len;
 	InputOutput &	io = connData.io;
 	std::string &	body = (connData.req.getHeaders())["BODY"];
-	
+
 	if (io.getPayloadSize() == 0)
 		io.setPayloadSize(body.size());
 	io.pushBack(body);

@@ -67,13 +67,13 @@ bool  PostProcessor::_isAppend(std::string const & filePath) const
   return (false);
 }
 
-bool  PostProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
+bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
                                 std::string const & interpreterPath,
                                 std::string const & scriptPath) const
 {
   CgiData * cgiData;
 
-  cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
+  cgiData = new CgiData(socket, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -110,11 +110,11 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   return (true);
 }
 
-bool  PostProcessor::_openFile(ConnectionData & connData, int const sockFd,
+bool  PostProcessor::_openFile(ConnectionData & connData, pollfd & socket,
                                 std::string const & filePath,
                                 bool const append) const
 {
-  FileData *  fileData = new FileData(filePath, sockFd);
+  FileData *  fileData = new FileData(filePath, socket);
 
   if (append)
   {
@@ -147,9 +147,9 @@ bool  PostProcessor::_openFile(ConnectionData & connData, int const sockFd,
   return (true);
 }
 
-bool  PostProcessor::start(int const sockFd, int & error) const
+bool  PostProcessor::start(pollfd & socket, int & error) const
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   std::string       filePath;
   std::string       cgiInterpreterPath;
 
@@ -165,7 +165,7 @@ bool  PostProcessor::start(int const sockFd, int & error) const
       filePath.substr(filePath.rfind('.') + 1));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, sockFd, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -173,7 +173,7 @@ bool  PostProcessor::start(int const sockFd, int & error) const
     }
     else
     {
-      if(!this->_openFile(connData, sockFd, filePath,
+      if(!this->_openFile(connData, socket, filePath,
           this->_isAppend(filePath)))
       {
         error = 500; // Internal Server Error

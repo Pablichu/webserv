@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <poll.h>
 
 #include "Config.hpp"
 #include "Request.hpp"
@@ -11,14 +12,14 @@ struct  LocationConfig;
 
 struct	CgiData
 {
-	int const        	socket;
+	pollfd &					socket;
 	std::string const interpreterPath;
 	std::string	const	scriptPath;
   int         			inPipe[2];
   int         			outPipe[2];
 	pid_t							pID;
 
-	CgiData(int const socket, std::string const & interpreterPath,
+	CgiData(pollfd & socket, std::string const & interpreterPath,
 					std::string const & scriptPath);
 
 	int getRInPipe(void) const;
@@ -37,12 +38,12 @@ enum	FileOp
 struct FileData
 {
 	int					fd;
-	int const		socket;
+	pollfd &		socket;
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;
 
-	FileData(std::string const & filePath, int const socket);
+	FileData(std::string const & filePath, pollfd & socket);
 };
 
 // One ConnectionData per client (connection) socket

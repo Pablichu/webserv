@@ -162,9 +162,9 @@ void  Response::buildError(ConnectionData & connData, int const error)
   return ;
 }
 
-bool  Response::process(int const sockFd, int & error)
+bool  Response::process(pollfd & socket, int & error)
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &        connData = this->_fdTable.getConnSock(socket.fd);
   LocationConfig const *  loc = connData.getLocation();
   std::string const       reqMethod = connData.req.getPetit("METHOD");
 
@@ -172,21 +172,21 @@ bool  Response::process(int const sockFd, int & error)
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_getProcessor.start(sockFd, error))
+    if (!this->_getProcessor.start(socket, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 308); //Permanent Redirect
-    if (!this->_postProcessor.start(sockFd, error))
+    if (!this->_postProcessor.start(socket, error))
       return (false);
   }
   else //Delete
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_deleteProcessor.start(sockFd, error))
+    if (!this->_deleteProcessor.start(socket, error))
       return (false);
   }
   return (true);
@@ -201,9 +201,9 @@ bool  Response::process(int const sockFd, int & error)
 **  if not found, buildError.
 */
 
-void  Response::sendError(int const socket, int error)
+void  Response::sendError(pollfd & socket, int error)
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   FileData *        fileData;
 
   if (error == 404) //Not Found

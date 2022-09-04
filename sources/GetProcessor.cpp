@@ -46,13 +46,13 @@ bool  GetProcessor::_getFilePath(ConnectionData & connData,
   return (true);
 }
 
-bool  GetProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
+bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
                                 std::string const & interpreterPath,
                                 std::string const & scriptPath) const
 {
   CgiData * cgiData;
 
-  cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
+  cgiData = new CgiData(socket, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -89,10 +89,10 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
   return (true);
 }
 
-bool  GetProcessor::_openFile(ConnectionData & connData, int const sockFd,
+bool  GetProcessor::_openFile(ConnectionData & connData, pollfd & socket,
                               std::string const & filePath) const
 {
-  FileData *  fileData = new FileData(filePath, sockFd);
+  FileData *  fileData = new FileData(filePath, socket);
 
   if (!this->_response.fileHandler.openFile(fileData->filePath, fileData->fd,
                                             O_RDONLY, 0))
@@ -106,9 +106,9 @@ bool  GetProcessor::_openFile(ConnectionData & connData, int const sockFd,
   return (true);
 }
 
-bool  GetProcessor::start(int const sockFd, int & error) const
+bool  GetProcessor::start(pollfd & socket, int & error) const
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &        connData = this->_fdTable.getConnSock(socket.fd);
   LocationConfig const *  loc = connData.getLocation();
   std::string             filePath;
   std::string             cgiInterpreterPath;
@@ -133,7 +133,7 @@ bool  GetProcessor::start(int const sockFd, int & error) const
       filePath.substr(filePath.rfind('.') + 1));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, sockFd, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -141,7 +141,7 @@ bool  GetProcessor::start(int const sockFd, int & error) const
     }
     else
     {
-      if(!this->_openFile(connData, sockFd, filePath))
+      if(!this->_openFile(connData, socket, filePath))
       {
         error = 500; // Internal Server Error
         return (false);

@@ -1,6 +1,6 @@
 #include "Data.hpp"
 
-CgiData::CgiData(int const socket, std::string const & interpreterPath,
+CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
                   std::string const & scriptPath)
                 : socket(socket), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
@@ -30,7 +30,7 @@ int CgiData::getWOutPipe(void) const
   return (this->outPipe[1]);
 }
 
-FileData::FileData(std::string const & filePath, int const socket)
+FileData::FileData(std::string const & filePath, pollfd & socket)
                     : fd(0), socket(socket), filePath(filePath)
 {
   return ;

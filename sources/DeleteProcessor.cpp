@@ -40,13 +40,13 @@ bool  DeleteProcessor::_getFilePath(ConnectionData & connData,
   return (true);
 }
 
-bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const sockFd,
+bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
                                   std::string const & interpreterPath,
                                   std::string const & scriptPath) const
 {
   CgiData * cgiData;
 
-  cgiData = new CgiData(sockFd, interpreterPath, scriptPath);
+  cgiData = new CgiData(socket, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -95,9 +95,9 @@ bool  DeleteProcessor::_removeFile(ConnectionData & connData,
   return (true);
 }
 
-bool  DeleteProcessor::start(int const sockFd, int & error) const
+bool  DeleteProcessor::start(pollfd & socket, int & error) const
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   std::string       filePath;
   std::string       cgiInterpreterPath;
 
@@ -113,7 +113,7 @@ bool  DeleteProcessor::start(int const sockFd, int & error) const
       filePath.substr(filePath.rfind('.') + 1));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, sockFd, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
