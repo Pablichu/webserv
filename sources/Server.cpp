@@ -446,7 +446,7 @@ void  Server::_acceptConn(int listenSocket)
     this->_fdTable.add(newConn, new ConnectionData);
     this->_fdTable.getConnSock(newConn).portConfigs = configs;
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
-    this->_fdTable.getConnSock(newConn).ip = ip;    
+    this->_fdTable.getConnSock(newConn).ip = ip;
   }
 }
 
@@ -534,6 +534,8 @@ void  Server::_handleEvent(std::size_t index)
   {
     if (this->_monitor[index].revents & POLLIN)
     {
+      if (this->_fdTable.getConnSock(fd).status == Idle)
+        this->_fdTable.getConnSock(fd).status = Active;
       // Connected client socket is ready to read without blocking
       if (!this->_receiveData(fd))
   	  {
@@ -554,9 +556,44 @@ void  Server::_handleEvent(std::size_t index)
         this->_monitor[index].events = POLLIN;
       if (this->_fdTable.getConnSock(fd).io.finishedSend() && 
           this->_fdTable.getConnSock(fd).io.getPayloadSize() != 0)
-        this->_endConnection(fd, index);
+      { // Request handling finished succesfully
+        if (this->_fdTable.getConnSock(fd).req.getPetit("CONNECTION") != "close"
+            && this->_fdTable.getConnSock(fd).handledRequests
+                < ConnectionData::max - 1)
+          this->_fdTable.getConnSock(fd).setIdle();
+        else
+          this->_endConnection(fd, index);
+      }
     }
   }
+}
+
+bool  Server::_checkTimeout(int const fd, std::size_t const index)
+{
+  FdType            fdType;
+  /*
+  **  Using a pointer to avoid creating a copy of ConnectionData,
+  **  which is a big structure.
+  */
+  ConnectionData *  connData;
+  double            timeIdle;
+  time_t const      currentTime = time(NULL);
+
+  if (fd == -1) // Removed fd during this poll iteration
+    return (false);
+  fdType = this->_fdTable.getType(fd);
+  if (fdType != ConnSock) // Only client connection sockets have timeout
+    return (false);
+  connData = &this->_fdTable.getConnSock(fd);
+  if (connData->status != Idle)
+    return (false);
+  timeIdle = difftime(currentTime, connData->lastActive);
+  if (timeIdle >= ConnectionData::timeout)
+  {
+    this->_endConnection(fd, index);
+    return (true);
+  }
+  return (false);
 }
 
 /*
@@ -570,32 +607,26 @@ void  Server::_handleEvent(std::size_t index)
 bool  Server::start(void)
 {
   int         numEvents;
-  int         handlingCount;
+  std::size_t monitorLen;
 
   while (true)
   {
-    // TIMEOUT -1 blocks until event is received
-    numEvents = poll(this->_monitor.getFds(), this->_monitor.len(), -1);
+    //Store monitor length before calling poll. monitor can grow during loop.
+    monitorLen = this->_monitor.len();
+    numEvents = poll(this->_monitor.getFds(), monitorLen,
+                      static_cast<int>(ConnectionData::timeout / 2) * 1000);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;
       return (false);
     }
-    /* IF TIMEOUT IS NOT SET TO -1 ADD THIS BLOCK TO HANDLE TIMEOUTS
-    if (numEvents == 0)
-    {
-      std::cerr << "poll() timeout" << std::endl;
-      continue ;
-    }*/
-    handlingCount = 0;
-    for (std::size_t i = 0; i < this->_monitor.len(); ++i)
-    { // INEFFICIENT!! USE kqueue INSTEAD of poll
-      if (this->_monitor[i].revents == 0 || this->_monitor[i].fd == -1)
+    for (std::size_t i = 0; i < monitorLen; ++i)
+    { // INEFFICIENT!! Not using kqueue for compatibility issues
+      if (this->_checkTimeout(this->_monitor[i].fd, i)
+          || this->_monitor[i].revents == 0
+          || this->_monitor[i].fd == -1)
         continue;
       this->_handleEvent(i);
-      // To stop iterating when total events have been handled
-      if (++handlingCount == numEvents)
-        break ;
     }
     this->_monitor.purge();
   }

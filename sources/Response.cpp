@@ -37,6 +37,8 @@ void  Response::buildRedirect(ConnectionData & connData,
   content = "HTTP/1.1 " + utils::toString<int>(code) + ' '
             + HttpInfo::statusCode.find(code)->second + "\r\n";
   content += "Date: " + utils::getDate() + "\r\n";
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
   this->_buildResponse(connData, content);
   return ;
@@ -49,6 +51,8 @@ void  Response::buildDeleted(ConnectionData & connData)
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   needle = content.length();
   content.append("<html><body><h1>File deleted.</h1></body></html>");
@@ -70,6 +74,8 @@ void  Response::buildUploaded(ConnectionData & connData,
   content.append(utils::toString(code) + ' ');
   content.append(HttpInfo::statusCode.find(code)->second + "\r\n");
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n";
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   needle = content.length();
@@ -97,6 +103,8 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   needle = content.length();
   content.append("<html><head><title>Index of ");
@@ -148,6 +156,8 @@ void  Response::buildError(ConnectionData & connData, int const error)
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   needle = content.length();
   content.append("<html><head><title>");

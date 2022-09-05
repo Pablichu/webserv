@@ -47,4 +47,5 @@ class	Request
 		bool				processChunked();
 		bool				processBody();
 		const std::string	stoupper(std::string src);
+		void	clear(void);
 };

@@ -166,13 +166,14 @@ bool  CgiHandler::_parseCgiResponse(InputOutput & io,
   return (true);
 }
 
-bool  CgiHandler::_redirect(InputOutput & io,
+bool  CgiHandler::_redirect(ConnectionData & connData,
                               std::map<std::string, std::string> const & header,
                               std::string & localPath)
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
   int                                                 statusCode;
+  InputOutput &                                       io = connData.io;
   std::string const & location = header.at("LOCATION");
 
   if (location.find("://") != std::string::npos)
@@ -192,7 +193,7 @@ bool  CgiHandler::_redirect(InputOutput & io,
             + HttpInfo::statusCode.at(statusCode) + "\r\n";
       io.pushBack(data);
       data.clear();
-      this->_addProtocolHeaders(io, header);
+      this->_addProtocolHeaders(connData, header);
       this->_addBody(io, header.at("BODY"));
       return (true);
     }
@@ -207,11 +208,12 @@ bool  CgiHandler::_redirect(InputOutput & io,
   return (true);
 }
 
-void  CgiHandler::_addProtocolHeaders(InputOutput & io,
+void  CgiHandler::_addProtocolHeaders(ConnectionData & connData,
                               std::map<std::string, std::string> const & header)
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
+  InputOutput &                                       io = connData.io;
 
   for (it = header.begin(); it != header.end(); ++it)
   {
@@ -219,6 +221,12 @@ void  CgiHandler::_addProtocolHeaders(InputOutput & io,
         || it ->first == "BODY")
       continue ;
     data = it->first + ": " + it->second + "\r\n";
+    io.pushBack(data);
+  }
+  if (header.find("LOCATION") == header.end())
+  {
+    utils::addKeepAliveHeaders(data, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
     io.pushBack(data);
   }
   io.pushBack("\r\n");
@@ -236,11 +244,12 @@ void  CgiHandler::_addBody(InputOutput & io, std::string const & body)
   return ;
 }
 
-bool  CgiHandler::_document(InputOutput & io,
+bool  CgiHandler::_document(ConnectionData & connData,
                             std::map<std::string, std::string> const & header)
 {
   std::map<std::string, std::string>::const_iterator  it;
   std::string                                         data;
+  InputOutput &                                       io = connData.io;
 
   it = header.find("STATUS");
   if (it != header.end() && it->second != "")
@@ -263,13 +272,13 @@ bool  CgiHandler::_document(InputOutput & io,
     io.pushBack(data);
   }
   data.clear();
-  this->_addProtocolHeaders(io, header);
+  this->_addProtocolHeaders(connData, header);
   this->_addBody(io, header.at("BODY"));
   return (true);
 }
 
 bool
-CgiHandler::_reWriteResponse(InputOutput & io,
+CgiHandler::_reWriteResponse(ConnectionData & connData,
                               std::map<std::string, std::string> const & header,
                               std::string & localPath)
 {
@@ -278,22 +287,22 @@ CgiHandler::_reWriteResponse(InputOutput & io,
   it = header.find("LOCATION");
   if (it != header.end() && it->second != "")
   { //Handle redirect
-    return (this->_redirect(io, header, localPath));
+    return (this->_redirect(connData, header, localPath));
   }
   else
   { //Handle document response
-    return (this->_document(io, header));
+    return (this->_document(connData, header));
   }
 }
 
-bool  CgiHandler::_buildHttpHeaders(InputOutput & io,
+bool  CgiHandler::_buildHttpHeaders(ConnectionData & connData,
                                     std::string & localPath)
 {
   std::map<std::string, std::string>  header;
 
-  if (!this->_parseCgiResponse(io, header))
+  if (!this->_parseCgiResponse(connData.io, header))
     return (false);
-  if (!this->_reWriteResponse(io, header, localPath))
+  if (!this->_reWriteResponse(connData, header, localPath))
     return (false);
   return (true);
 }
@@ -385,7 +394,7 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   io.addBytesRead(len);
   if (io.isFirstRead())
   {// First call to receiveData
-    if (!this->_buildHttpHeaders(io, localPath))
+    if (!this->_buildHttpHeaders(connData, localPath))
       return (false);
     if (localPath != "")
     {

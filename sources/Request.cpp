@@ -200,3 +200,14 @@ const std::string	Request::stoupper(std::string src)
 	}
 	return src;	
 }
+
+void	Request::clear(void)
+{
+	this->_values.clear();
+	this->_data.clear();
+	this->_loops = 0;
+	this->_type = none;
+	this->_length = 0;
+	this->_dataAvailible = false;
+	return ;
+}

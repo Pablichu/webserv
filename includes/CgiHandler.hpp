@@ -22,18 +22,18 @@ private:
   void  _execProgram(CgiData const & cgiData, std::vector<char *> env);
   bool  _parseCgiResponse(InputOutput & io,
                           std::map<std::string, std::string> & header);
-  bool  _redirect(InputOutput & io,
+  bool  _redirect(ConnectionData & connData,
                   std::map<std::string, std::string> const & header,
                   std::string & localPath);
-  void  _addProtocolHeaders(InputOutput & io,
+  void  _addProtocolHeaders(ConnectionData & connData,
                           std::map<std::string, std::string> const & header);
   void  _addBody(InputOutput & io, std::string const & body);
-  bool  _document(InputOutput & io,
+  bool  _document(ConnectionData & connData,
                   std::map<std::string, std::string> const & header);
-  bool  _reWriteResponse(InputOutput & io,
+  bool  _reWriteResponse(ConnectionData & connData,
                           std::map<std::string, std::string> const & header,
                           std::string & localPath);
-  bool  _buildHttpHeaders(InputOutput & io, std::string & localPath);
+  bool  _buildHttpHeaders(ConnectionData & connData, std::string & localPath);
 
 public:
 

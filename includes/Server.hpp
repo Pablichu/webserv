@@ -37,7 +37,7 @@ class	Server
 		bool	_receiveData(int socket);
 		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);
-		void	_monitorListenSocketEvents(void);
+		bool	_checkTimeout(int const fd, std::size_t const index);
 
 	public:
 		Server();

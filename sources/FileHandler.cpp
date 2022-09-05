@@ -42,10 +42,10 @@ bool	FileHandler::removeFile(std::string const & filePath) const
 
 bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 {
-	FileData &				fileData = *(connData.fileData);
-	InputOutput &			io = connData.io;
-	std::stringstream	headers;
-	std::size_t				bytesRead;
+	FileData &		fileData = *(connData.fileData);
+	InputOutput &	io = connData.io;
+	std::string		headers;
+	std::size_t		bytesRead;
 
 	fileData.fileSize = static_cast<long>(lseek(fd, 0, SEEK_END));
 	if (fileData.fileSize == -1)
@@ -58,18 +58,18 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 		close(fd);
 		return (false);
 	}
-	headers << HttpInfo::protocol
-					<< " " << connData.rspStatus << " "
-					<< HttpInfo::statusCode.find(connData.rspStatus)->second
-					<< "\r\n";
-	headers << "Date: " << utils::getDate() << "\r\n";
-	headers << "Content-length: " << fileData.fileSize << "\r\n";
-	headers << "Content-type: "
-					<< HttpInfo::contentType.find(
-							utils::getFileExtension(fileData.filePath)
-							)->second + "; charset=utf-8"
-					<< "\r\n\r\n";
-	io.pushBack(headers.str());
+	headers = HttpInfo::protocol + ' ';
+	headers += utils::toString(connData.rspStatus) + ' ';
+	headers += HttpInfo::statusCode.find(connData.rspStatus)->second + "\r\n";
+	headers += "Date: " + utils::getDate() + "\r\n";
+	utils::addKeepAliveHeaders(headers, connData.handledRequests,
+								connData.req.getPetit("CONNECTION") == "close");
+	headers += "Content-length: " + utils::toString(fileData.fileSize) + "\r\n";
+	headers += "Content-type: " + HttpInfo::contentType.find(
+								utils::getFileExtension(fileData.filePath)
+							)->second + "; charset=utf-8" + "\r\n";
+	headers += "\r\n";
+	io.pushBack(headers);
 	io.setPayloadSize(io.getBufferSize() + fileData.fileSize);
 	bytesRead = read(fd, io.inputBuffer(), io.getAvailableBufferSize());
 	if (bytesRead <= 0)

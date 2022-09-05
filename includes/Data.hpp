@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <poll.h>
+#include <time.h>
 
 #include "Config.hpp"
 #include "Request.hpp"
@@ -46,6 +47,12 @@ struct FileData
 	FileData(std::string const & filePath, pollfd & socket);
 };
 
+enum	ConnectionStatus
+{
+	Active,
+	Idle
+};
+
 // One ConnectionData per client (connection) socket
 
 struct	ConnectionData
@@ -58,12 +65,21 @@ struct	ConnectionData
 	std::map<std::string, std::string>	urlData;
 	InputOutput													io;
 	int																	rspStatus;
+	ConnectionStatus										status;
+	time_t															lastActive;
+	int																	handledRequests;
 	FileData *													fileData;
 	CgiData *														cgiData;
+
+	// Maximum time (seconds) a connection can stay idle.
+	static double const									timeout;
+	// Maximum requests that can reuse each connection.
+	static int const										max;
 
 	ConnectionData(void);
 	~ConnectionData(void);
 
 	ServerConfig const *		getServer(void);
 	LocationConfig const *	getLocation(void);
+	void										setIdle(void);
 };
