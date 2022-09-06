@@ -120,8 +120,8 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
     filePath.clear();
     if (loc->dir_list == true && !connData.urlData.count("FILENAME"))
     {
-      this->_response.buildDirList(
-        connData, connData.urlData.find("PATH")->second, loc->root);
+      this->_response.buildDirList(socket, connData,
+        connData.urlData.find("PATH")->second, loc->root);
     }
     else
     {

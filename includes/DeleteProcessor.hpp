@@ -20,7 +20,7 @@ private:
   bool  _launchCGI(ConnectionData & connData, pollfd & socket,
                     std::string const & interpreterPath,
                     std::string const & scriptPath) const;
-  bool  _removeFile(ConnectionData & connData,
+  bool  _removeFile(pollfd & socket, ConnectionData & connData,
                     std::string const & filePath) const;
   DeleteProcessor(void);
 

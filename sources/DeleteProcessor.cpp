@@ -85,7 +85,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   return (true);
 }
 
-bool  DeleteProcessor::_removeFile(ConnectionData & connData,
+bool  DeleteProcessor::_removeFile(pollfd & socket, ConnectionData & connData,
                                     std::string const & filePath) const
 {
   std::string content;
@@ -93,7 +93,7 @@ bool  DeleteProcessor::_removeFile(ConnectionData & connData,
   if (!this->_response.fileHandler.removeFile(filePath))
     return (false);
   //Build success response directly
-  this->_response.buildDeleted(connData);
+  this->_response.buildDeleted(socket, connData);
   return (true);
 }
 
@@ -123,7 +123,7 @@ bool  DeleteProcessor::start(pollfd & socket, int & error) const
     }
     else
     {
-      if(!this->_removeFile(connData, filePath))
+      if(!this->_removeFile(socket, connData, filePath))
       {
         error = 500; // Internal Server Error
         return (false);

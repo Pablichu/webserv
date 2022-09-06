@@ -15,13 +15,15 @@ Response::~Response(void)
   return ;
 }
 
-void  Response::_buildResponse(ConnectionData & connData,
+void  Response::_buildResponse(pollfd & socket, ConnectionData & connData,
                                 std::string const & content)
 {
   InputOutput & io = connData.io;
 
   io.pushBack(content);
   io.setPayloadSize(io.getBufferSize());
+  if (!(socket.events & POLLOUT))
+    socket.events = POLLIN | POLLOUT;
   return ;
 }
 
@@ -29,7 +31,7 @@ void  Response::_buildResponse(ConnectionData & connData,
 **  url can be absolute or relative. Administrator decides in config file.
 */
 
-void  Response::buildRedirect(ConnectionData & connData,
+void  Response::buildRedirect(pollfd & socket, ConnectionData & connData,
                               std::string const & url, int const code)
 {
   std::string content;
@@ -41,11 +43,11 @@ void  Response::buildRedirect(ConnectionData & connData,
                               connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
   utils::addContentLengthHeader(content, content.length());
-  this->_buildResponse(connData, content);
+  this->_buildResponse(socket, connData, content);
   return ;
 }
 
-void  Response::buildDeleted(ConnectionData & connData)
+void  Response::buildDeleted(pollfd & socket, ConnectionData & connData)
 {
   std::size_t needle;
   std::string content;
@@ -58,11 +60,11 @@ void  Response::buildDeleted(ConnectionData & connData)
   needle = content.length();
   content.append("<html><body><h1>File deleted.</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(connData, content);
+  this->_buildResponse(socket, connData, content);
   return ;
 }
 
-void  Response::buildUploaded(ConnectionData & connData,
+void  Response::buildUploaded(pollfd & socket, ConnectionData & connData,
                               std::string const & url)
 {
   std::size_t needle;
@@ -86,12 +88,12 @@ void  Response::buildUploaded(ConnectionData & connData,
   content.append(url);
   content.append("</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(connData, content);
+  this->_buildResponse(socket, connData, content);
   return ;
 }
 
-void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
-                              std::string const & root)
+void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
+                              std::string const & uri, std::string const & root)
 {
   DIR *           dir;
   struct dirent * elem;
@@ -138,11 +140,12 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
   }
   content.append("</pre><hr></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(connData, content);
+  this->_buildResponse(socket, connData, content);
   return ;
 }
 
-void  Response::buildError(ConnectionData & connData, int const error)
+void  Response::buildError(pollfd & socket, ConnectionData & connData,
+                            int const error)
 {
   std::string const errorCode = utils::toString<int>(error);
   std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
@@ -161,7 +164,7 @@ void  Response::buildError(ConnectionData & connData, int const error)
   content.append(errorCode + ' ' + errorDescription);
   content.append("</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(connData, content);
+  this->_buildResponse(socket, connData, content);
   return ;
 }
 
@@ -174,21 +177,21 @@ bool  Response::process(pollfd & socket, int & error)
   if (reqMethod == "GET")
   {
     if (loc->redirection != "")
-      this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
+      this->buildRedirect(socket, connData, loc->redirection, 301); //Moved Permanently
     else if (!this->_getProcessor.start(socket, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
     if (loc->redirection != "")
-      this->buildRedirect(connData, loc->redirection, 308); //Permanent Redirect
+      this->buildRedirect(socket, connData, loc->redirection, 308); //Permanent Redirect
     else if (!this->_postProcessor.start(socket, error))
       return (false);
   }
   else //Delete
   {
     if (loc->redirection != "")
-      this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
+      this->buildRedirect(socket, connData, loc->redirection, 301); //Moved Permanently
     else if (!this->_deleteProcessor.start(socket, error))
       return (false);
   }
@@ -224,7 +227,7 @@ void  Response::sendError(pollfd & socket, int error)
       return ;
     }
   }
-  this->buildError(connData, error);
+  this->buildError(socket, connData, error);
   return ;
 }
 

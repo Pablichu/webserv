@@ -344,8 +344,6 @@ void  Server::_handleClientRead(pollfd & socket)
   if (!this->_validRequest(socket.fd, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
-  if (connData.io.getBufferSize())
-    socket.events = POLLIN | POLLOUT;
 }
 
 /*
@@ -519,10 +517,10 @@ void  Server::_handleEvent(std::size_t index)
         //Order of statements is important!!
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.clear();
         this->_response.buildUploaded(
+          this->_fdTable.getFile(fd).socket,
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd),
           this->_fdTable.getConnSock(
             this->_fdTable.getFile(fd).socket.fd).req.getPetit("PATH"));
-        this->_fdTable.getFile(fd).socket.events = POLLIN | POLLOUT;
         this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).fileData = 0;
         this->_monitor.removeByIndex(index);
         this->_fdTable.remove(fd);
