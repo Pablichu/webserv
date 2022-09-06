@@ -182,21 +182,21 @@ bool  Response::process(pollfd & socket, int & error)
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_getProcessor.start(socket, error))
+    else if (!this->_getProcessor.start(socket, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 308); //Permanent Redirect
-    if (!this->_postProcessor.start(socket, error))
+    else if (!this->_postProcessor.start(socket, error))
       return (false);
   }
   else //Delete
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_deleteProcessor.start(socket, error))
+    else if (!this->_deleteProcessor.start(socket, error))
       return (false);
   }
   return (true);
