@@ -192,13 +192,13 @@ bool  CgiHandler::_redirect(ConnectionData & connData,
       data = "HTTP/1.1 " + it->second + ' '
             + HttpInfo::statusCode.at(statusCode) + "\r\n";
       io.pushBack(data);
-      data.clear();
       this->_addProtocolHeaders(connData, header);
       this->_addBody(io, header.at("BODY"));
       return (true);
     }
     data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
     data += "Location: " + header.at("LOCATION") + "\r\n\r\n";
+    utils::addContentLengthHeader(data, data.length());
     io.pushBack(data);
     io.setPayloadSize(data.length());
     return (true);

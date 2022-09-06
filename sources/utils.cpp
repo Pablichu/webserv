@@ -53,6 +53,23 @@ std::string utils::getDate(void)
 }
 
 /*
+**  Inserts Content-Length header to rspContent, which includes
+**  headers and body, or just headers if no body will be sent.
+**
+**  endHeadersPos is one position after the last \n of \r\n\r\n
+**  which signals the end of headers, and start of body, if present.
+*/
+
+void  utils::addContentLengthHeader(std::string & rspContent,
+                                    std::size_t const endHeadersPos)
+{
+  rspContent.insert(endHeadersPos - 2, "Content-Length: "
+                  + utils::toString(rspContent.length() - endHeadersPos)
+                  + "\r\n");
+  return ;
+}
+
+/*
 **  HandledRequests does not count the current one.
 **
 **  clientClose means client sent "Connection: close" header.

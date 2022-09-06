@@ -40,6 +40,7 @@ void  Response::buildRedirect(ConnectionData & connData,
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
+  utils::addContentLengthHeader(content, content.length());
   this->_buildResponse(connData, content);
   return ;
 }
@@ -56,9 +57,7 @@ void  Response::buildDeleted(ConnectionData & connData)
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   needle = content.length();
   content.append("<html><body><h1>File deleted.</h1></body></html>");
-  content.insert(needle - 2, "Content-Length: "
-                  + utils::toString(content.length() - needle)
-                  + "\r\n");
+  utils::addContentLengthHeader(content, needle);
   this->_buildResponse(connData, content);
   return ;
 }
@@ -86,9 +85,7 @@ void  Response::buildUploaded(ConnectionData & connData,
     content.append("Content appended to existing file at: ");
   content.append(url);
   content.append("</h1></body></html>");
-  content.insert(needle - 2, "Content-Length: "
-                  + utils::toString(content.length() - needle)
-                  + "\r\n");
+  utils::addContentLengthHeader(content, needle);
   this->_buildResponse(connData, content);
   return ;
 }
@@ -140,9 +137,7 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
     closedir(dir);
   }
   content.append("</pre><hr></body></html>");
-  content.insert(needle - 2, "Content-Length: "
-                  + utils::toString(content.length() - needle)
-                  + "\r\n");
+  utils::addContentLengthHeader(content, needle);
   this->_buildResponse(connData, content);
   return ;
 }
@@ -165,9 +160,7 @@ void  Response::buildError(ConnectionData & connData, int const error)
   content.append("</title></head><body><h1>");
   content.append(errorCode + ' ' + errorDescription);
   content.append("</h1></body></html>");
-  content.insert(needle - 2, "Content-Length: "
-                  + utils::toString(content.length() - needle)
-                  + "\r\n");
+  utils::addContentLengthHeader(content, needle);
   this->_buildResponse(connData, content);
   return ;
 }
