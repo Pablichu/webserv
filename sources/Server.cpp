@@ -272,7 +272,7 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
     close(fd); //close pipe read fd
     return ;
   }
-  if (!(socket.events & POLLOUT))
+  if (!(socket.events & POLLOUT) && connData.io.getBufferSize())
     socket.events = POLLIN | POLLOUT;
   if (connData.io.finishedRead())
   { //All data was received

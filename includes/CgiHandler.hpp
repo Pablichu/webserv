@@ -25,15 +25,19 @@ private:
   bool  _redirect(ConnectionData & connData,
                   std::map<std::string, std::string> const & header,
                   std::string & localPath);
+  void  _calcPayloadSize(InputOutput & io,
+                          std::map<std::string, std::string> const & header);
   void  _addProtocolHeaders(ConnectionData & connData,
                           std::map<std::string, std::string> const & header);
-  void  _addBody(InputOutput & io, std::string const & body);
+  void  _addBody(InputOutput & io,
+                  std::map<std::string, std::string> const & header);
   bool  _document(ConnectionData & connData,
                   std::map<std::string, std::string> const & header);
   bool  _reWriteResponse(ConnectionData & connData,
                           std::map<std::string, std::string> const & header,
                           std::string & localPath);
   bool  _buildHttpHeaders(ConnectionData & connData, std::string & localPath);
+  void  _insertChunkSize(InputOutput & io, std::size_t const lastBytesRead);
 
 public:
 
