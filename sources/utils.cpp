@@ -52,6 +52,14 @@ std::string utils::getDate(void)
   return (res);
 }
 
+std::string utils::decToHex(std::size_t dec)
+{
+  std::stringstream ss;
+
+  ss<< std::hex << dec;
+  return (ss.str());
+}
+
 /*
 **  Inserts Content-Length header to rspContent, which includes
 **  headers and body, or just headers if no body will be sent.
