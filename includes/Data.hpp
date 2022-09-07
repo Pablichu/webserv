@@ -3,6 +3,7 @@
 #include <iostream>
 #include <poll.h>
 #include <time.h>
+#include <dirent.h>
 
 #include "Config.hpp"
 #include "Request.hpp"
@@ -68,6 +69,7 @@ struct	ConnectionData
 	ConnectionStatus										status;
 	time_t															lastActive;
 	int																	handledRequests;
+	DIR *																dirListNeedle;
 	FileData *													fileData;
 	CgiData *														cgiData;
 

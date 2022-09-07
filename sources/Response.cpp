@@ -27,6 +27,34 @@ void  Response::_buildResponse(pollfd & socket, ConnectionData & connData,
   return ;
 }
 
+void  Response::_buildChunkedResponse(pollfd & socket, ConnectionData & connData,
+                                std::string & content,
+                                std::size_t const endHeadersPos)
+{
+  InputOutput & io = connData.io;
+  std::size_t const bodySize = content.length() - endHeadersPos;
+
+  content.insert(endHeadersPos, utils::decToHex(bodySize) + "\r\n");
+  content.append("\r\n");
+  if (io.isFirstRead())
+  {
+    /*
+    **  endHeadersPos's value is still the same at this point because hex length
+    **  bytes and \r\n have been inserted after its position, not before.
+    */
+    content.insert(endHeadersPos - 2, "Transfer-Encoding: chunked\r\n");
+  }
+  // Last html chunk and 0 chunk are sent at the same time
+  if (bodySize && !connData.dirListNeedle)
+    content.append("0\r\n\r\n");
+  io.pushBack(content);
+  if (!connData.dirListNeedle)
+    io.setFinishedRead();
+  if (!(socket.events & POLLOUT))
+    socket.events = POLLIN | POLLOUT;
+  return ;
+}
+
 /*
 **  url can be absolute or relative. Administrator decides in config file.
 */
@@ -92,11 +120,91 @@ void  Response::buildUploaded(pollfd & socket, ConnectionData & connData,
   return ;
 }
 
+/*
+**  Passing double pointer for dir in order to be able to modify the
+**  pointer address inside the context of this function and apply
+**  its changes in the outer context as well.
+*/
+
+void  Response::_addFileLinks(DIR ** dir, std::string & content,
+                              std::string const & uri, bool const firstCall)
+{
+  struct dirent * elem;
+  std::string     fileName;
+  std::size_t     headerSize;
+
+  headerSize = 0;
+  if (firstCall)
+    headerSize = 28;
+  if (!(*dir))
+    return ;
+  while (true)
+  {
+    /*
+    **  Check to ensure content will fit in the buffer.
+    **
+    **  16 = size of html characters for each link.
+    **  14 = Max. filename length allowed
+    **  3 = ... in case name is bigger than 14
+    **  1 = / after uri
+    **  24 = closing html tags
+    **  headerSize reserves 28 bytes because the biggest header that
+    **  will be added in the first send is transfer-encoding.
+    **  28 = transfer-encoding: chunked\r\n
+    **  8 = If chunked response, 4 bytes for hex chunk size
+    **  and 4 more for 2 \r\n
+    **  5 = if sending chunked response, for last chunk's 0\r\n\r\n
+    */
+    if ((16 + 14 + 3 + uri.length() + 1)
+        >= InputOutput::buffCapacity - 24 - headerSize - 8 - 5)
+      return ;
+    elem = readdir(*dir);
+    if (!elem)
+      break ;
+    if (elem->d_name[0] == '.') //Skip hidden files
+      continue ;
+    fileName = elem->d_name;
+    if (fileName.length() > 14)
+    {
+      fileName.erase(14, std::string::npos);
+      fileName.append("...");
+    }
+    content.append("<a href=\"" + uri + '/');
+    content.append(fileName);
+    content.append("\">");
+    content.append(fileName);
+    content.append("</a>\n");
+  }
+  closedir(*dir);
+  *dir = 0;
+}
+
+/*
+**  If first call to buildDirList could not add all files. Call this one
+**  from Server to continue sending rest of files in chunks.
+*/
+
+void  Response::buildDirList(pollfd & socket, ConnectionData & connData)
+{
+  std::string         content;
+  DIR *               dir = connData.dirListNeedle;
+  std::string const & uri = connData.urlData.find("PATH")->second;
+
+  this->_addFileLinks(&dir, content, uri, false);
+  if (!dir)
+  {// Finished reading files
+    content.append("</pre><hr></body></html>");
+  }
+  this->_buildChunkedResponse(socket, connData, content, 0);
+  return ;
+}
+
+// First call to get directory listing
+
 void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
                               std::string const & uri, std::string const & root)
 {
   DIR *           dir;
-  struct dirent * elem;
   std::size_t     needle;
   std::string     content;
 
@@ -113,34 +221,26 @@ void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
   content.append("</h1><hr><pre><a href=\"../\">../</a>\n");
   dir = opendir(root.c_str());
   if (dir)
+    this->_addFileLinks(&dir, content, uri, true);
+  /*
+  **  After calling addFileLinks if dir is 0, it means that all file links
+  **  could be added to buffer
+  */
+  if (!dir)
   {
-    while (true)
-    {
-      elem = readdir(dir);
-      if (!elem)
-        break ;
-      if (elem->d_name[0] == '.') //Skip hidden files
-        continue ;
-      content.append("<a href=\"" + uri + '/');
-      content.append(elem->d_name);
-      content.append("\">");
-      content.append(elem->d_name);
-      content.append("</a>\n");
-      /*
-      **  Check to ensure the closing html tags and Content-Length header
-      **  will fit in the buffer
-      */
-      if (content.size() >= InputOutput::buffCapacity - 46)
-      {
-        content.erase(content.rfind("<a href"), std::string::npos);
-        break ;
-      }
-    }
-    closedir(dir);
+    content.append("</pre><hr></body></html>");
+    utils::addContentLengthHeader(content, needle);
+    this->_buildResponse(socket, connData, content);
   }
-  content.append("</pre><hr></body></html>");
-  utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(socket, connData, content);
+  else
+  {
+    /*
+    **  There might be more file links that did not fit into the buffer.
+    **  Send chunked response.
+    */
+    connData.dirListNeedle = dir;
+    this->_buildChunkedResponse(socket, connData, content, needle);
+  }
   return ;
 }
 

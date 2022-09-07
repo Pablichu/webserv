@@ -549,6 +549,11 @@ void  Server::_handleEvent(std::size_t index)
       // Connected client socket is ready to write without blocking
       if (this->_fdTable.getConnSock(fd).io.getBufferSize())
         this->_sendData(fd, index);
+      if (this->_fdTable.getConnSock(fd).dirListNeedle)
+      { // build next directory listing chunk
+        this->_response.buildDirList(this->_monitor[index],
+                                      this->_fdTable.getConnSock(fd));
+      }
       //This check is relevant, because the entire buffer might not be sent.
       if(this->_fdTable.getConnSock(fd).io.getBufferSize() == 0)
         this->_monitor[index].events = POLLIN;

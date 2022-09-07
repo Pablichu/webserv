@@ -39,6 +39,9 @@ private:
 
 	void	_buildResponse(pollfd & socket, ConnectionData & connData,
 												std::string const & content);
+	void	_buildChunkedResponse(pollfd & socket, ConnectionData & connData,
+												std::string & content,
+												std::size_t const endHeadersPos);
 	Response(void);
 
 public:
@@ -54,8 +57,11 @@ public:
 	void	buildDeleted(pollfd & socket, ConnectionData & connData);
 	void	buildUploaded(pollfd & socket, ConnectionData & connData,
 											std::string const & url);
+	void	_addFileLinks(DIR ** dir, std::string & content, std::string const & uri,
+											bool const firstCall);
 	void	buildDirList(pollfd & socket, ConnectionData & connData,
 											std::string const & uri, std::string const & root);
+	void  buildDirList(pollfd & socket, ConnectionData & connData);
 	void	buildError(pollfd & socket, ConnectionData & connData, int const error);
 	bool	process(pollfd & socket, int & error);
 	void	sendError(pollfd & socket, int error);

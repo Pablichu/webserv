@@ -37,7 +37,7 @@ FileData::FileData(std::string const & filePath, pollfd & socket)
 }
 
 ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
-  handledRequests(0), fileData(0), cgiData(0)
+  handledRequests(0), dirListNeedle(0), fileData(0), cgiData(0)
 {
   return ;
 }
