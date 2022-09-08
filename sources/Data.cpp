@@ -75,6 +75,7 @@ void  ConnectionData::setIdle(void)
   this->status = Idle;
   this->lastActive = time(NULL);
   this->handledRequests += 1;
+  this->dirListNeedle = 0; // Should have been zeroed previously
   this->fileData = 0; // Should have been zeroed previously
   this->cgiData = 0; // Should have been zeroed previously
   return ;
