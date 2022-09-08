@@ -59,8 +59,8 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 		return (false);
 	}
 	headers = HttpInfo::protocol + ' ';
-	headers += utils::toString(connData.rspStatus) + ' ';
-	headers += HttpInfo::statusCode.find(connData.rspStatus)->second + "\r\n";
+	headers += utils::toString(fileData.rspStatus) + ' ';
+	headers += HttpInfo::statusCode.find(fileData.rspStatus)->second + "\r\n";
 	headers += "Date: " + utils::getDate() + "\r\n";
 	utils::addKeepAliveHeaders(headers, connData.handledRequests,
 								connData.req.getPetit("CONNECTION") == "close");

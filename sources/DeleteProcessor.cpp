@@ -128,7 +128,6 @@ bool  DeleteProcessor::start(pollfd & socket, int & error) const
         error = 500; // Internal Server Error
         return (false);
       }
-      connData.rspStatus = 200; //Provisional
     }
   }
   return (true);

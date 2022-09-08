@@ -31,7 +31,7 @@ int CgiData::getWOutPipe(void) const
 }
 
 FileData::FileData(std::string const & filePath, pollfd & socket)
-                    : fd(0), socket(socket), filePath(filePath)
+                    : fd(0), socket(socket), filePath(filePath), rspStatus(200)
 {
   return ;
 }
@@ -72,7 +72,6 @@ void  ConnectionData::setIdle(void)
   this->ip.clear();
   this->urlData.clear();
   this->io.clear();
-  this->rspStatus = 0;
   this->status = Idle;
   this->lastActive = time(NULL);
   this->handledRequests += 1;

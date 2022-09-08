@@ -44,6 +44,7 @@ struct FileData
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;
+	int					rspStatus;
 
 	FileData(std::string const & filePath, pollfd & socket);
 };
@@ -65,7 +66,6 @@ struct	ConnectionData
 	std::string													ip;
 	std::map<std::string, std::string>	urlData;
 	InputOutput													io;
-	int																	rspStatus;
 	ConnectionStatus										status;
 	time_t															lastActive;
 	int																	handledRequests;

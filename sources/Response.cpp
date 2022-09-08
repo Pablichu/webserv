@@ -315,7 +315,7 @@ void  Response::sendError(pollfd & socket, int error)
   if (error == 404) //Not Found
   {
     fileData = new FileData(connData.getServer()->not_found_page, socket);
-    connData.rspStatus = error; //Provisional
+    fileData->rspStatus = error;
     if (!this->fileHandler.openFile(fileData->filePath, fileData->fd,
                                     O_RDONLY, 0))
       error = 500; //An error ocurred while opening file
