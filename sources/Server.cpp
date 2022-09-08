@@ -132,6 +132,8 @@ void  Server::_endConnection(int fd, size_t connIndex)
     close(associatedFd);
     connData.cgiData = 0;
   }
+  else if (connData.dirListNeedle)
+    closedir(connData.dirListNeedle);
   this->_monitor.removeByIndex(connIndex);
   this->_fdTable.remove(fd);
   close(fd);
