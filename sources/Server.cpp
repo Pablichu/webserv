@@ -259,6 +259,7 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
     std::cout << "Pipe read failed." << std::endl;
     if (!exitStatus)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
+    connData.io.clear();
     // Build Internal Server Error
     this->_response.sendError(connData.cgiData->socket, 500);
     connData.cgiData->closeROutPipe();
@@ -465,6 +466,7 @@ void  Server::_handleEvent(std::size_t index)
       this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd)))
     {
       std::cout << "sendBody to PipeWrite failed." << std::endl;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).io.clear();
       // Build Internal Server Error
       this->_response.sendError(this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).cgiData->socket, 500);
       // Remove cgiData from ConnectionData, closing both pipes.
@@ -504,6 +506,7 @@ void  Server::_handleEvent(std::size_t index)
       if (!this->_fillFileResponse(fd, index))
       {
         std::cout << "Error reading file fd: " << fd << std::endl;
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.clear();
         // Build Internal Server Error
         this->_response.sendError(this->_fdTable.getFile(fd).socket, 500);
         // Delete fileData
@@ -522,6 +525,7 @@ void  Server::_handleEvent(std::size_t index)
       if (!this->_response.fileHandler.writeFile(fd,
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd)))
       {// Order of statements is important!!
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.clear();
         // Build Internal Server Error
         this->_response.sendError(this->_fdTable.getFile(fd).socket, 500);
         // Delete fileData
