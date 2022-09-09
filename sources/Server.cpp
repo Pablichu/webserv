@@ -151,18 +151,12 @@ bool  Server::_fillFileResponse(int const fd, int const index)
   if (io.isFirstRead())
   { // First read
     if (!this->_response.fileHandler.readFileFirst(fd, connData))
-    { // Maybe try to return 500 error?
-      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
-      return (false);
-    }
+      return (false); // Read failed
   }
   else
-  { // Maybe try to return 500 error?
+  {
     if (!this->_response.fileHandler.readFileNext(fd, connData))
-    {
-      //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
-      return (false);
-    }
+      return (false); // Read failed
   }
   if (!(fileData.socket.events & POLLOUT))
     fileData.socket.events = POLLIN | POLLOUT;
@@ -261,11 +255,12 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
   exitStatus = this->_response.cgiHandler.getExitStatus(connData.cgiData->pID);
   if (exitStatus < 0
       || !this->_response.cgiHandler.receiveData(fd, connData))
-  { // Maybe try to return 500 error?
-    //Possible _endConnection function overload? this->_endConnection(socket, fd, index);
-    std::cout << "Pipe read failed, closing read pipe." << std::endl;
+  {
+    std::cout << "Pipe read failed." << std::endl;
     if (!exitStatus)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
+    // Build Internal Server Error
+    this->_response.sendError(connData.cgiData->socket, 500);
     connData.cgiData->closeROutPipe();
     connData.cgiData = 0;
     this->_monitor.removeByIndex(index);
@@ -468,8 +463,15 @@ void  Server::_handleEvent(std::size_t index)
   {
     if (!this->_response.cgiHandler.sendBody(fd,
       this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd)))
-    { // Maybe return 500 error?
-      // End connection, write failed.
+    {
+      std::cout << "sendBody to PipeWrite failed." << std::endl;
+      // Build Internal Server Error
+      this->_response.sendError(this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).cgiData->socket, 500);
+      // Remove cgiData from ConnectionData, closing both pipes.
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).cgiData->closePipes();
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).cgiData = 0;
+      this->_monitor.removeByIndex(index);
+      this->_fdTable.remove(fd);
       return ;
     }
     if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).io.finishedSend())
@@ -500,18 +502,34 @@ void  Server::_handleEvent(std::size_t index)
     {
       // A file fd is ready to read.
       if (!this->_fillFileResponse(fd, index))
+      {
         std::cout << "Error reading file fd: " << fd << std::endl;
+        // Build Internal Server Error
+        this->_response.sendError(this->_fdTable.getFile(fd).socket, 500);
+        // Delete fileData
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).fileData = 0;
+        this->_monitor.removeByIndex(index);
+        this->_fdTable.remove(fd);
+        // File fd already closed by fillFileResponse on failure
+      }
     }
     else // POLLOUT
-    {
+    {// A file fd is ready to write.
       /*
       **  The way of obtaining ConnectionData is provisional. This code will
       **  be moved to another function.
       */
       if (!this->_response.fileHandler.writeFile(fd,
           this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd)))
-      {
-        return ; //Handle error
+      {// Order of statements is important!!
+        // Build Internal Server Error
+        this->_response.sendError(this->_fdTable.getFile(fd).socket, 500);
+        // Delete fileData
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).fileData = 0;
+        this->_monitor.removeByIndex(index);
+        this->_fdTable.remove(fd);
+        // File fd already closed by writeFile on failure
+        return ;
       }
       if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.finishedSend())
       {
@@ -538,7 +556,7 @@ void  Server::_handleEvent(std::size_t index)
       // Connected client socket is ready to read without blocking
       if (!this->_receiveData(fd))
   	  {
-        this->_endConnection(fd, index); //TODO: Handle Error
+        this->_endConnection(fd, index);
         return ;
   	  }
       if (this->_fdTable.getConnSock(fd).req.getDataSate() != done

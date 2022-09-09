@@ -97,7 +97,10 @@ bool	FileHandler::readFileNext(int const fd, ConnectionData & connData)
 		return (true);
 	bytesRead = read(fd, io.inputBuffer(), io.getAvailableBufferSize());
 	if (bytesRead <= 0)
+	{
+		close(fd);
 		return (false);
+	}
 	io.addBytesRead(bytesRead);
 	return (true);
 }
@@ -113,7 +116,12 @@ bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
 	io.pushBack(body);
 	len = write(fd, io.outputBuffer(), io.getBufferSize());
 	if (len <= 0)
+	{
+		close(fd);
+		// No need to check return value. If it does not exist it won't be removed.
+		this->removeFile(connData.fileData->filePath);
 		return (false);
+	}
 	io.addBytesSent(len);
 	return (true);
 }
