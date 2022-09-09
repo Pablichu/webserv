@@ -24,10 +24,13 @@ struct	CgiData
 	CgiData(pollfd & socket, std::string const & interpreterPath,
 					std::string const & scriptPath);
 
-	int getRInPipe(void) const;
-  int getWInPipe(void) const;
-  int getROutPipe(void) const;
-  int getWOutPipe(void) const;
+	int		getRInPipe(void) const;
+  int		getWInPipe(void) const;
+  int		getROutPipe(void) const;
+  int		getWOutPipe(void) const;
+	void	closeWInPipe(void);
+	void	closeROutPipe(void);
+	void	closePipes(void);
 };
 
 enum	FileOp

@@ -122,15 +122,13 @@ void  Server::_endConnection(int fd, size_t connIndex)
     this->_monitor.removeByFd(associatedFd);
     this->_fdTable.remove(associatedFd);
     close(associatedFd);
-    connData.fileData = 0;
   }
   else if (connData.cgiData)
   { // Order of removals is important. fdTable deletes cgiData.
     associatedFd = connData.cgiData->getROutPipe();
+    connData.cgiData->closePipes();
     this->_monitor.removeByFd(associatedFd);
     this->_fdTable.remove(associatedFd);
-    close(associatedFd);
-    connData.cgiData = 0;
   }
   else if (connData.dirListNeedle)
     closedir(connData.dirListNeedle);
@@ -268,10 +266,10 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
     std::cout << "Pipe read failed, closing read pipe." << std::endl;
     if (!exitStatus)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
+    connData.cgiData->closeROutPipe();
     connData.cgiData = 0;
     this->_monitor.removeByIndex(index);
     this->_fdTable.remove(fd);
-    close(fd); //close pipe read fd
     return ;
   }
   if (!(socket.events & POLLOUT) && connData.io.getBufferSize())
@@ -280,11 +278,11 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
   { //All data was received
     if (!exitStatus)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
+    connData.cgiData->closeROutPipe();
     //Order of removals and close is important!!!
     connData.cgiData = 0;
     this->_monitor.removeByIndex(index);
     this->_fdTable.remove(fd);
-    close(fd); //close pipe read fd
     if (connData.io.getPayloadSize() == 0)
     {
       if (!this->_response.process(socket, error))
@@ -487,7 +485,8 @@ void  Server::_handleEvent(std::size_t index)
       this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).io.clear();
       this->_monitor.removeByIndex(index);
 	    this->_fdTable.remove(fd);
-      close(fd); //close pipe write fd
+      //CgiData has not been deleted yet, because the Read Pipe is still open
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).cgiData->closeWInPipe();
     }
   }
   else if (fdType == PipeRead)

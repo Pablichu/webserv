@@ -5,8 +5,8 @@ CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
                 : socket(socket), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
 {
-  std::fill(this->inPipe, this->inPipe + 2, 0);
-  std::fill(this->outPipe, this->outPipe + 2, 0);
+  std::fill(this->inPipe, this->inPipe + 2, -1);
+  std::fill(this->outPipe, this->outPipe + 2, -1);
   return ;
 }
 
@@ -28,6 +28,31 @@ int CgiData::getROutPipe(void) const
 int CgiData::getWOutPipe(void) const
 {
   return (this->outPipe[1]);
+}
+
+void  CgiData::closeWInPipe(void)
+{
+  if (this->inPipe[1] == -1)
+    return ;
+  close(this->inPipe[1]);
+  this->inPipe[1] = -1;
+  return ;
+}
+
+void  CgiData::closeROutPipe(void)
+{
+  if (this->outPipe[0] == -1)
+    return ;
+  close(this->outPipe[0]);
+  this->outPipe[0] = -1;
+  return ;
+}
+
+void  CgiData::closePipes(void)
+{
+  this->closeWInPipe();
+  this->closeROutPipe();
+  return ;
 }
 
 FileData::FileData(std::string const & filePath, pollfd & socket)
