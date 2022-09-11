@@ -65,6 +65,5 @@ public:
 	void	buildError(pollfd & socket, ConnectionData & connData, int const error);
 	bool	process(pollfd & socket, int & error);
 	void	sendError(pollfd & socket, int error);
-	bool	sendData(int const sockFd, ConnectionData & connData);
 
 };

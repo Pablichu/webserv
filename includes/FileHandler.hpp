@@ -8,6 +8,7 @@
 
 class FileHandler
 {
+
 public:
 
   FileHandler(void);
@@ -16,7 +17,12 @@ public:
   bool	openFile(std::string const & filePath, int & fd, int const flags,
                   int const mode);
   bool  removeFile(std::string const & filePath) const;
-	bool	readFileFirst(int const fd, ConnectionData & connData);
-	bool	readFileNext(int const fd, ConnectionData & connData);
+  bool  readFile(int const fd, ConnectionData & connData);
   bool  writeFile(int const fd, ConnectionData & connData) const;
+
+private:
+
+  bool	_readFileFirst(int const fd, ConnectionData & connData);
+	bool	_readFileNext(int const fd, ConnectionData & connData);
+
 };

@@ -330,26 +330,3 @@ void  Response::sendError(pollfd & socket, int error)
   this->buildError(socket, connData, error);
   return ;
 }
-
-/*
-**	Sends read file content to client socket. It may be called more than once
-**	if file size is bigger than read buffer size.
-**
-**  Naming it sendData instead of just send because there is
-**  a namespace conflict with send of the C Standard Library.
-*/
-
-bool	Response::sendData(int const sockFd, ConnectionData & connData)
-{
-  std::size_t   bytesSent;
-  InputOutput & io = connData.io;
-
-	bytesSent = send(sockFd, io.outputBuffer(), io.getBufferSize(), 0);
-	if (bytesSent <= 0)
-	{
-		std::cout << "Could not send data to client." << std::endl;
-		return (false);
-	}
-	io.addBytesSent(bytesSent);
-	return (true);
-}
