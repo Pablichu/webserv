@@ -67,6 +67,7 @@ struct	ConnectionData
 	ConnectionStatus					status;
 	time_t								lastActive;
 	int									handledRequests;
+	DIR *								dirListNeedle;
 	FileData *							fileData;
 	CgiData *							cgiData;
 	Request								req;
