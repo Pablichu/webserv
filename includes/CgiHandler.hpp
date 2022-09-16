@@ -20,23 +20,20 @@ private:
   void  _deleteEnv(std::vector<char *> & env);
   void  _addEnvVar(std::vector<char *> & env, std::string const & var);
   void  _execProgram(CgiData const & cgiData, std::vector<char *> env);
-  bool  _parseCgiResponse(std::string & buff, int const buffSize,
+  bool  _parseCgiResponse(InputOutput & io,
                           std::map<std::string, std::string> & header);
-  bool  _redirect(std::string & buff,
+  bool  _redirect(ConnectionData & connData,
                   std::map<std::string, std::string> const & header,
-                  std::size_t & rspSize, std::string & localPath);
-  void  _addProtocolHeaders(std::string & buff,
+                  std::string & localPath);
+  void  _addProtocolHeaders(ConnectionData & connData,
+                          std::map<std::string, std::string> const & header);
+  void  _addBody(InputOutput & io, std::string const & body);
+  bool  _document(ConnectionData & connData,
+                  std::map<std::string, std::string> const & header);
+  bool  _reWriteResponse(ConnectionData & connData,
                           std::map<std::string, std::string> const & header,
-                          std::size_t & rspSize);
-  void  _addBody(std::string & buff, std::string const & body);
-  bool  _document(std::string & buff,
-                  std::map<std::string, std::string> const & header,
-                  std::size_t & rspSize);
-  bool  _reWriteResponse(std::string & buff,
-                          std::map<std::string, std::string> const & header,
-                          std::size_t & rspSize, std::string & localPath);
-  bool  _buildHttpHeaders(std::string & buff, int const buffSize,
-                          std::size_t & rspSize, std::string & localPath);
+                          std::string & localPath);
+  bool  _buildHttpHeaders(ConnectionData & connData, std::string & localPath);
 
 public:
 
@@ -48,6 +45,7 @@ public:
   std::vector<char *> *
         getEnv(std::map<std::string, std::string> const & reqHeader,
                 std::map<std::string, std::string> const & urlData,
+                std::string const & locationRoot,
                 std::string const & ip);
   bool	receiveData(int rPipe, ConnectionData & connData);
   bool  sendBody(int wPipe, ConnectionData & connData);

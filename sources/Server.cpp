@@ -94,11 +94,7 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       addedPorts[it->port] = sock;
       this->_fdTable.add(sock, new std::vector<ServerConfig const *>(1, &(*it)));
       //Add listening socket fd to poll array (monitor)
-      /*
-      **  Determine if it makes sense to check for POLLOUT if it is never
-      **  going to be used for listening sockets.
-      */
-      this->_monitor.add(sock, POLLIN /*| POLLOUT*/);
+      this->_monitor.add(sock, POLLIN);
     }
   }
   return (true);
@@ -149,10 +145,11 @@ void  Server::_endConnection(int fd, size_t connIndex)
 bool  Server::_fillFileResponse(int const fd, int const index)
 {
   FileData &        fileData = this->_fdTable.getFile(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket.fd);
+  InputOutput &     io = connData.io;
 
-  if (!connData.totalBytesRead)
-  {
+  if (io.isFirstRead())
+  { // First read
     if (!this->_response.fileHandler.readFileFirst(fd, connData))
     { // Maybe try to return 500 error?
       //Possible _endConnection function overload? this->_endConnection(fileData.socket, fd, index);
@@ -167,7 +164,9 @@ bool  Server::_fillFileResponse(int const fd, int const index)
       return (false);
     }
   }
-  if (static_cast<long>(connData.totalBytesRead) == fileData.fileSize)
+  if (!(fileData.socket.events & POLLOUT))
+    fileData.socket.events = POLLIN | POLLOUT;
+  if (io.finishedRead())
   {
     this->_monitor.removeByIndex(index);
 	  this->_fdTable.remove(fd);
@@ -254,8 +253,8 @@ bool  Server::_matchConfig(int socket)
 
 void  Server::_handlePipeRead(int const fd, std::size_t const index)
 {
-  int const         socket = this->_fdTable.getPipe(fd).socket;
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  pollfd &          socket = this->_fdTable.getPipe(fd).socket;
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   int               error = 0;
   int               exitStatus;
 
@@ -273,7 +272,9 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
     close(fd); //close pipe read fd
     return ;
   }
-  if (connData.rspSize == connData.totalBytesRead)
+  if (!(socket.events & POLLOUT))
+    socket.events = POLLIN | POLLOUT;
+  if (connData.io.finishedRead())
   { //All data was received
     if (!exitStatus)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
@@ -282,12 +283,11 @@ void  Server::_handlePipeRead(int const fd, std::size_t const index)
     this->_monitor.removeByIndex(index);
     this->_fdTable.remove(fd);
     close(fd); //close pipe read fd
-    if (connData.rspSize == 0)
+    if (connData.io.getPayloadSize() == 0)
     {
       if (!this->_response.process(socket, error))
         this->_response.sendError(socket, error);
     }
-    return ;
   }
 }
 
@@ -318,30 +318,34 @@ bool  Server::_validRequest(int socket, int & error)
   return (true);
 }
 
-void  Server::_handleClientRead(int socket)
+void  Server::_handleClientRead(pollfd & socket)
 {
-  if (this->_fdTable.getConnSock(socket).req.processWhat())
+  ConnectionData & connData = this->_fdTable.getConnSock(socket.fd);
+
+  if (connData.req.processWhat())
   {
     this->_response.sendError(socket, 413);
 	return ;
   }
-  if (this->_fdTable.getConnSock(socket).req.getDataSate() != done)
+  if (connData.req.getDataSate() != done)
 	return ;
-
-  UrlParser().parse(this->_fdTable.getConnSock(socket).req.getPetit("PATH"),
-                    this->_fdTable.getConnSock(socket).urlData);
+  connData.io.clear();
+  UrlParser().parse(connData.req.getPetit("PATH"),
+                    connData.urlData);
   std::cout << "Data received for "
-            << this->_fdTable.getConnSock(socket).req.getPetit("HOST")
+            << connData.req.getPetit("HOST")
             << " with path "
-            << this->_fdTable.getConnSock(socket).req.getPetit("PATH")
+            << connData.req.getPetit("PATH")
             << " | Buffer reached: "
-			<< this->_fdTable.getConnSock(socket).req.updateLoop(false)
+			<< connData.req.updateLoop(false)
 			<< std::endl;
 
   int error = 0;
-  if (!this->_validRequest(socket, error)
+  if (!this->_validRequest(socket.fd, error)
       || !this->_response.process(socket, error))
     this->_response.sendError(socket, error);
+  if (connData.io.getBufferSize())
+    socket.events = POLLIN | POLLOUT;
 }
 
 /*
@@ -368,12 +372,13 @@ void  Server::_sendData(int socket, std::size_t index)
 bool  Server::_receiveData(int socket)
 {
   ConnectionData &	cone = this->_fdTable.getConnSock(socket);
+  InputOutput &     io = cone.io;
   std::string &     reqData = cone.req.getData();
   int               len;
-  //Request			*req = &this->_fdTable.getConnSock(socket).req;
 
-  cone.req.dataAvailible() = true;
-  len = recv(socket, &cone.buff[0], cone.buffCapacity, 0);
+  if (io.getAvailableBufferSize() == 0)
+    return (true);
+  len = recv(socket, io.inputBuffer(), io.getAvailableBufferSize(), 0);
   if (len <= 0)
   {
     std::cout << "Client connection closed unexpectedly.";
@@ -382,14 +387,16 @@ bool  Server::_receiveData(int socket)
 	std::cout << std::endl;
 	return (false);
   }
+  io.addBytesRead(len);
   /*
   **  Do not append as string, as it will append the entire buffer size
   **  instead of only the non null elements encountered before the first
   **  null element.
   */
-  reqData.append(&cone.buff[0], len);
+  reqData.append(io.outputBuffer(), len);
+  cone.req.dataAvailible() = true;
+  io.addBytesSent(len);
   cone.req.updateLoop(true);
-  std::fill(&cone.buff[0], &cone.buff[len], 0);
   return (true);
 }
 
@@ -431,7 +438,7 @@ void  Server::_acceptConn(int listenSocket)
       close(newConn);
       continue ;
     }
-    this->_monitor.add(newConn, POLLIN | POLLOUT);
+    this->_monitor.add(newConn, POLLIN);
     /*
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
@@ -439,7 +446,7 @@ void  Server::_acceptConn(int listenSocket)
     this->_fdTable.add(newConn, new ConnectionData);
     this->_fdTable.getConnSock(newConn).portConfigs = configs;
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
-    this->_fdTable.getConnSock(newConn).ip = ip;    
+    this->_fdTable.getConnSock(newConn).ip = ip;
   }
 }
 
@@ -462,13 +469,12 @@ void  Server::_handleEvent(std::size_t index)
   else if (fdType == PipeWrite)
   {
     if (!this->_response.cgiHandler.sendBody(fd,
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket)))
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd)))
     { // Maybe return 500 error?
       // End connection, write failed.
       return ;
     }
-    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent
-        == this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize)
+    if (this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).io.finishedSend())
     {
       /*
       **  Close pipe fd, but do not delete CgiData structure,
@@ -478,9 +484,7 @@ void  Server::_handleEvent(std::size_t index)
       **  The way of obtaining ConnectionData is provisional. This code will
       **  be moved to another function.
       */
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).rspSize = 0;
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).totalBytesSent = 0;
-      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket).cgiData = 0;
+      this->_fdTable.getConnSock(this->_fdTable.getPipe(fd).socket.fd).io.clear();
       this->_monitor.removeByIndex(index);
 	    this->_fdTable.remove(fd);
       close(fd); //close pipe write fd
@@ -506,20 +510,20 @@ void  Server::_handleEvent(std::size_t index)
       **  be moved to another function.
       */
       if (!this->_response.fileHandler.writeFile(fd,
-          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket)))
+          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd)))
       {
         return ; //Handle error
       }
-      if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent
-          == this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).req.getHeaders()["Body"].length())
+      if (this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.finishedSend())
       {
         //Order of statements is important!!
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).io.clear();
         this->_response.buildUploaded(
-          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket),
+          this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd),
           this->_fdTable.getConnSock(
-            this->_fdTable.getFile(fd).socket).req.getPetit("PATH"));
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).fileData = 0;
-        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket).totalBytesSent = 0;
+            this->_fdTable.getFile(fd).socket.fd).req.getPetit("PATH"));
+        this->_fdTable.getFile(fd).socket.events = POLLIN | POLLOUT;
+        this->_fdTable.getConnSock(this->_fdTable.getFile(fd).socket.fd).fileData = 0;
         this->_monitor.removeByIndex(index);
         this->_fdTable.remove(fd);
         close(fd);
@@ -529,27 +533,67 @@ void  Server::_handleEvent(std::size_t index)
   else
   {
     if (this->_monitor[index].revents & POLLIN)
-    {  
+    {
+      if (this->_fdTable.getConnSock(fd).status == Idle)
+        this->_fdTable.getConnSock(fd).status = Active;
       // Connected client socket is ready to read without blocking
-	  if (!this->_receiveData(fd))
+      if (!this->_receiveData(fd))
   	  {
-    	this->_endConnection(fd, index); //TODO: Handle Error
-    	return ;
+        this->_endConnection(fd, index); //TODO: Handle Error
+        return ;
   	  }
+      if (this->_fdTable.getConnSock(fd).req.getDataSate() != done
+          && this->_fdTable.getConnSock(fd).req.dataAvailible())
+      	this->_handleClientRead(this->_monitor[index]);
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {
-	  if (this->_fdTable.getConnSock(fd).req.getDataSate() != done && this->_fdTable.getConnSock(fd).req.dataAvailible())
-      	this->_handleClientRead(fd);
       // Connected client socket is ready to write without blocking
-      if (this->_fdTable.getConnSock(fd).buffSize)    
+      if (this->_fdTable.getConnSock(fd).io.getBufferSize())
         this->_sendData(fd, index);
-      if (this->_fdTable.getConnSock(fd).totalBytesSent
-          == this->_fdTable.getConnSock(fd).rspSize
-          && this->_fdTable.getConnSock(fd).totalBytesSent)
-        this->_endConnection(fd, index);
+      //This check is relevant, because the entire buffer might not be sent.
+      if(this->_fdTable.getConnSock(fd).io.getBufferSize() == 0)
+        this->_monitor[index].events = POLLIN;
+      if (this->_fdTable.getConnSock(fd).io.finishedSend() && 
+          this->_fdTable.getConnSock(fd).io.getPayloadSize() != 0)
+      { // Request handling finished succesfully
+        if (this->_fdTable.getConnSock(fd).req.getPetit("CONNECTION") != "close"
+            && this->_fdTable.getConnSock(fd).handledRequests
+                < ConnectionData::max - 1)
+          this->_fdTable.getConnSock(fd).setIdle();
+        else
+          this->_endConnection(fd, index);
+      }
     }
   }
+}
+
+bool  Server::_checkTimeout(int const fd, std::size_t const index)
+{
+  FdType            fdType;
+  /*
+  **  Using a pointer to avoid creating a copy of ConnectionData,
+  **  which is a big structure.
+  */
+  ConnectionData *  connData;
+  double            timeIdle;
+  time_t const      currentTime = time(NULL);
+
+  if (fd == -1) // Removed fd during this poll iteration
+    return (false);
+  fdType = this->_fdTable.getType(fd);
+  if (fdType != ConnSock) // Only client connection sockets have timeout
+    return (false);
+  connData = &this->_fdTable.getConnSock(fd);
+  if (connData->status != Idle)
+    return (false);
+  timeIdle = difftime(currentTime, connData->lastActive);
+  if (timeIdle >= ConnectionData::timeout)
+  {
+    this->_endConnection(fd, index);
+    return (true);
+  }
+  return (false);
 }
 
 /*
@@ -563,32 +607,26 @@ void  Server::_handleEvent(std::size_t index)
 bool  Server::start(void)
 {
   int         numEvents;
-  int         handlingCount;
+  std::size_t monitorLen;
 
   while (true)
   {
-    // TIMEOUT -1 blocks until event is received
-    numEvents = poll(this->_monitor.getFds(), this->_monitor.len(), -1);
+    //Store monitor length before calling poll. monitor can grow during loop.
+    monitorLen = this->_monitor.len();
+    numEvents = poll(this->_monitor.getFds(), monitorLen,
+                      static_cast<int>(ConnectionData::timeout / 2) * 1000);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;
       return (false);
     }
-    /* IF TIMEOUT IS NOT SET TO -1 ADD THIS BLOCK TO HANDLE TIMEOUTS
-    if (numEvents == 0)
-    {
-      std::cerr << "poll() timeout" << std::endl;
-      continue ;
-    }*/
-    handlingCount = 0;
-    for (std::size_t i = 0; i < this->_monitor.len(); ++i)
-    { // INEFFICIENT!! USE kqueue INSTEAD of poll
-      if (this->_monitor[i].revents == 0 || this->_monitor[i].fd == -1)
+    for (std::size_t i = 0; i < monitorLen; ++i)
+    { // INEFFICIENT!! Not using kqueue for compatibility issues
+      if (this->_checkTimeout(this->_monitor[i].fd, i)
+          || this->_monitor[i].revents == 0
+          || this->_monitor[i].fd == -1)
         continue;
       this->_handleEvent(i);
-      // To stop iterating when total events have been handled
-      if (++handlingCount == numEvents)
-        break ;
     }
     this->_monitor.purge();
   }

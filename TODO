@@ -18,10 +18,10 @@
 👍 • It must be non-blocking and use only 1 poll (or equivalent) for all the IO between the client and the server (listens includes).
 👍 • You need at least GET, POST, and DELETE methods.
 👍 • Client should be able to upload files.
+👍 • poll (or equivalent) should check read and write at the same time.
 ⏳ • Your server should never block and the client should be bounce properly if necessary.
 ⏳ • A request to your server should never hang forever.
 ⏳ • Your HTTP response status codes must be accurate.
-⏳ • poll (or equivalent) should check read and write at the same time.
 ❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
 ❌ • Stress tests your server it must stay available at all cost.
 👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
@@ -41,10 +41,10 @@
   👍 · Samethings for the output of the CGI.if no content_length is returned from the CGI, EOF will mean the end of the returned data.
   👍 · Your program should call the cgi with the file requested as first argument
   👍 · Just remembers that for chunked request, your server needs to unchun- ked it and the CGI will expect EOF as end of the body.
-  ⏳ ◦ setup the server_names or not
+  👍 ◦ setup the server_names or not
+  👍 Because you won’t call the CGI directly use the full path as PATH_INFO
+  👍 · your server should work with one CGI (php-cgi, python...)
   ⏳ ◦ limit client body size (needs to be tested)
-  ⏳ Because you won’t call the CGI directly use the full path as PATH_INFO
-  ⏳ · your server should work with one CGI (php-cgi, python...)
 
 	<<<<<< BONUS >>>>>>
 		👍  Multiple CGI

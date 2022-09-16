@@ -8,7 +8,7 @@ TARGET_FILE_NAME="tmp_hello.txt"
 TARGET_FILE_PATH="${RELATIVE_SCRIPT_PATH}/www/localhost/media/${TARGET_FILE_NAME}"
 MEDIA_SERVER="http://localhost:8080"
 CGI_SERVER="http://localhost:9000"
-MEDIA_REQUEST_URI="${MEDIA_SERVER}/gallery/${TARGET_FILE_NAME}"
+MEDIA_REQUEST_URI="${MEDIA_SERVER}/gallery/media/${TARGET_FILE_NAME}"
 CGI_REQUEST_URI="${CGI_SERVER}/${TARGET_FILE_NAME}"
 REQUEST_EXIT_CODE=""
 
@@ -61,11 +61,11 @@ curl -f -s -X DELETE $CGI_REQUEST_URI
 
 REQUEST_EXIT_CODE="$?"
 
-if [ "$REQUEST_EXIT_CODE" -ne "0" ]
+if [ "$REQUEST_EXIT_CODE" -eq "0" ]
 then
   echo -e "\nFORBIDDEN METHOD TEST failed."
   echo -e "\nDELETE request to ${CGI_REQUEST_URI} must fail."
   exit 1
 fi
 
-echo -e "\nDELETE tests OK."
+echo -e "\nDELETE tests OK.\n"

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include <sstream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -37,7 +36,6 @@ private:
 	GetProcessor &		_getProcessor;
 	DeleteProcessor &	_deleteProcessor;
 	PostProcessor &		_postProcessor;
-	std::size_t				bytesSent;
 
 	void	_buildResponse(ConnectionData & connData, std::string const & content);
 	Response(void);
@@ -57,8 +55,8 @@ public:
 	void	buildDirList(ConnectionData & connData, std::string const & uri,
 											std::string const & root);
 	void	buildError(ConnectionData & connData, int const error);
-	bool	process(int const sockFd, int & error);
-	void	sendError(int const socket, int error);
+	bool	process(pollfd & socket, int & error);
+	void	sendError(pollfd & socket, int error);
 	bool	sendData(int const sockFd, ConnectionData & connData);
 
 	const std::string	buildErrorHtml(std::string const errorCode, std::string const errorDescription);

@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "Data.hpp"
+
 namespace utils
 {
   template< typename T >
@@ -18,4 +20,7 @@ namespace utils
   std::string extractHost(std::string const & input);
   std::string extractPort(std::string const & input);
   std::string getDate(void);
+  void        addKeepAliveHeaders(std::string & headers,
+                                  int const HandledRequests,
+                                  bool const clientClose);
 }

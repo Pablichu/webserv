@@ -18,9 +18,10 @@ Response::~Response(void)
 void  Response::_buildResponse(ConnectionData & connData,
                                 std::string const & content)
 {
-  connData.buff.replace(0, content.size(), content);
-  connData.buffSize = connData.buff.find('\0');
-  connData.rspSize = connData.buffSize;
+  InputOutput & io = connData.io;
+
+  io.pushBack(content);
+  io.setPayloadSize(io.getBufferSize());
   return ;
 }
 
@@ -36,6 +37,8 @@ void  Response::buildRedirect(ConnectionData & connData,
   content = "HTTP/1.1 " + utils::toString<int>(code) + ' '
             + HttpInfo::statusCode.find(code)->second + "\r\n";
   content += "Date: " + utils::getDate() + "\r\n";
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
   this->_buildResponse(connData, content);
   return ;
@@ -43,12 +46,19 @@ void  Response::buildRedirect(ConnectionData & connData,
 
 void  Response::buildDeleted(ConnectionData & connData)
 {
+  std::size_t needle;
   std::string content;
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
+  needle = content.length();
   content.append("<html><body><h1>File deleted.</h1></body></html>");
+  content.insert(needle - 2, "Content-Length: "
+                  + utils::toString(content.length() - needle)
+                  + "\r\n");
   this->_buildResponse(connData, content);
   return ;
 }
@@ -56,6 +66,7 @@ void  Response::buildDeleted(ConnectionData & connData)
 void  Response::buildUploaded(ConnectionData & connData,
                               std::string const & url)
 {
+  std::size_t needle;
   std::string content;
   int const   code = connData.fileData->fileOp == Create ? 201 : 200;
 
@@ -63,8 +74,11 @@ void  Response::buildUploaded(ConnectionData & connData,
   content.append(utils::toString(code) + ' ');
   content.append(HttpInfo::statusCode.find(code)->second + "\r\n");
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n";
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
+  needle = content.length();
   content.append("<html><body><h1>");
   if (code == 201)
     content.append("File created at: ");
@@ -72,6 +86,9 @@ void  Response::buildUploaded(ConnectionData & connData,
     content.append("Content appended to existing file at: ");
   content.append(url);
   content.append("</h1></body></html>");
+  content.insert(needle - 2, "Content-Length: "
+                  + utils::toString(content.length() - needle)
+                  + "\r\n");
   this->_buildResponse(connData, content);
   return ;
 }
@@ -81,11 +98,15 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
 {
   DIR *           dir;
   struct dirent * elem;
+  std::size_t     needle;
   std::string     content;
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
+  needle = content.length();
   content.append("<html><head><title>Index of ");
   content.append(uri);
   content.append("</title></head><body><h1>Index of ");
@@ -106,8 +127,11 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
       content.append("\">");
       content.append(elem->d_name);
       content.append("</a>\n");
-      //Check to ensure the closing html tags will fit in the buffer
-      if (content.size() >= ConnectionData::buffCapacity - 25)
+      /*
+      **  Check to ensure the closing html tags and Content-Length header
+      **  will fit in the buffer
+      */
+      if (content.size() >= InputOutput::buffCapacity - 46)
       {
         content.erase(content.rfind("<a href"), std::string::npos);
         break ;
@@ -116,6 +140,9 @@ void  Response::buildDirList(ConnectionData & connData, std::string const & uri,
     closedir(dir);
   }
   content.append("</pre><hr></body></html>");
+  content.insert(needle - 2, "Content-Length: "
+                  + utils::toString(content.length() - needle)
+                  + "\r\n");
   this->_buildResponse(connData, content);
   return ;
 }
@@ -124,19 +151,22 @@ void  Response::buildError(ConnectionData & connData, int const error)
 {
   std::string const errorCode = utils::toString<int>(error);
   std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
+  std::size_t       needle;
   std::string       content;
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  utils::addKeepAliveHeaders(content, connData.handledRequests,
+                              connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
   content.append(this->buildErrorHtml(errorCode, errorDescription));
   this->_buildResponse(connData, content);
   return ;
 }
 
-bool  Response::process(int const sockFd, int & error)
+bool  Response::process(pollfd & socket, int & error)
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(sockFd);
+  ConnectionData &        connData = this->_fdTable.getConnSock(socket.fd);
   LocationConfig const *  loc = connData.getLocation();
   std::string const       reqMethod = connData.req.getPetit("METHOD");
 
@@ -144,21 +174,21 @@ bool  Response::process(int const sockFd, int & error)
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_getProcessor.start(sockFd, error))
+    if (!this->_getProcessor.start(socket, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 308); //Permanent Redirect
-    if (!this->_postProcessor.start(sockFd, error))
+    if (!this->_postProcessor.start(socket, error))
       return (false);
   }
   else //Delete
   {
     if (loc->redirection != "")
       this->buildRedirect(connData, loc->redirection, 301); //Moved Permanently
-    if (!this->_deleteProcessor.start(sockFd, error))
+    if (!this->_deleteProcessor.start(socket, error))
       return (false);
   }
   return (true);
@@ -173,9 +203,9 @@ bool  Response::process(int const sockFd, int & error)
 **  if not found, buildError.
 */
 
-void  Response::sendError(int const socket, int error)
+void  Response::sendError(pollfd & socket, int error)
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   FileData *        fileData;
 
   if (error == 404) //Not Found
@@ -207,20 +237,16 @@ void  Response::sendError(int const socket, int error)
 
 bool	Response::sendData(int const sockFd, ConnectionData & connData)
 {
-	this->bytesSent = send(sockFd, &connData.buff[0], connData.buffSize, 0);
-	if (this->bytesSent <= 0)
+  std::size_t   bytesSent;
+  InputOutput & io = connData.io;
+
+	bytesSent = send(sockFd, io.outputBuffer(), io.getBufferSize(), 0);
+	if (bytesSent <= 0)
 	{
 		std::cout << "Could not send data to client." << std::endl;
 		return (false);
 	}
-	connData.totalBytesSent += this->bytesSent;
-	if (this->bytesSent == connData.buffSize)
-	{
-		connData.buff.replace(0, connData.buffSize, 1, '\0');
-		connData.buffSize = 0;
-	}
-	else
-		connData.buffOffset = this->bytesSent; //Changed this->bytesRead for this->bytesSent. Check if it is correct
+	io.addBytesSent(bytesSent);
 	return (true);
 }
 

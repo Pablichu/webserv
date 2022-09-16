@@ -51,3 +51,31 @@ std::string utils::getDate(void)
   res.append("GMT");
   return (res);
 }
+
+/*
+**  HandledRequests does not count the current one.
+**
+**  clientClose means client sent "Connection: close" header.
+*/
+
+void  utils::addKeepAliveHeaders(std::string & headers,
+                                int const handledRequests,
+                                bool const clientClose)
+{
+  if (handledRequests == ConnectionData::max - 1
+      || clientClose)
+  {
+    headers.append("Connection: close\r\n");
+  }
+  else
+  {
+    headers.append("Connection: keep-alive\r\n");
+    headers.append("Keep-Alive: timeout=");
+    headers.append(utils::toString<int>(
+                    static_cast<int>(ConnectionData::timeout)
+                  ) + ", ");
+    headers.append("max=" + utils::toString<int>(ConnectionData::max));
+    headers.append("\r\n");
+  }
+  return ;
+}

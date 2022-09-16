@@ -17,7 +17,7 @@ private:
   Response &  _response;
 
   bool  _getFilePath(ConnectionData & connData, std::string & filePath) const;
-  bool  _launchCGI(ConnectionData & connData, int const sockFd,
+  bool  _launchCGI(ConnectionData & connData, pollfd & socket,
                     std::string const & interpreterPath,
                     std::string const & scriptPath) const;
   bool  _removeFile(ConnectionData & connData,
@@ -29,6 +29,6 @@ public:
   DeleteProcessor(Response & response, FdTable & fdTable, Monitor & monitor);
   ~DeleteProcessor(void);
 
-  bool  start(int const sockFd, int & error) const;
+  bool  start(pollfd & socket, int & error) const;
 
 };
