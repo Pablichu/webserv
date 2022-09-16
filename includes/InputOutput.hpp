@@ -24,6 +24,8 @@ public:
   std::string & outputStrBuffer(void);
   void          pushBack(std::string & input);
   void          pushBack(std::string const & input);
+  void          insert(std::size_t inserPos, std::string const & input,
+                        std::size_t inputLen);
   std::size_t   getBufferSize(void) const;
   std::size_t   getAvailableBufferSize(void) const;
   void          addBytesRead(std::size_t const bytes);

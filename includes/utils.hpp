@@ -20,6 +20,9 @@ namespace utils
   std::string extractHost(std::string const & input);
   std::string extractPort(std::string const & input);
   std::string getDate(void);
+  std::string decToHex(std::size_t dec);
+  void        addContentLengthHeader(std::string & rspContent,
+                                      std::size_t const endHeadersPos);
   void        addKeepAliveHeaders(std::string & headers,
                                   int const HandledRequests,
                                   bool const clientClose);

@@ -7,10 +7,9 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
-#include <map>
-#include <algorithm>
-
-#include "webserv.hpp"
+#include "Monitor.hpp"
+#include "FdTable.hpp"
+#include "EventHandler.hpp"
 
 #define MAX_REQUEST 5 //TRY WITH 10?
 
@@ -18,24 +17,12 @@ class	Server
 {
 	private:
 
-		FdTable			_fdTable;
-		Monitor			_monitor;
-		Response		_response;
+		FdTable						_fdTable;
+		Monitor						_monitor;
+		ConnectionHandler	_connHandler;
+		EventHandler			_eventHandler;
 
 		bool	_initSocket(int & sock, std::size_t const port);
-		void	_endConnection(int fd, size_t connIndex);
-		void	_sendData(int socket, std::size_t index);
-		bool	_fillFileResponse(int const fd, int const index);
-		bool	_matchLocation(std::vector<LocationConfig> const & servers,
-													std::size_t & index, std::string const & reqUri);
-		void  _matchServer(std::vector<ServerConfig const *> & servers,
-												std::size_t & index, std::string const & reqHost);
-		bool	_matchConfig(int socket);
-		bool	_validRequest(int socket, int & error);
-		void	_handlePipeRead(int const fd, std::size_t const index);
-		void	_handleClientRead(pollfd & socket);
-		bool	_receiveData(int socket);
-		void	_acceptConn(int	socket);
 		void	_handleEvent(std::size_t index);
 		bool	_checkTimeout(int const fd, std::size_t const index);
 

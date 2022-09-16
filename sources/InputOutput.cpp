@@ -25,6 +25,19 @@ std::string & InputOutput::outputStrBuffer(void)
   return (this->_buff);
 }
 
+/*
+**  pushAmount functionality is needed because there are parts of
+**  the code, like in FileHandler's writefile method, where there is a need
+**  to add as much input content as possible in each call, and it doesn't
+**  matter if the size of input is bigger than the buffer size, as the contents
+**  of input that are not moved to the buffer stay available in subsequent
+**  calls.
+**
+**  In other situations where all of input's content must be moved to the
+**  buffer, the caller must check the available buffer size to ensure
+**  the entire input content will fit in the buffer.
+*/
+
 void  InputOutput::pushBack(std::string & input)
 {
   std::size_t spaceAvailable;
@@ -41,6 +54,19 @@ void  InputOutput::pushBack(std::string & input)
   return ;
 }
 
+/*
+**  pushAmount functionality is needed because there are parts of
+**  the code, like in FileHandler's writefile method, where there is a need
+**  to add as much input content as possible in each call, and it doesn't
+**  matter if the size of input is bigger than the buffer size, as the contents
+**  of input that are not moved to the buffer stay available in subsequent
+**  calls.
+**
+**  In other situations where all of input's content must be moved to the
+**  buffer, the caller must check the available buffer size to ensure
+**  the entire input content will fit in the buffer.
+*/
+
 void  InputOutput::pushBack(std::string const & input)
 {
   std::size_t spaceAvailable;
@@ -53,6 +79,31 @@ void  InputOutput::pushBack(std::string const & input)
   this->_buff.replace(this->_buffSize, pushAmount, input, 0, pushAmount);
   this->_buffSize += pushAmount;
   this->_totalBytesRead += pushAmount;
+  return ;
+}
+
+/*
+**  Not applying a real insert because it would increase the real buffer size
+**  of _buff.
+**  Using replace instead, to preserve the fixed buffer size of 8K.
+*/
+void  InputOutput::insert(std::size_t insertPos, std::string const & input,
+                          std::size_t inputLen)
+{
+  std::size_t const backStringSize = this->_buffSize - insertPos;
+
+  if (this->_buffSize + inputLen > InputOutput::buffCapacity)
+    return ;
+  if (insertPos < this->_buffSize)
+  {
+    //Moving back existing content that will be after the inserted input
+    this->_buff.replace(insertPos, backStringSize, &this->_buff[insertPos],
+                        0, inputLen);
+  }
+  //Replace the value of middle bytes by input value
+  this->_buff.replace(insertPos, inputLen, input, 0, inputLen);
+  this->_buffSize += inputLen;
+  this->_totalBytesRead += inputLen;
   return ;
 }
 

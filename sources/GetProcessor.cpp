@@ -68,8 +68,8 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
       || fcntl(cgiData->getROutPipe(), F_SETFL, O_NONBLOCK))
   {
     std::cerr << "Could not set non-blocking pipe fds" << std::endl;
-    close(cgiData->getWInPipe());
-    close(cgiData->getROutPipe());
+    cgiData->closeWInPipe();
+    cgiData->closeROutPipe();
     delete cgiData;
     return (false);
   }
@@ -82,7 +82,7 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     connData.io.setPayloadSize(bodyPair->second.length());
   }
   else
-    close(cgiData->getWInPipe());
+    cgiData->closeWInPipe();
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
@@ -120,8 +120,8 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
     filePath.clear();
     if (loc->dir_list == true && !connData.urlData.count("FILENAME"))
     {
-      this->_response.buildDirList(
-        connData, connData.urlData.find("PATH")->second, loc->root);
+      this->_response.buildDirList(socket, connData,
+        connData.urlData.find("PATH")->second, loc->root);
     }
     else
     {
@@ -148,7 +148,6 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
         error = 500; // Internal Server Error
         return (false);
       }
-      connData.rspStatus = 200; //Provisional
     }
   }
   return (true);

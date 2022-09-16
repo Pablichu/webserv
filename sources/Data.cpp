@@ -5,8 +5,8 @@ CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
                 : socket(socket), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
 {
-  std::fill(this->inPipe, this->inPipe + 2, 0);
-  std::fill(this->outPipe, this->outPipe + 2, 0);
+  std::fill(this->inPipe, this->inPipe + 2, -1);
+  std::fill(this->outPipe, this->outPipe + 2, -1);
   return ;
 }
 
@@ -30,8 +30,33 @@ int CgiData::getWOutPipe(void) const
   return (this->outPipe[1]);
 }
 
+void  CgiData::closeWInPipe(void)
+{
+  if (this->inPipe[1] == -1)
+    return ;
+  close(this->inPipe[1]);
+  this->inPipe[1] = -1;
+  return ;
+}
+
+void  CgiData::closeROutPipe(void)
+{
+  if (this->outPipe[0] == -1)
+    return ;
+  close(this->outPipe[0]);
+  this->outPipe[0] = -1;
+  return ;
+}
+
+void  CgiData::closePipes(void)
+{
+  this->closeWInPipe();
+  this->closeROutPipe();
+  return ;
+}
+
 FileData::FileData(std::string const & filePath, pollfd & socket)
-                    : fd(0), socket(socket), filePath(filePath)
+                    : fd(0), socket(socket), filePath(filePath), rspStatus(200)
 {
   return ;
 }
@@ -73,10 +98,10 @@ void  ConnectionData::setIdle(void)
   this->ip.clear();
   this->urlData.clear();
   this->io.clear();
-  this->rspStatus = 0;
   this->status = Idle;
   this->lastActive = time(NULL);
   this->handledRequests += 1;
+  this->dirListNeedle = 0; // Should have been zeroed previously
   this->fileData = 0; // Should have been zeroed previously
   this->cgiData = 0; // Should have been zeroed previously
   return ;

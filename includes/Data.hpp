@@ -3,6 +3,7 @@
 #include <iostream>
 #include <poll.h>
 #include <time.h>
+#include <dirent.h>
 
 #include "Config.hpp"
 #include "Request.hpp"
@@ -23,10 +24,13 @@ struct	CgiData
 	CgiData(pollfd & socket, std::string const & interpreterPath,
 					std::string const & scriptPath);
 
-	int getRInPipe(void) const;
-  int getWInPipe(void) const;
-  int getROutPipe(void) const;
-  int getWOutPipe(void) const;
+	int		getRInPipe(void) const;
+  int		getWInPipe(void) const;
+  int		getROutPipe(void) const;
+  int		getWOutPipe(void) const;
+	void	closeWInPipe(void);
+	void	closeROutPipe(void);
+	void	closePipes(void);
 };
 
 enum	FileOp
@@ -43,6 +47,7 @@ struct FileData
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;
+	int					rspStatus;
 
 	FileData(std::string const & filePath, pollfd & socket);
 };

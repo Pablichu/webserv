@@ -34,13 +34,49 @@ bool	FileHandler::removeFile(std::string const & filePath) const
 	return (true);
 }
 
+bool	FileHandler::readFile(int const fd, ConnectionData & connData)
+{
+	InputOutput &	io = connData.io;
+
+	if (io.isFirstRead())
+	{
+		if (!this->_readFileFirst(fd, connData))
+			return (false);
+	}
+	else
+	{
+		if (!this->_readFileNext(fd, connData))
+			return (false);
+	}
+	return (true);
+}
+
+bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
+{
+	int						len;
+	InputOutput &	io = connData.io;
+	std::string &	body = (connData.req.getHeaders())["BODY"];
+
+	if (io.getPayloadSize() == 0)
+		io.setPayloadSize(body.size());
+	io.pushBack(body);
+	len = write(fd, io.outputBuffer(), io.getBufferSize());
+	if (len <= 0)
+	{
+		close(fd);
+		// No need to check return value. If it does not exist it won't be removed.
+		this->removeFile(connData.fileData->filePath);
+		return (false);
+	}
+	io.addBytesSent(len);
+	return (true);
+}
+
 /*
 **	Read file for the first time, adding headers before file content in rsp.
-**
-**	Provisional
 */
 
-bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
+bool	FileHandler::_readFileFirst(int const fd, ConnectionData & connData)
 {
 	FileData &		fileData = *(connData.fileData);
 	InputOutput &	io = connData.io;
@@ -59,8 +95,8 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 		return (false);
 	}
 	headers = HttpInfo::protocol + ' ';
-	headers += utils::toString(connData.rspStatus) + ' ';
-	headers += HttpInfo::statusCode.find(connData.rspStatus)->second + "\r\n";
+	headers += utils::toString(fileData.rspStatus) + ' ';
+	headers += HttpInfo::statusCode.find(fileData.rspStatus)->second + "\r\n";
 	headers += "Date: " + utils::getDate() + "\r\n";
 	utils::addKeepAliveHeaders(headers, connData.handledRequests,
 								connData.req.getPetit("CONNECTION") == "close");
@@ -84,11 +120,9 @@ bool	FileHandler::readFileFirst(int const fd, ConnectionData & connData)
 /*
 **	Subsequent file reads. This function gets called if read buffer size
 **	is less than file size.
-**
-**	The fd is closed outside when returns false or file was read completely.
 */
 
-bool	FileHandler::readFileNext(int const fd, ConnectionData & connData)
+bool	FileHandler::_readFileNext(int const fd, ConnectionData & connData)
 {
 	std::size_t		bytesRead;
 	InputOutput &	io = connData.io;
@@ -97,23 +131,10 @@ bool	FileHandler::readFileNext(int const fd, ConnectionData & connData)
 		return (true);
 	bytesRead = read(fd, io.inputBuffer(), io.getAvailableBufferSize());
 	if (bytesRead <= 0)
+	{
+		close(fd);
 		return (false);
+	}
 	io.addBytesRead(bytesRead);
-	return (true);
-}
-
-bool	FileHandler::writeFile(int const fd, ConnectionData & connData) const
-{
-	int						len;
-	InputOutput &	io = connData.io;
-	std::string &	body = (connData.req.getHeaders())["BODY"];
-
-	if (io.getPayloadSize() == 0)
-		io.setPayloadSize(body.size());
-	io.pushBack(body);
-	len = write(fd, io.outputBuffer(), io.getBufferSize());
-	if (len <= 0)
-		return (false);
-	io.addBytesSent(len);
 	return (true);
 }

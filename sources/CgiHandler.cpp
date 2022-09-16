@@ -192,13 +192,13 @@ bool  CgiHandler::_redirect(ConnectionData & connData,
       data = "HTTP/1.1 " + it->second + ' '
             + HttpInfo::statusCode.at(statusCode) + "\r\n";
       io.pushBack(data);
-      data.clear();
       this->_addProtocolHeaders(connData, header);
-      this->_addBody(io, header.at("BODY"));
+      this->_addBody(io, header);
       return (true);
     }
     data = "HTTP/1.1 302 " + HttpInfo::statusCode.at(302) + "\r\n";
     data += "Location: " + header.at("LOCATION") + "\r\n\r\n";
+    utils::addContentLengthHeader(data, data.length());
     io.pushBack(data);
     io.setPayloadSize(data.length());
     return (true);
@@ -206,6 +206,39 @@ bool  CgiHandler::_redirect(ConnectionData & connData,
   //Relative URI. Local redirect
   localPath = location;
   return (true);
+}
+
+void  CgiHandler::_calcPayloadSize(InputOutput & io,
+                              std::map<std::string, std::string> const & header)
+{
+  std::map<std::string, std::string>::const_iterator  it;
+  std::string                                         data;
+  int                                                 contentLength;
+
+  it = header.find("CONTENT-LENGTH");
+  if (it != header.end() && it->second != "")
+  {
+    contentLength = std::atoi(it->second.c_str());
+    it = header.find("TRANSFER-ENCODING");
+    if (it != header.end() && it->second != "")
+      data = it->first + ": " + it->second + "\r\n";
+    // + 2 for the last \r\n that will be added later to mark end of headers
+    io.setPayloadSize(io.getBufferSize() + data.length() + 2
+                      + contentLength);
+  }
+  else
+  {
+    it = header.find("TRANSFER-ENCODING");
+    if (it == header.end() || it->second == "")
+      data = "TRANSFER-ENCODING: chunked\r\n";
+    else if (it->second.find("chunked") == std::string::npos)
+      data = "TRANSFER-ENCODING: " + it->second + ", chunked\r\n";
+    else
+      data = it->first + ": " + it->second + "\r\n";
+  }
+  if (data.length())
+    io.pushBack(data);
+  return ;
 }
 
 void  CgiHandler::_addProtocolHeaders(ConnectionData & connData,
@@ -217,8 +250,11 @@ void  CgiHandler::_addProtocolHeaders(ConnectionData & connData,
 
   for (it = header.begin(); it != header.end(); ++it)
   {
-    if (it->first == "STATUS"
-        || it ->first == "BODY")
+    if (it->second == ""
+        || it->first == "STATUS"
+        || it->first == "BODY"
+        || it->first == "TRANSFER-ENCODING"
+        || (it->first == "CONTENT-LENGTH" && it->second == ""))
       continue ;
     data = it->first + ": " + it->second + "\r\n";
     io.pushBack(data);
@@ -229,15 +265,34 @@ void  CgiHandler::_addProtocolHeaders(ConnectionData & connData,
                               connData.req.getPetit("CONNECTION") == "close");
     io.pushBack(data);
   }
+  this->_calcPayloadSize(io, header);
   io.pushBack("\r\n");
-  it = header.find("CONTENT-LENGTH");
-  if (it != header.end() && it->second != "")
-    io.setPayloadSize(io.getBufferSize() + std::atoi(it->second.c_str()));
   return ;
 }
 
-void  CgiHandler::_addBody(InputOutput & io, std::string const & body)
+void  CgiHandler::_addBody(InputOutput & io,
+                            std::map<std::string, std::string> const & header)
 {
+  std::map<std::string, std::string>::const_iterator  it;
+  std::string const & body =                          header.at("BODY");
+
+  it = header.find("CONTENT-LENGTH");
+  if (it == header.end() || it->second == "")
+  {
+    it = header.find("TRANSFER-ENCODING");
+    if (it == header.end()
+        || it->second == ""
+        || it->second.find("chunked") == std::string::npos)
+    {
+      if (!body.length())
+        return ;
+      io.pushBack(utils::decToHex(body.length()));
+      io.pushBack("\r\n");
+      io.pushBack(body);
+      io.pushBack("\r\n");
+      return ;
+    }
+  }
   if (!body.length())
     return ;
   io.pushBack(body);
@@ -262,7 +317,6 @@ bool  CgiHandler::_document(ConnectionData & connData,
             + HttpInfo::statusCode.at(atoi(it->second.c_str())) + "\r\n";
     }
     io.pushBack(data);
-    return (true);
   }
   else
   {
@@ -271,9 +325,8 @@ bool  CgiHandler::_document(ConnectionData & connData,
     data = "HTTP/1.1 200 OK\r\n";
     io.pushBack(data);
   }
-  data.clear();
   this->_addProtocolHeaders(connData, header);
-  this->_addBody(io, header.at("BODY"));
+  this->_addBody(io, header);
   return (true);
 }
 
@@ -305,6 +358,16 @@ bool  CgiHandler::_buildHttpHeaders(ConnectionData & connData,
   if (!this->_reWriteResponse(connData, header, localPath))
     return (false);
   return (true);
+}
+
+void  CgiHandler::_insertChunkSize(InputOutput & io,
+                                    std::size_t const lastBytesRead)
+{
+  std::size_t const insertPos = io.getBufferSize() - lastBytesRead;
+  std::string const hex = utils::decToHex(lastBytesRead);
+
+  io.insert(insertPos, hex, hex.length());
+  return ;
 }
 
 /*
@@ -378,14 +441,19 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   **  depending on the response type.
   */
   if (io.isFirstRead())
-    reserveSpace = 41;
+    reserveSpace = 41 + 28 + 8; //start-line + Transfer-Encoding header + hex + 2 \r\n
+  else if (io.getPayloadSize() == 0)
+    reserveSpace = 4 + 4; //4 maximum hex characters for body <= 8000 + 2 \r\n
   len = read(rPipe, io.inputBuffer(),
               io.getAvailableBufferSize() - reserveSpace);
   if (len == 0)
   { //EOF
     std::cout << "Pipe write end closed. No more data to read." << std::endl;
     if (io.getPayloadSize() == 0)
+    {
+      io.pushBack("0\r\n\r\n");
       io.setFinishedRead();
+    }
     return (true);
   }
   // An error occurred. EAGAIN is not possible, because POLLIN was emitted.
@@ -403,6 +471,8 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
       UrlParser().parse(localPath, connData.urlData);
     }
   }
+  else if (io.getPayloadSize() == 0)
+    this->_insertChunkSize(io, len);
   return (true);
 }
 

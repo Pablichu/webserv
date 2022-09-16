@@ -62,8 +62,8 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
       || fcntl(cgiData->getROutPipe(), F_SETFL, O_NONBLOCK))
   {
     std::cerr << "Could not set non-blocking pipe fds" << std::endl;
-    close(cgiData->getWInPipe());
-    close(cgiData->getROutPipe());
+    cgiData->closeWInPipe();
+    cgiData->closeROutPipe();
     delete cgiData;
     return (false);
   }
@@ -76,7 +76,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     connData.io.setPayloadSize(bodyPair->second.length());
   }
   else
-    close(cgiData->getWInPipe());
+    cgiData->closeWInPipe();
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
@@ -85,7 +85,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   return (true);
 }
 
-bool  DeleteProcessor::_removeFile(ConnectionData & connData,
+bool  DeleteProcessor::_removeFile(pollfd & socket, ConnectionData & connData,
                                     std::string const & filePath) const
 {
   std::string content;
@@ -93,7 +93,7 @@ bool  DeleteProcessor::_removeFile(ConnectionData & connData,
   if (!this->_response.fileHandler.removeFile(filePath))
     return (false);
   //Build success response directly
-  this->_response.buildDeleted(connData);
+  this->_response.buildDeleted(socket, connData);
   return (true);
 }
 
@@ -123,12 +123,11 @@ bool  DeleteProcessor::start(pollfd & socket, int & error) const
     }
     else
     {
-      if(!this->_removeFile(connData, filePath))
+      if(!this->_removeFile(socket, connData, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
       }
-      connData.rspStatus = 200; //Provisional
     }
   }
   return (true);

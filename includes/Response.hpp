@@ -37,7 +37,11 @@ private:
 	DeleteProcessor &	_deleteProcessor;
 	PostProcessor &		_postProcessor;
 
-	void	_buildResponse(ConnectionData & connData, std::string const & content);
+	void	_buildResponse(pollfd & socket, ConnectionData & connData,
+												std::string const & content);
+	void	_buildChunkedResponse(pollfd & socket, ConnectionData & connData,
+												std::string & content,
+												std::size_t const endHeadersPos);
 	Response(void);
 
 public:
@@ -48,16 +52,19 @@ public:
 	Response(FdTable & fdTable, Monitor & monitor);
 	~Response(void);
 
-	void	buildRedirect(ConnectionData & connData, std::string const & url,
-											int const code);
-	void	buildDeleted(ConnectionData & connData);
-	void	buildUploaded(ConnectionData & connData, std::string const & url);
-	void	buildDirList(ConnectionData & connData, std::string const & uri,
-											std::string const & root);
-	void	buildError(ConnectionData & connData, int const error);
+	void	buildRedirect(pollfd & socket, ConnectionData & connData,
+											std::string const & url, int const code);
+	void	buildDeleted(pollfd & socket, ConnectionData & connData);
+	void	buildUploaded(pollfd & socket, ConnectionData & connData,
+											std::string const & url);
+	void	_addFileLinks(DIR ** dir, std::string & content, std::string const & uri,
+											bool const firstCall);
+	void	buildDirList(pollfd & socket, ConnectionData & connData,
+											std::string const & uri, std::string const & root);
+	void  buildDirList(pollfd & socket, ConnectionData & connData);
+	void	buildError(pollfd & socket, ConnectionData & connData, int const error);
 	bool	process(pollfd & socket, int & error);
 	void	sendError(pollfd & socket, int error);
-	bool	sendData(int const sockFd, ConnectionData & connData);
 
 	const std::string	buildErrorHtml(std::string const errorCode, std::string const errorDescription);
 	void				replace(std::string & content, std::string thisStr, std::string forthisStr);
