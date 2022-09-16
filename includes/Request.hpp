@@ -30,7 +30,7 @@ class	Request
 		size_t	_stoi_mine(std::string nb);
 
 	public:
-		Request(std::size_t max_body_size);
+		Request();
 		~Request();
 
 	    void  process(void);
@@ -49,4 +49,6 @@ class	Request
 		bool				processBody();
 		const std::string	stoupper(std::string src);
 		void	clear(void);
+
+		void				setMaxBodySize(const std::size_t mbs);
 };

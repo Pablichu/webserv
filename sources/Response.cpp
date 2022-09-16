@@ -249,7 +249,6 @@ void  Response::buildError(pollfd & socket, ConnectionData & connData,
 {
   std::string const errorCode = utils::toString<int>(error);
   std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
-  std::size_t       needle;
   std::string       content;
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
@@ -371,6 +370,6 @@ void	Response::replace(std::string & content, std::string thisStr, std::string f
 		found = content.find(thisStr);
 		if (found == std::string::npos)
 			break ;
-		content.replace(found, thisStr.length(), thisStr);
+		content.replace(found, thisStr.length(), forthisStr);
 	}
 }

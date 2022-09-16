@@ -203,6 +203,7 @@ void  EventHandler::_processConnectionRead(pollfd & socket)
 
   if (connData.req.processWhat())
   {
+	connData.io.clear();
     this->_response.sendError(socket, 413);
     return ;
   }

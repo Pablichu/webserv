@@ -12,7 +12,7 @@ fi
 
 if [ -d $SERVER_LOCALHOST_PATH/media ]
 then
-  rm $SERVER_LOCALHOST_PATH/media/*
+  rm -rf $SERVER_LOCALHOST_PATH/media
 fi
 
 PYTHON_INTERPRETER_PATH=$(command -v $PYTHON_INTERPRETER)

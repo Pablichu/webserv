@@ -1,8 +1,6 @@
 #include "Request.hpp"
 
-Request::Request(std::size_t max_body_size) : _loops(0), _type(none), _length(0),
-											  _dataAvailible(false), _max_body_size(max_body_size)
-{}
+Request::Request() : _loops(0), _type(none), _length(0), _dataAvailible(false) {}
 
 Request::~Request() {}
 
@@ -83,10 +81,13 @@ bool	Request::processChunked()
 		buffer = _hextodec(data.substr(0, pos));
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
-		if (data.find("\r\n"))
+		if (data.find("\r\n") || body.size() > this->_max_body_size)
 		{
-			std::cout << " >>>> Chunk is too large " << data.size() << "/" << buffer << std::endl
-					  << "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;
+			if (body.size() > this->_max_body_size)
+				std::cout << " >>>> Exceeded max body size: " << body.size() << "/" << this->_max_body_size << std::endl;
+			else
+				std::cout << " >>>> Chunk is too large: " << data.size() << "/" << buffer << std::endl
+					<< "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;
 			data.empty();
 			return true;
 		}
@@ -95,15 +96,10 @@ bool	Request::processChunked()
 	return false;
 }
 
-bool	Request::processBody()//posible error hablarlo con el compa
+bool	Request::processBody()
 {
 	std::string &reqData = this->_data;
 
-	/*if (!reqData.size())
-	{
-		std::cout << " >>>> No body to read" << std::endl;
-		exit(0);
-	}*/
 	if (reqData.size() > this->_length)
 	{
 		std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
@@ -113,6 +109,14 @@ bool	Request::processBody()//posible error hablarlo con el compa
 	this->_values["BODY"].append(reqData.substr());
 	if (!this->_length)
 		this->_type = done;
+	reqData.clear();
+
+	if (this->_values["BODY"].size() > this->_max_body_size)
+	{
+		std::cout << " >>>> Exceeded max body size: " << this->_values["BODY"].size() << "/"
+				  << this->_max_body_size << std::endl;
+		return true;
+	}
 	return false;
 }
 
@@ -212,4 +216,9 @@ void	Request::clear(void)
 	this->_length = 0;
 	this->_dataAvailible = false;
 	return ;
+}
+
+void	Request::setMaxBodySize(const std::size_t mbs)
+{
+	this->_max_body_size = mbs;
 }

@@ -85,8 +85,8 @@ bool  Config::_checkMinData(void)
 		std::cout << " -> Standard 404 html setted" << std::endl;
 		this->_serverConfig[i].not_found_page = ".default/404.html";
 	  }
-	  if (this->_serverConfig[i].max_body_size == 0)
-	  	this->_serverConfig[i].max_body_size = 8192;//This value may change, DEMOCRACY NEEDED <---------
+	  if (this->_serverConfig[i].max_body_size < 100)
+		std::cout << "Warning: max body size too low" << std::endl;
 	  for (size_t j = 0; j < this->_serverConfig[i].location.size(); j++)
 	  {
 		  if (this->_serverConfig[i].location[j].uri.empty())
@@ -499,7 +499,7 @@ void  Config::_tokenizeFile(std::vector<std::string> & tokens)
 //ServerConfig STRUCTURE METHOD DEFINITIONS
 //No need to initialize empty string classes
 
-ServerConfig::ServerConfig(void) : port(0), max_body_size(0)
+ServerConfig::ServerConfig(void) : port(0), max_body_size(SIZE_MAX)
 {
   return ;
 }
@@ -529,11 +529,7 @@ bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
   else if (prop == "not_found_page" && (this->_userDefined.insert(prop)).second)
     this->not_found_page = val; //validate path
   else if (prop == "max_body_size" && (this->_userDefined.insert(prop)).second)
-  {
     this->max_body_size = atoi(val.c_str()); //Implicit conversion
-    if (this->max_body_size > 8192)
-      return (false);
-  }
   else if (prop == "cgi_interpreter" && (this->_userDefined.insert(prop)).second)
   {
     if (!this->_setCgiInterpreter(val))
