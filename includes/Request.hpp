@@ -23,13 +23,14 @@ class	Request
 		size_t		_loops;
 		bodyType	_type;
 		size_t		_length;
+		size_t		_max_body_size;
 		bool		_dataAvailible;
 
 		size_t	_hextodec(std::string hex);
 		size_t	_stoi_mine(std::string nb);
 
 	public:
-		Request();
+		Request(std::size_t max_body_size);
 		~Request();
 
 	    void  process(void);

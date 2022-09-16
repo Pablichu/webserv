@@ -1,6 +1,8 @@
 #include "Request.hpp"
 
-Request::Request() : _loops(0), _type(none), _length(0), _dataAvailible(false) {}
+Request::Request(std::size_t max_body_size) : _loops(0), _type(none), _length(0),
+											  _dataAvailible(false), _max_body_size(max_body_size)
+{}
 
 Request::~Request() {}
 

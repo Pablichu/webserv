@@ -48,21 +48,21 @@ struct FileData
 
 struct	ConnectionData
 {
-	std::vector<ServerConfig const *> *	portConfigs;
-	std::size_t													serverIndex;
-	std::size_t													locationIndex;
-	Request															req;
-	std::string													ip;
-	std::map<std::string, std::string>	urlData;
-	std::size_t													totalBytesRead;
-	std::size_t													totalBytesSent;
-	std::size_t													rspSize;
-	std::size_t													buffSize;
-	std::size_t													buffOffset;
-	std::string													buff;
-	int																	rspStatus;
-	FileData *													fileData;
-	CgiData *														cgiData;
+	std::vector<ServerConfig const *>		* portConfigs;
+	std::size_t								serverIndex;
+	std::size_t								locationIndex;
+	std::string								ip;
+	std::map<std::string, std::string>		urlData;
+	std::size_t								totalBytesRead;
+	std::size_t								totalBytesSent;
+	std::size_t								rspSize;
+	std::size_t								buffSize;
+	std::size_t								buffOffset;
+	std::string								buff;
+	int										rspStatus;
+	FileData *								fileData;
+	CgiData *								cgiData;
+	Request									req;
 
 	static std::size_t const						buffCapacity = 8192;
 
