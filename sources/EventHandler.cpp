@@ -65,18 +65,22 @@ void  EventHandler::pipeWrite(int const fd)
 {
   CgiData &         cgiData = this->_fdTable.getPipe(fd);
   ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.socket->fd);
+  int               readPipeFd;
 
   if (!this->_response.cgiHandler.sendBody(fd, connData))
-    {
+    { // Order of statements is important!!
       std::cout << "sendBody to PipeWrite failed." << std::endl;
       connData.io.clear();
       // Build Internal Server Error
       this->_response.sendError(*connData.cgiData->socket, 500);
+      readPipeFd = connData.cgiData->getROutPipe();
+      this->_monitor.remove(fd);
+      this->_monitor.remove(readPipeFd);
       // Remove cgiData from ConnectionData, closing both pipes.
       connData.cgiData->closePipes();
       connData.cgiData = 0;
-      this->_monitor.remove(fd);
       this->_fdTable.remove(fd);
+      this->_fdTable.remove(readPipeFd);
       return ;
     }
     if (connData.io.finishedSend())
