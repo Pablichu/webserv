@@ -24,7 +24,7 @@ class	Server
 
 		bool	_initSocket(int & sock, std::size_t const port);
 		void	_handleEvent(std::size_t index);
-		bool	_checkTimeout(int const fd, std::size_t const index);
+		bool	_checkTimeout(int const fd);
 
 	public:
 		Server();

@@ -29,7 +29,7 @@ void  EventHandler::connectionRead(int const fd, std::size_t const index)
   // Connected client socket is ready to read without blocking
   if (!this->_connHandler.receive(fd))
   {
-    this->_connHandler.end(fd, index);
+    this->_connHandler.end(fd);
     return ;
   }
   if (connData.req.getDataSate() != done
@@ -42,7 +42,7 @@ void  EventHandler::connectionWrite(int const fd, std::size_t const index)
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
 
   if (connData.io.getBufferSize())
-    this->_connHandler.send(fd, index);
+    this->_connHandler.send(fd);
   if (connData.dirListNeedle)
   { // build next directory listing chunk
     this->_response.buildDirList(this->_monitor[index], connData);
@@ -57,25 +57,25 @@ void  EventHandler::connectionWrite(int const fd, std::size_t const index)
         && connData.handledRequests < ConnectionData::max - 1)
       connData.setIdle();
     else
-      this->_connHandler.end(fd, index);
+      this->_connHandler.end(fd);
   }
 }
 
-void  EventHandler::pipeWrite(int const fd, std::size_t const index)
+void  EventHandler::pipeWrite(int const fd)
 {
   CgiData &         cgiData = this->_fdTable.getPipe(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.socket->fd);
 
   if (!this->_response.cgiHandler.sendBody(fd, connData))
     {
       std::cout << "sendBody to PipeWrite failed." << std::endl;
       connData.io.clear();
       // Build Internal Server Error
-      this->_response.sendError(connData.cgiData->socket, 500);
+      this->_response.sendError(*connData.cgiData->socket, 500);
       // Remove cgiData from ConnectionData, closing both pipes.
       connData.cgiData->closePipes();
       connData.cgiData = 0;
-      this->_monitor.removeByIndex(index);
+      this->_monitor.remove(fd);
       this->_fdTable.remove(fd);
       return ;
     }
@@ -86,16 +86,16 @@ void  EventHandler::pipeWrite(int const fd, std::size_t const index)
       **  only PipeRead type must do it, because it is shared between the two.
       */
       connData.io.clear();
-      this->_monitor.removeByIndex(index);
+      this->_monitor.remove(fd);
 	    this->_fdTable.remove(fd);
       //CgiData has not been deleted yet, because the Read Pipe is still open
       connData.cgiData->closeWInPipe();
     }
 }
 
-void  EventHandler::pipeRead(int const fd, std::size_t const index)
+void  EventHandler::pipeRead(int const fd)
 {
-  pollfd &          socket = this->_fdTable.getPipe(fd).socket;
+  pollfd &          socket = *this->_fdTable.getPipe(fd).socket;
   ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
   int               error = 0;
   int               exitStatus;
@@ -109,10 +109,10 @@ void  EventHandler::pipeRead(int const fd, std::size_t const index)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
     connData.io.clear();
     // Build Internal Server Error
-    this->_response.sendError(connData.cgiData->socket, 500);
+    this->_response.sendError(*connData.cgiData->socket, 500);
     connData.cgiData->closeROutPipe();
     connData.cgiData = 0;
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     return ;
   }
@@ -125,7 +125,7 @@ void  EventHandler::pipeRead(int const fd, std::size_t const index)
     connData.cgiData->closeROutPipe();
     //Order of removals and close is important!!!
     connData.cgiData = 0;
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     if (connData.io.getPayloadSize() == 0)
     {
@@ -136,10 +136,10 @@ void  EventHandler::pipeRead(int const fd, std::size_t const index)
   return ;
 }
 
-void  EventHandler::fileRead(int const fd, std::size_t const index)
+void  EventHandler::fileRead(int const fd)
 {
   FileData &        fileData = this->_fdTable.getFile(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket->fd);
   InputOutput &     io = connData.io;
 
   if (!this->_response.fileHandler.readFile(fd, connData))
@@ -147,38 +147,38 @@ void  EventHandler::fileRead(int const fd, std::size_t const index)
     std::cout << "Error reading file fd: " << fd << std::endl;
     io.clear();
     // Build Internal Server Error
-    this->_response.sendError(fileData.socket, 500);
+    this->_response.sendError(*fileData.socket, 500);
     // Delete fileData
     connData.fileData = 0;
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     // File fd already closed by fileHandler on failure
     return ;
   }
-  if (!(fileData.socket.events & POLLOUT))
-    fileData.socket.events = POLLIN | POLLOUT;
+  if (!(fileData.socket->events & POLLOUT))
+    fileData.socket->events = POLLIN | POLLOUT;
   if (io.finishedRead())
   {
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
 	  this->_fdTable.remove(fd);
     close(fd);
     connData.fileData = 0;
   }
 }
 
-void  EventHandler::fileWrite(int const fd, std::size_t const index)
+void  EventHandler::fileWrite(int const fd)
 {
   FileData &        fileData = this->_fdTable.getFile(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket->fd);
 
   if (!this->_response.fileHandler.writeFile(fd, connData))
   {// Order of statements is important!!
     connData.io.clear();
     // Build Internal Server Error
-    this->_response.sendError(fileData.socket, 500);
+    this->_response.sendError(*fileData.socket, 500);
     // Delete fileData
     connData.fileData = 0;
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     // File fd already closed by writeFile on failure
     return ;
@@ -187,10 +187,10 @@ void  EventHandler::fileWrite(int const fd, std::size_t const index)
   {
     //Order of statements is important!!
     connData.io.clear();
-    this->_response.buildUploaded(fileData.socket, connData,
+    this->_response.buildUploaded(*fileData.socket, connData,
                                   connData.req.getPetit("PATH"));
     connData.fileData = 0;
-    this->_monitor.removeByIndex(index);
+    this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     close(fd);
   }

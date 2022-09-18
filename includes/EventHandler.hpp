@@ -18,10 +18,10 @@ public:
   void	connectionAccept(int const listenSocket);
   void  connectionRead(int const fd, std::size_t const index);
   void  connectionWrite(int const fd, std::size_t const index);
-  void  pipeWrite(int const fd, std::size_t const index);
-  void  pipeRead(int const fd, std::size_t const index);
-  void  fileRead(int const fd, std::size_t const index);
-  void  fileWrite(int const fd, std::size_t const index);
+  void  pipeWrite(int const fd);
+  void  pipeRead(int const fd);
+  void  fileRead(int const fd);
+  void  fileWrite(int const fd);
 
 private:
 

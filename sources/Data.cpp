@@ -2,7 +2,7 @@
 
 CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
                   std::string const & scriptPath)
-                : socket(socket), interpreterPath(interpreterPath),
+                : socket(&socket), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
 {
   std::fill(this->inPipe, this->inPipe + 2, -1);
@@ -56,7 +56,7 @@ void  CgiData::closePipes(void)
 }
 
 FileData::FileData(std::string const & filePath, pollfd & socket)
-                    : fd(0), socket(socket), filePath(filePath), rspStatus(200)
+                    : fd(0), socket(&socket), filePath(filePath), rspStatus(200)
 {
   return ;
 }

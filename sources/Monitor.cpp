@@ -1,19 +1,29 @@
 #include "Monitor.hpp"
 
-Monitor::Monitor(void) : _len(0), _cap(100)
+EmptyPollFd::EmptyPollFd()
 {
-  this->_fds = new struct pollfd [this->_cap];
+  this->fd = -1;
+  return ;
+}
+
+const pollfd  Monitor::emptyPollFd = EmptyPollFd();
+
+Monitor::Monitor(FdTable & fdTable) : _fdTable(fdTable),
+                                      _biggestActiveFd(0)
+{
   return ;
 }
 
 Monitor::~Monitor(void)
 {
-  this->purge();
-  for (std::size_t i = 0; i < this->_len; ++i)
+  std::vector<pollfd>::iterator it;
+
+  for (it = this->_fds.begin(); it != this->_fds.end(); ++it)
   {
-    close(this->_fds[i].fd);
+    if (it->fd != -1)
+      close(it->fd);
   }
-  delete[] this->_fds;
+  this->_fds.clear();
 }
 
 struct pollfd & Monitor::operator[](std::size_t index)
@@ -23,122 +33,135 @@ struct pollfd & Monitor::operator[](std::size_t index)
 
 struct pollfd * Monitor::getFds(void)
 {
-  return (this->_fds);
+  return (&this->_fds.front());
 }
 
 std::size_t Monitor::len(void) const
 {
-  return (this->_len);
+  return (this->_fds.size());
+}
+
+int Monitor::biggestActiveFd(void) const
+{
+  return (this->_biggestActiveFd);
 }
 
 /*
-**  Add an fd alonside the events that poll will track to the monitor array.
+**  Updates fileData's and cgiData's associated
+**  client connection socket pollfd pointer after a reallocation
+**  of Monitor's _fds happens.
+**
+**  A safer implementation could be done by storing all fileData
+**  and cgiData fds instead of ConnectionData fds, because now,
+**  a new fileData or cgiData must be added to its associated
+**  ConnectionData before adding its fd to monitor, otherwise,
+**  if a reallocation must be done when adding its fd to Monitor,
+**  the pointer of that new fileData or cgiData will be invalid.
+**  But that alternative implementation would be less efficient, because
+**  the type of fd would have to be known before obtaining its
+**  structure from _fdTable, and because in the case of cgiData,
+**  it could have as much as two fds (write and read pipes) to store
+**  in the update list, which would become bigger to store and
+**  slower to iterate.
 */
 
-void  Monitor::add(int const fd, short const events)
+void  Monitor::_updateTableRefs(void)
 {
-  struct pollfd * newElement;
+  std::list<int>::iterator  it;
+  ConnectionData *          connData;
 
-  if (this->_len == this->_cap)
-    this->_increaseCap();
-  newElement = this->_fds + this->_len;
-  newElement->fd = fd;
-  newElement->events = events;
-  this->_len += 1;
-  return ;
-}
-
-/*
-**  Mark an array element as removable when calling purge. 
-*/
-
-void  Monitor::removeByIndex(std::size_t const index)
-{
-  if (index >= this->_len)
-    return ;
-  this->_fds[index].fd = -1;
-  this->_removedIndexs.push_back(index);
-  return ;
-}
-
-void  Monitor::removeByFd(int const fd)
-{
-  for (size_t i = 0; i < this->_len; ++i)
+  for (it = this->_connFds.begin(); it != this->_connFds.end(); ++it)
   {
-    if (this->_fds[i].fd == fd)
+    connData = &this->_fdTable.getConnSock(*it);
+    if (connData->fileData)
+      connData->fileData->socket = &this->_fds[*it];
+    else if (connData->cgiData)
+      connData->cgiData->socket = &this->_fds[*it];
+  }
+}
+
+/*
+**  Add an fd alongside the events that poll will track to _fds.
+**
+**  If Monitor needs to be resized, a reallocation will happen, and the
+**  pollfd pointers of the different active CgiData and FileData structures
+**  that are stored in _fdTable must be updated. this will be done by calling
+**  _updateTableRefs.
+**
+**  _biggestActiveFd is stored and updated to improve Monitor iteration and
+**  size efficiency.
+*/
+
+void  Monitor::add(int const fd, short const events, bool connFd)
+{
+  if (static_cast<std::size_t>(fd) >= this->_fds.size())
+  {
+    this->_fds.resize(fd * 2, Monitor::emptyPollFd);
+    this->_updateTableRefs();
+  }
+  this->_fds[fd].fd = fd;
+  this->_fds[fd].events = events;
+  if (connFd)
+    this->_connFds.push_back(fd);
+  if (fd > this->_biggestActiveFd)
+    this->_biggestActiveFd = fd;
+  return ;
+}
+
+void  Monitor::_getNextBiggestFd(void)
+{
+  for (std::size_t i = this->_biggestActiveFd - 1;
+        i > 2; --i) // 2 is fd for stderr
+  {
+    if (this->_fds[i].fd > 2)
     {
-      this->removeByIndex(i);
+      this->_biggestActiveFd = this->_fds[i].fd;
       break ;
     }
   }
-  return ;
 }
 
 /*
-**  Substitute removed element's content with that of valid elements at the back.
-**  This can be done because the order of the array's elements
-**  is not relevant for poll.
+**  Mark a pollfd as empty by setting its fd to -1.
+**
+**  If the fd is associated to a connection socket,
+**  it is removed from the _connFds list.
+**
+**  If it was the biggest fd in _fds, _biggestActiveFd is updated.
+**
+**  If the size of _fds is greater than two times the value of
+**  the new _biggestActiveFd, a shrinking reallocation of _fds is applied.
 */
 
-void  Monitor::purge(void)
+void  Monitor::remove(int const fd)
 {
-  std::list<std::size_t>::iterator  it;
-  struct pollfd                     lastValidElem;
+  std::list<int>::iterator  target;
 
-  if (this->_removedIndexs.empty())
+  if (static_cast<std::size_t>(fd) >= this->_fds.size())
     return ;
-  for (it = this->_removedIndexs.begin();
-        it != this->_removedIndexs.end(); ++it)
-  {
-    if (!this->_getLastValidElem(lastValidElem, *it))
-      break ;
-    this->_fds[*it].fd = lastValidElem.fd;
-    this->_fds[*it].events = lastValidElem.events;
-  }
-  this->_removedIndexs.clear();
+  this->_fds[fd].fd = -1;
+  target = std::find(this->_connFds.begin(), this->_connFds.end(), fd);
+  if (target != this->_connFds.end())
+    this->_connFds.erase(target);
+  if (fd == this->_biggestActiveFd)
+    this->_getNextBiggestFd();
+  /*
+  **  This resize doen't need to readjust fds because no reallocation
+  **  happens when reducing the size.
+  */
+  if (this->_fds.size()
+      > static_cast<std::size_t>(this->_biggestActiveFd * 2))
+    this->_fds.resize(this->_biggestActiveFd * 2);
   return ;
 }
 
-/*
-**  Increase capacity of monitor array by reassigning memory
-**  to a new array and copying all elements of the previous array to
-**  the new one.
-*/
-
-void  Monitor::_increaseCap(void)
+std::ostream &  operator<<(std::ostream & out, Monitor & monitor)
 {
-  struct pollfd * aux;
+  std::size_t i;
 
-  aux = new struct pollfd [this->_cap * 2];
-  std::copy(this->_fds, this->_fds + this->_len, aux);
-  delete[] this->_fds;
-  this->_fds = aux;
-  this->_cap *= 2;
-  return ;
-}
-
-/*
-**  Obtains the last valid element of the array that will substitute
-**  a removed element.
-*/
-
-bool  Monitor::_getLastValidElem(struct pollfd & elem,
-  std::size_t const currPos)
-{
-  struct pollfd * target;
-
-  for (std::size_t i = this->_len - 1; i > currPos; --i)
+  for (i = 0; i < monitor.len(); ++i)
   {
-    target = &this->_fds[i];
-    if (target->fd != -1)
-    {
-      elem.fd = target->fd;
-      elem.events = target->events;
-      target->fd = -1;
-      this->_len = i;
-      return (true);
-    }
+    out << monitor[i].fd << std::endl;
   }
-  this->_len = currPos;
-  return (false);
+  return (out);
 }

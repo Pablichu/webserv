@@ -14,7 +14,11 @@ struct  LocationConfig;
 
 struct	CgiData
 {
-	pollfd &					socket;
+	/*
+	**	If Monitor is reallocated, this pollfd will change,
+	**	that is why a pointer is used, not a reference.
+	*/
+	pollfd *					socket;
 	std::string const interpreterPath;
 	std::string	const	scriptPath;
   int         			inPipe[2];
@@ -43,7 +47,11 @@ enum	FileOp
 struct FileData
 {
 	int					fd;
-	pollfd &		socket;
+	/*
+	**	If Monitor is reallocated, this pollfd will change,
+	**	that is why a pointer is used, not a reference.
+	*/
+	pollfd *		socket;
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;

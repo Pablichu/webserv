@@ -321,9 +321,21 @@ void  Response::sendError(pollfd & socket, int error)
       error = 500; //An error ocurred while opening file
     else
     {
-      this->_monitor.add(fileData->fd, POLLIN);
-      this->_fdTable.add(fileData->fd, fileData);
+      /*
+      **  fileData's addition to connData must be done before adding its associated
+      **  fds to monitor, otherwise, if a reallocation is done by monitor,
+      **  fileData's associated pollfd will not be updated, and will point to
+      **  a previous allocation of monitor fds, which has been deleted.
+      **  The way in which monitor reallocates can be changed in the future to
+      **  prevent this condition. Currently, monitor stores all connection fds, and
+      **  iterates through them to update its associated cgiData or fileData when
+      **  reallocating. An alternative could be to store all cgiData and fileData
+      **  instead and update them directly without knowing its associated connection
+      **  fd, but that requires to distinguish its type at the moment of updating.
+      */
       connData.fileData = fileData;
+      this->_monitor.add(fileData->fd, POLLIN, false);
+      this->_fdTable.add(fileData->fd, fileData);
       return ;
     }
   }

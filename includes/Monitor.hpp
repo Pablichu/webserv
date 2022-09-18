@@ -10,32 +10,57 @@
 #include <unistd.h>
 #include <poll.h>
 #include <list>
+#include <vector>
+#include <algorithm>
+#include <ostream>
+
+#include <FdTable.hpp>
+
+/*
+**  Created so that a pollfd can be initialized with different
+**  default values.
+*/
+
+struct  EmptyPollFd : public pollfd
+{
+  EmptyPollFd();
+};
 
 class Monitor
 {
 
 private:
 
-  struct pollfd *         _fds;
-  std::size_t             _len;
-  std::size_t             _cap;
-  std::list<std::size_t>  _removedIndexs;
+  std::vector<pollfd> _fds;
+  FdTable &           _fdTable;
+  /*
+  **  All fds associated to a client connection are stored here,
+  **  and used by _readjustTableRefs on each reallocation of a Monitor instance.
+  */
+  std::list<int>      _connFds;
+  // Improves Monitor iteration and size efficiency
+  int                 _biggestActiveFd;
 
-  void	_increaseCap(void);
-  bool  _getLastValidElem(struct pollfd & elem, std::size_t const currPos);
+  Monitor(void);
+  void        _updateTableRefs(void);
+  void        _getNextBiggestFd(void);
 
 public:
 
-  Monitor(void);
+  // This pollfd is passed to _fds resize method as default value.
+  static pollfd const  emptyPollFd;
+
+  Monitor(FdTable & fdTable);
   ~Monitor(void);
 
-  struct pollfd & operator[](std::size_t index);
+  pollfd &    operator[](std::size_t index);
 
-  struct pollfd * getFds(void);
-  std::size_t     len(void) const;
-  void	          add(int const fd, short const events);
-  void	          removeByIndex(std::size_t const index);
-  void            removeByFd(int const fd);
-  void            purge(void);
+  pollfd *    getFds(void);
+  std::size_t len(void) const;
+  int         biggestActiveFd(void) const;
+  void        add(int const fd, short const events, bool connFd);
+  void        remove(int const fd);
 
 };
+
+std::ostream &  operator<<(std::ostream & out, Monitor & monitor);

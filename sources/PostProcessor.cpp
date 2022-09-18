@@ -94,12 +94,25 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     delete cgiData;
     return (false);
   }
+  /*
+  **  cgiData's addition to connData must be done before adding its associated
+  **  fds to monitor, otherwise, if a reallocation is done by monitor,
+  **  cgiData's associated pollfd will not be updated, and will point to
+  **  a previous allocation of monitor fds, which has been deleted.
+  **  The way in which monitor reallocates can be changed in the future to
+  **  prevent this condition. Currently, monitor stores all connection fds, and
+  **  iterates through them to update its associated cgiData or fileData when
+  **  reallocating. An alternative could be to store all cgiData and fileData
+  **  instead and update them directly without knowing its associated connection
+  **  fd, but that requires to distinguish its type at the moment of updating.
+  */
+  connData.cgiData = cgiData;
   bodyPair = connData.req.getHeaders().find("BODY");
   if (bodyPair != connData.req.getHeaders().end())
   {
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
-    this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
+    this->_monitor.add(cgiData->getWInPipe(), POLLOUT, false);
     connData.io.setPayloadSize(bodyPair->second.length());
   }
   else
@@ -107,8 +120,7 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN);
-  connData.cgiData = cgiData;
+  this->_monitor.add(cgiData->getROutPipe(), POLLIN, false);
   return (true);
 }
 
@@ -143,9 +155,21 @@ bool  PostProcessor::_openFile(ConnectionData & connData, pollfd & socket,
     }
     fileData->fileOp = Create;
   }
-  this->_monitor.add(fileData->fd, POLLOUT);
-  this->_fdTable.add(fileData->fd, fileData);
+  /*
+  **  fileData's addition to connData must be done before adding its associated
+  **  fds to monitor, otherwise, if a reallocation is done by monitor,
+  **  fileData's associated pollfd will not be updated, and will point to
+  **  a previous allocation of monitor fds, which has been deleted.
+  **  The way in which monitor reallocates can be changed in the future to
+  **  prevent this condition. Currently, monitor stores all connection fds, and
+  **  iterates through them to update its associated cgiData or fileData when
+  **  reallocating. An alternative could be to store all cgiData and fileData
+  **  instead and update them directly without knowing its associated connection
+  **  fd, but that requires to distinguish its type at the moment of updating.
+  */
   connData.fileData = fileData;
+  this->_monitor.add(fileData->fd, POLLOUT, false);
+  this->_fdTable.add(fileData->fd, fileData);
   return (true);
 }
 
