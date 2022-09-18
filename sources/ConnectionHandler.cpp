@@ -71,6 +71,7 @@ void  ConnectionHandler::end(int const fd)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   int               associatedFd;
+  int               auxAssociatedFd;
 
   if (connData.fileData)
   { // Order of removals is important. fdTable deletes fileData.
@@ -82,7 +83,10 @@ void  ConnectionHandler::end(int const fd)
   else if (connData.cgiData)
   { // Order of removals is important. fdTable deletes cgiData.
     associatedFd = connData.cgiData->getROutPipe();
+    auxAssociatedFd = connData.cgiData->getWInPipe();
     connData.cgiData->closePipes();
+    if (auxAssociatedFd != -1)
+      this->_monitor.remove(auxAssociatedFd);
     this->_monitor.remove(associatedFd);
     this->_fdTable.remove(associatedFd);
   }
