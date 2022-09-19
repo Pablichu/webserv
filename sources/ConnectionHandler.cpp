@@ -92,6 +92,7 @@ void  ConnectionHandler::end(int const fd)
     if (auxAssociatedFd != -1)
       this->_monitor.remove(auxAssociatedFd);
     this->_monitor.remove(associatedFd);
+    this->_fdTable.remove(auxAssociatedFd);
     this->_fdTable.remove(associatedFd);
   }
   else if (connData.dirListNeedle)
