@@ -334,8 +334,8 @@ void  Response::sendError(pollfd & socket, int error)
       **  fd, but that requires to distinguish its type at the moment of updating.
       */
       connData.fileData = fileData;
-      this->_monitor.add(fileData->fd, POLLIN, false);
       this->_fdTable.add(fileData->fd, fileData);
+      this->_monitor.add(fileData->fd, POLLIN, false);
       return ;
     }
   }
