@@ -18,14 +18,14 @@ struct	CgiData
 	**	If Monitor is reallocated, this pollfd will change,
 	**	that is why a pointer is used, not a reference.
 	*/
-	pollfd *					socket;
+	int const					connFd;
 	std::string const interpreterPath;
 	std::string	const	scriptPath;
   int         			inPipe[2];
   int         			outPipe[2];
 	pid_t							pID;
 
-	CgiData(pollfd & socket, std::string const & interpreterPath,
+	CgiData(int const connFd, std::string const & interpreterPath,
 					std::string const & scriptPath);
 
 	int		getRInPipe(void) const;
@@ -51,13 +51,13 @@ struct FileData
 	**	If Monitor is reallocated, this pollfd will change,
 	**	that is why a pointer is used, not a reference.
 	*/
-	pollfd *		socket;
+	int const		connFd;
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;
 	int					rspStatus;
 
-	FileData(std::string const & filePath, pollfd & socket);
+	FileData(std::string const & filePath, int const connFd);
 };
 
 enum	ConnectionStatus

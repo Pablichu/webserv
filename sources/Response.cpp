@@ -15,19 +15,19 @@ Response::~Response(void)
   return ;
 }
 
-void  Response::_buildResponse(pollfd & socket, ConnectionData & connData,
+void  Response::_buildResponse(int const fd, ConnectionData & connData,
                                 std::string const & content)
 {
   InputOutput & io = connData.io;
 
   io.pushBack(content);
   io.setPayloadSize(io.getBufferSize());
-  if (!(socket.events & POLLOUT))
-    socket.events = POLLIN | POLLOUT;
+  if (!(this->_monitor[fd].events & POLLOUT))
+    this->_monitor[fd].events = POLLIN | POLLOUT;
   return ;
 }
 
-void  Response::_buildChunkedResponse(pollfd & socket, ConnectionData & connData,
+void  Response::_buildChunkedResponse(int const fd, ConnectionData & connData,
                                 std::string & content,
                                 std::size_t const endHeadersPos)
 {
@@ -50,8 +50,8 @@ void  Response::_buildChunkedResponse(pollfd & socket, ConnectionData & connData
   io.pushBack(content);
   if (!connData.dirListNeedle)
     io.setFinishedRead();
-  if (!(socket.events & POLLOUT))
-    socket.events = POLLIN | POLLOUT;
+  if (!(this->_monitor[fd].events & POLLOUT))
+    this->_monitor[fd].events = POLLIN | POLLOUT;
   return ;
 }
 
@@ -59,7 +59,7 @@ void  Response::_buildChunkedResponse(pollfd & socket, ConnectionData & connData
 **  url can be absolute or relative. Administrator decides in config file.
 */
 
-void  Response::buildRedirect(pollfd & socket, ConnectionData & connData,
+void  Response::buildRedirect(int const fd, ConnectionData & connData,
                               std::string const & url, int const code)
 {
   std::string content;
@@ -71,11 +71,11 @@ void  Response::buildRedirect(pollfd & socket, ConnectionData & connData,
                               connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
   utils::addContentLengthHeader(content, content.length());
-  this->_buildResponse(socket, connData, content);
+  this->_buildResponse(fd, connData, content);
   return ;
 }
 
-void  Response::buildDeleted(pollfd & socket, ConnectionData & connData)
+void  Response::buildDeleted(int const fd, ConnectionData & connData)
 {
   std::size_t needle;
   std::string content;
@@ -88,11 +88,11 @@ void  Response::buildDeleted(pollfd & socket, ConnectionData & connData)
   needle = content.length();
   content.append("<html><body><h1>File deleted.</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(socket, connData, content);
+  this->_buildResponse(fd, connData, content);
   return ;
 }
 
-void  Response::buildUploaded(pollfd & socket, ConnectionData & connData,
+void  Response::buildUploaded(int const fd, ConnectionData & connData,
                               std::string const & url)
 {
   std::size_t needle;
@@ -116,7 +116,7 @@ void  Response::buildUploaded(pollfd & socket, ConnectionData & connData,
   content.append(url);
   content.append("</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(socket, connData, content);
+  this->_buildResponse(fd, connData, content);
   return ;
 }
 
@@ -184,7 +184,7 @@ void  Response::_addFileLinks(DIR ** dir, std::string & content,
 **  from Server to continue sending rest of files in chunks.
 */
 
-void  Response::buildDirList(pollfd & socket, ConnectionData & connData)
+void  Response::buildDirList(int const fd, ConnectionData & connData)
 {
   std::string         content;
   DIR *               dir = connData.dirListNeedle;
@@ -195,13 +195,13 @@ void  Response::buildDirList(pollfd & socket, ConnectionData & connData)
   {// Finished reading files
     content.append("</pre><hr></body></html>");
   }
-  this->_buildChunkedResponse(socket, connData, content, 0);
+  this->_buildChunkedResponse(fd, connData, content, 0);
   return ;
 }
 
 // First call to get directory listing
 
-void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
+void  Response::buildDirList(int const fd, ConnectionData & connData,
                               std::string const & uri, std::string const & root)
 {
   DIR *           dir;
@@ -230,7 +230,7 @@ void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
   {
     content.append("</pre><hr></body></html>");
     utils::addContentLengthHeader(content, needle);
-    this->_buildResponse(socket, connData, content);
+    this->_buildResponse(fd, connData, content);
   }
   else
   {
@@ -239,12 +239,12 @@ void  Response::buildDirList(pollfd & socket, ConnectionData & connData,
     **  Send chunked response.
     */
     connData.dirListNeedle = dir;
-    this->_buildChunkedResponse(socket, connData, content, needle);
+    this->_buildChunkedResponse(fd, connData, content, needle);
   }
   return ;
 }
 
-void  Response::buildError(pollfd & socket, ConnectionData & connData,
+void  Response::buildError(int const fd, ConnectionData & connData,
                             int const error)
 {
   std::string const errorCode = utils::toString<int>(error);
@@ -264,35 +264,35 @@ void  Response::buildError(pollfd & socket, ConnectionData & connData,
   content.append(errorCode + ' ' + errorDescription);
   content.append("</h1></body></html>");
   utils::addContentLengthHeader(content, needle);
-  this->_buildResponse(socket, connData, content);
+  this->_buildResponse(fd, connData, content);
   return ;
 }
 
-bool  Response::process(pollfd & socket, int & error)
+bool  Response::process(int const fd, int & error)
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &        connData = this->_fdTable.getConnSock(fd);
   LocationConfig const *  loc = connData.getLocation();
   std::string const       reqMethod = connData.req.getPetit("METHOD");
 
   if (reqMethod == "GET")
   {
     if (loc->redirection != "")
-      this->buildRedirect(socket, connData, loc->redirection, 301); //Moved Permanently
-    else if (!this->_getProcessor.start(socket, error))
+      this->buildRedirect(fd, connData, loc->redirection, 301); //Moved Permanently
+    else if (!this->_getProcessor.start(fd, error))
       return (false);
   }
   else if (reqMethod == "POST")
   {
     if (loc->redirection != "")
-      this->buildRedirect(socket, connData, loc->redirection, 308); //Permanent Redirect
-    else if (!this->_postProcessor.start(socket, error))
+      this->buildRedirect(fd, connData, loc->redirection, 308); //Permanent Redirect
+    else if (!this->_postProcessor.start(fd, error))
       return (false);
   }
   else //Delete
   {
     if (loc->redirection != "")
-      this->buildRedirect(socket, connData, loc->redirection, 301); //Moved Permanently
-    else if (!this->_deleteProcessor.start(socket, error))
+      this->buildRedirect(fd, connData, loc->redirection, 301); //Moved Permanently
+    else if (!this->_deleteProcessor.start(fd, error))
       return (false);
   }
   return (true);
@@ -307,38 +307,26 @@ bool  Response::process(pollfd & socket, int & error)
 **  if not found, buildError.
 */
 
-void  Response::sendError(pollfd & socket, int error)
+void  Response::sendError(int const fd, int error)
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   FileData *        fileData;
 
   if (error == 404) //Not Found
   {
-    fileData = new FileData(connData.getServer()->not_found_page, socket);
+    fileData = new FileData(connData.getServer()->not_found_page, fd);
     fileData->rspStatus = error;
     if (!this->fileHandler.openFile(fileData->filePath, fileData->fd,
                                     O_RDONLY, 0))
       error = 500; //An error ocurred while opening file
     else
     {
-      /*
-      **  fileData's addition to connData must be done before adding its associated
-      **  fds to monitor, otherwise, if a reallocation is done by monitor,
-      **  fileData's associated pollfd will not be updated, and will point to
-      **  a previous allocation of monitor fds, which has been deleted.
-      **  The way in which monitor reallocates can be changed in the future to
-      **  prevent this condition. Currently, monitor stores all connection fds, and
-      **  iterates through them to update its associated cgiData or fileData when
-      **  reallocating. An alternative could be to store all cgiData and fileData
-      **  instead and update them directly without knowing its associated connection
-      **  fd, but that requires to distinguish its type at the moment of updating.
-      */
       connData.fileData = fileData;
       this->_fdTable.add(fileData->fd, fileData);
-      this->_monitor.add(fileData->fd, POLLIN, false);
+      this->_monitor.add(fileData->fd, POLLIN);
       return ;
     }
   }
-  this->buildError(socket, connData, error);
+  this->buildError(fd, connData, error);
   return ;
 }

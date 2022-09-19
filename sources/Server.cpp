@@ -92,7 +92,7 @@ bool  Server::prepare(std::vector<ServerConfig> const & config)
       addedPorts[it->port] = sock;
       this->_fdTable.add(sock, new std::vector<ServerConfig const *>(1, &(*it)));
       //Add listening socket fd to poll array (monitor)
-      this->_monitor.add(sock, POLLIN, false);
+      this->_monitor.add(sock, POLLIN);
     }
   }
   return (true);
@@ -136,11 +136,11 @@ void  Server::_handleEvent(std::size_t index)
   {
     if (this->_monitor[index].revents & POLLIN)
     {// Connected client socket is ready to read without blocking
-      this->_eventHandler.connectionRead(fd, index);
+      this->_eventHandler.connectionRead(fd);
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {// Connected client socket is ready to write without blocking
-      this->_eventHandler.connectionWrite(fd, index);
+      this->_eventHandler.connectionWrite(fd);
     }
   }
 }

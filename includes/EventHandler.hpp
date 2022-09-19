@@ -16,8 +16,8 @@ public:
   ~EventHandler(void);
 
   void	connectionAccept(int const listenSocket);
-  void  connectionRead(int const fd, std::size_t const index);
-  void  connectionWrite(int const fd, std::size_t const index);
+  void  connectionRead(int const fd);
+  void  connectionWrite(int const fd);
   void  pipeWrite(int const fd);
   void  pipeRead(int const fd);
   void  fileRead(int const fd);
@@ -33,7 +33,7 @@ private:
 
   EventHandler(void);
 
-  void  _processConnectionRead(pollfd & socket);
-  bool	_validRequest(int socket, int & error);
+  void  _processConnectionRead(int const fd);
+  bool	_validRequest(int const fd, int & error);
 
 };

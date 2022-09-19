@@ -20,7 +20,7 @@ void  EventHandler::connectionAccept(int const listenSocket)
   this->_connHandler.accept(listenSocket);
 }
 
-void  EventHandler::connectionRead(int const fd, std::size_t const index)
+void  EventHandler::connectionRead(int const fd)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
 
@@ -34,10 +34,10 @@ void  EventHandler::connectionRead(int const fd, std::size_t const index)
   }
   if (connData.req.getDataSate() != done
       && connData.req.dataAvailible())
-    this->_processConnectionRead(this->_monitor[index]);
+    this->_processConnectionRead(fd);
 }
 
-void  EventHandler::connectionWrite(int const fd, std::size_t const index)
+void  EventHandler::connectionWrite(int const fd)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
 
@@ -45,11 +45,11 @@ void  EventHandler::connectionWrite(int const fd, std::size_t const index)
     this->_connHandler.send(fd);
   if (connData.dirListNeedle)
   { // build next directory listing chunk
-    this->_response.buildDirList(this->_monitor[index], connData);
+    this->_response.buildDirList(fd, connData);
   }
   //This check is relevant, because the entire buffer might not be sent.
   if(connData.io.getBufferSize() == 0)
-    this->_monitor[index].events = POLLIN;
+    this->_monitor[fd].events = POLLIN;
   if (connData.io.finishedSend()
       && connData.io.getPayloadSize() != 0)
   { // Request handling finished succesfully
@@ -64,7 +64,7 @@ void  EventHandler::connectionWrite(int const fd, std::size_t const index)
 void  EventHandler::pipeWrite(int const fd)
 {
   CgiData &         cgiData = this->_fdTable.getPipe(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.socket->fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.connFd);
   int               readPipeFd;
 
   if (!this->_response.cgiHandler.sendBody(fd, connData))
@@ -72,7 +72,7 @@ void  EventHandler::pipeWrite(int const fd)
       std::cout << "sendBody to PipeWrite failed." << std::endl;
       connData.io.clear();
       // Build Internal Server Error
-      this->_response.sendError(*connData.cgiData->socket, 500);
+      this->_response.sendError(cgiData.connFd, 500);
       readPipeFd = connData.cgiData->getROutPipe();
       this->_monitor.remove(fd);
       this->_monitor.remove(readPipeFd);
@@ -99,8 +99,8 @@ void  EventHandler::pipeWrite(int const fd)
 
 void  EventHandler::pipeRead(int const fd)
 {
-  pollfd &          socket = *this->_fdTable.getPipe(fd).socket;
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
+  CgiData &         cgiData = this->_fdTable.getPipe(fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.connFd);
   int               error = 0;
   int               exitStatus;
 
@@ -113,15 +113,16 @@ void  EventHandler::pipeRead(int const fd)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
     connData.io.clear();
     // Build Internal Server Error
-    this->_response.sendError(*connData.cgiData->socket, 500);
+    this->_response.sendError(cgiData.connFd, 500);
     connData.cgiData->closeROutPipe();
     connData.cgiData = 0;
     this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     return ;
   }
-  if (!(socket.events & POLLOUT) && connData.io.getBufferSize())
-    socket.events = POLLIN | POLLOUT;
+  if (!(this->_monitor[cgiData.connFd].events & POLLOUT)
+      && connData.io.getBufferSize())
+    this->_monitor[cgiData.connFd].events = POLLIN | POLLOUT;
   if (connData.io.finishedRead())
   { //All data was received
     if (!exitStatus)
@@ -133,8 +134,8 @@ void  EventHandler::pipeRead(int const fd)
     this->_fdTable.remove(fd);
     if (connData.io.getPayloadSize() == 0)
     {
-      if (!this->_response.process(socket, error))
-        this->_response.sendError(socket, error);
+      if (!this->_response.process(cgiData.connFd, error))
+        this->_response.sendError(cgiData.connFd, error);
     }
   }
   return ;
@@ -143,7 +144,7 @@ void  EventHandler::pipeRead(int const fd)
 void  EventHandler::fileRead(int const fd)
 {
   FileData &        fileData = this->_fdTable.getFile(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket->fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.connFd);
   InputOutput &     io = connData.io;
 
   if (!this->_response.fileHandler.readFile(fd, connData))
@@ -151,7 +152,7 @@ void  EventHandler::fileRead(int const fd)
     std::cout << "Error reading file fd: " << fd << std::endl;
     io.clear();
     // Build Internal Server Error
-    this->_response.sendError(*fileData.socket, 500);
+    this->_response.sendError(fileData.connFd, 500);
     // Delete fileData
     connData.fileData = 0;
     this->_monitor.remove(fd);
@@ -159,8 +160,8 @@ void  EventHandler::fileRead(int const fd)
     // File fd already closed by fileHandler on failure
     return ;
   }
-  if (!(fileData.socket->events & POLLOUT))
-    fileData.socket->events = POLLIN | POLLOUT;
+  if (!(this->_monitor[fileData.connFd].events & POLLOUT))
+    this->_monitor[fileData.connFd].events = POLLIN | POLLOUT;
   if (io.finishedRead())
   {
     this->_monitor.remove(fd);
@@ -173,13 +174,13 @@ void  EventHandler::fileRead(int const fd)
 void  EventHandler::fileWrite(int const fd)
 {
   FileData &        fileData = this->_fdTable.getFile(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.socket->fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fileData.connFd);
 
   if (!this->_response.fileHandler.writeFile(fd, connData))
   {// Order of statements is important!!
     connData.io.clear();
     // Build Internal Server Error
-    this->_response.sendError(*fileData.socket, 500);
+    this->_response.sendError(fileData.connFd, 500);
     // Delete fileData
     connData.fileData = 0;
     this->_monitor.remove(fd);
@@ -191,7 +192,7 @@ void  EventHandler::fileWrite(int const fd)
   {
     //Order of statements is important!!
     connData.io.clear();
-    this->_response.buildUploaded(*fileData.socket, connData,
+    this->_response.buildUploaded(fileData.connFd, connData,
                                   connData.req.getPetit("PATH"));
     connData.fileData = 0;
     this->_monitor.remove(fd);
@@ -200,14 +201,14 @@ void  EventHandler::fileWrite(int const fd)
   }
 }
 
-void  EventHandler::_processConnectionRead(pollfd & socket)
+void  EventHandler::_processConnectionRead(int const fd)
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   int               error = 0;
 
   if (connData.req.processWhat())
   {
-    this->_response.sendError(socket, 413);
+    this->_response.sendError(fd, 413);
     return ;
   }
   if (connData.req.getDataSate() != done)
@@ -222,14 +223,14 @@ void  EventHandler::_processConnectionRead(pollfd & socket)
             << " | Buffer reached: "
 			<< connData.req.updateLoop(false)
 			<< std::endl;
-  if (!this->_validRequest(socket.fd, error)
-      || !this->_response.process(socket, error))
-    this->_response.sendError(socket, error);
+  if (!this->_validRequest(fd, error)
+      || !this->_response.process(fd, error))
+    this->_response.sendError(fd, error);
 }
 
-bool  EventHandler::_validRequest(int socket, int & error)
+bool  EventHandler::_validRequest(int const fd, int & error)
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
 
   if (!this->_configMatcher.match(connData))
   { //Request path did not match any server's location uri

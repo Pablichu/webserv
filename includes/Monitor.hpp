@@ -33,11 +33,6 @@ private:
 
   std::vector<pollfd> _fds;
   FdTable &           _fdTable;
-  /*
-  **  All fds associated to a client connection are stored here,
-  **  and used by _readjustTableRefs on each reallocation of a Monitor instance.
-  */
-  std::list<int>      _connFds;
   // Improves Monitor iteration and size efficiency
   int                 _biggestActiveFd;
 
@@ -58,7 +53,7 @@ public:
   pollfd *    getFds(void);
   std::size_t len(void) const;
   int         biggestActiveFd(void) const;
-  void        add(int const fd, short const events, bool connFd);
+  void        add(int const fd, short const events);
   void        remove(int const fd);
 
 };

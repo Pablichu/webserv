@@ -1,8 +1,8 @@
 #include "Data.hpp"
 
-CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
+CgiData::CgiData(int const connFd, std::string const & interpreterPath,
                   std::string const & scriptPath)
-                : socket(&socket), interpreterPath(interpreterPath),
+                : connFd(connFd), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
 {
   std::fill(this->inPipe, this->inPipe + 2, -1);
@@ -55,8 +55,8 @@ void  CgiData::closePipes(void)
   return ;
 }
 
-FileData::FileData(std::string const & filePath, pollfd & socket)
-                    : fd(0), socket(&socket), filePath(filePath), rspStatus(200)
+FileData::FileData(std::string const & filePath, int const connFd)
+                    : fd(0), connFd(connFd), filePath(filePath), rspStatus(200)
 {
   return ;
 }

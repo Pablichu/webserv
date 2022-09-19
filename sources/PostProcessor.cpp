@@ -67,14 +67,14 @@ bool  PostProcessor::_isAppend(std::string const & filePath) const
   return (false);
 }
 
-bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
+bool  PostProcessor::_launchCGI(ConnectionData & connData, int const fd,
                                 std::string const & interpreterPath,
                                 std::string const & scriptPath) const
 {
   CgiData *                                           cgiData;
   std::map<std::string, std::string>::const_iterator  bodyPair;
 
-  cgiData = new CgiData(socket, interpreterPath, scriptPath);
+  cgiData = new CgiData(fd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -94,25 +94,13 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     delete cgiData;
     return (false);
   }
-  /*
-  **  cgiData's addition to connData must be done before adding its associated
-  **  fds to monitor, otherwise, if a reallocation is done by monitor,
-  **  cgiData's associated pollfd will not be updated, and will point to
-  **  a previous allocation of monitor fds, which has been deleted.
-  **  The way in which monitor reallocates can be changed in the future to
-  **  prevent this condition. Currently, monitor stores all connection fds, and
-  **  iterates through them to update its associated cgiData or fileData when
-  **  reallocating. An alternative could be to store all cgiData and fileData
-  **  instead and update them directly without knowing its associated connection
-  **  fd, but that requires to distinguish its type at the moment of updating.
-  */
   connData.cgiData = cgiData;
   bodyPair = connData.req.getHeaders().find("BODY");
   if (bodyPair != connData.req.getHeaders().end())
   {
     //Associate write pipe fd with cgi class instance
     this->_fdTable.add(cgiData->getWInPipe(), cgiData, false);
-    this->_monitor.add(cgiData->getWInPipe(), POLLOUT, false);
+    this->_monitor.add(cgiData->getWInPipe(), POLLOUT);
     connData.io.setPayloadSize(bodyPair->second.length());
   }
   else
@@ -120,15 +108,15 @@ bool  PostProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   //Associate read pipe fd with cgi class instance
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
-  this->_monitor.add(cgiData->getROutPipe(), POLLIN, false);
+  this->_monitor.add(cgiData->getROutPipe(), POLLIN);
   return (true);
 }
 
-bool  PostProcessor::_openFile(ConnectionData & connData, pollfd & socket,
+bool  PostProcessor::_openFile(ConnectionData & connData, int const fd,
                                 std::string const & filePath,
                                 bool const append) const
 {
-  FileData *  fileData = new FileData(filePath, socket);
+  FileData *  fileData = new FileData(filePath, fd);
 
   if (append)
   {
@@ -155,27 +143,15 @@ bool  PostProcessor::_openFile(ConnectionData & connData, pollfd & socket,
     }
     fileData->fileOp = Create;
   }
-  /*
-  **  fileData's addition to connData must be done before adding its associated
-  **  fds to monitor, otherwise, if a reallocation is done by monitor,
-  **  fileData's associated pollfd will not be updated, and will point to
-  **  a previous allocation of monitor fds, which has been deleted.
-  **  The way in which monitor reallocates can be changed in the future to
-  **  prevent this condition. Currently, monitor stores all connection fds, and
-  **  iterates through them to update its associated cgiData or fileData when
-  **  reallocating. An alternative could be to store all cgiData and fileData
-  **  instead and update them directly without knowing its associated connection
-  **  fd, but that requires to distinguish its type at the moment of updating.
-  */
   connData.fileData = fileData;
   this->_fdTable.add(fileData->fd, fileData);
-  this->_monitor.add(fileData->fd, POLLOUT, false);
+  this->_monitor.add(fileData->fd, POLLOUT);
   return (true);
 }
 
-bool  PostProcessor::start(pollfd & socket, int & error) const
+bool  PostProcessor::start(int const fd, int & error) const
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   std::string       filePath;
   std::string       cgiInterpreterPath;
 
@@ -191,7 +167,7 @@ bool  PostProcessor::start(pollfd & socket, int & error) const
       filePath.substr(filePath.rfind('.') + 1));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, fd, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -199,7 +175,7 @@ bool  PostProcessor::start(pollfd & socket, int & error) const
     }
     else
     {
-      if(!this->_openFile(connData, socket, filePath,
+      if(!this->_openFile(connData, fd, filePath,
           this->_isAppend(filePath)))
       {
         error = 500; // Internal Server Error

@@ -52,11 +52,7 @@ void  ConnectionHandler::accept(int const listenSocket)
     this->_fdTable.getConnSock(newConn).portConfigs = configs;
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
     this->_fdTable.getConnSock(newConn).ip = ip;
-    /*
-    **  This must be after fdTable.add in case monitor.add starts
-    **  a monitor reallocation.
-    */
-    this->_monitor.add(newConn, POLLIN, true);
+    this->_monitor.add(newConn, POLLIN);
   }
 }
 
