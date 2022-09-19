@@ -37,7 +37,6 @@ private:
   int                 _biggestActiveFd;
 
   Monitor(void);
-  void        _updateTableRefs(void);
   void        _getNextBiggestFd(void);
 
 public:
