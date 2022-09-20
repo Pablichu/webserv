@@ -3,7 +3,6 @@
     {
       "port": 8080,
       "server_name": "localhost,www.hola.es",
-      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
       "max_body_size": 8192,
       "location": [
         {
@@ -32,19 +31,19 @@
     {
       "port": 9000,
       "server_name": "localhost",
-      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
+      "error_page_dir": "tests/www",
       "cgi_interpreter": "py,PYTHON_PATH:pl,PERL_PATH",
       "location": {
         "uri": "/",
-        "root": "WEBSERV_PATH/tests/www/localhost/",
+        "root": "./tests/www/localhost/",
         "methods":"GET,POST",
         "default_file": "index.html",
-        "cgi_dir": "WEBSERV_PATH/tests/www/localhost/cgi-bin"
+        "cgi_dir": "tests/www/localhost/cgi-bin"
       }
     },
     {
       "port": 3000,
-      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
+      "error_page_dir": "WEBSERV_PATH/tests/www",
       "location": [
         {
           "uri": "/",
@@ -72,11 +71,11 @@
     },
     {
       "port": 3000,
-      "not_found_page": "WEBSERV_PATH/tests/www/404.html",
+      "error_page_dir": "tests/www",
       "location": [
         {
           "uri": "/",
-          "root": "WEBSERV_PATH/tests/www/localhost",
+          "root": "tests/www/localhost",
           "methods": "GET",
           "dir_list": 1,
           "default_file": "nonexistent.html"

@@ -49,7 +49,7 @@ void  printConf(std::vector<ServerConfig> const & cf)
     std::cout << "port: " << it->port << '\n';
     std::cout << "server_name: ";
     printSet(it->server_name);
-    std::cout << "not_found_page: " << it->not_found_page << '\n';
+    std::cout << "error_page_dir: " << it->error_page_dir << '\n';
     std::cout << "max_body_size: " << it->max_body_size << '\n';
     std::cout << "location:\n";
     printLocation(it->location);
