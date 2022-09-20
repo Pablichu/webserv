@@ -298,23 +298,49 @@ bool  Response::process(int const fd, int & error)
   return (true);
 }
 
+std::string Response::_findErrorPage(std::string const & errorPageDirPath,
+                                      int const errorCode)
+{
+  DIR * dir;
+  dirent * elem;
+  std::string const targetFileName = utils::toString(errorCode) + ".html";
+  std::string errorPagePath = "";
+
+  dir = opendir(errorPageDirPath.c_str());
+  if (!dir)
+    return (errorPagePath);
+  while (true)
+  {
+    elem = readdir(dir);
+    if (!elem)
+      break ;
+    if (static_cast<std::string>(elem->d_name) == targetFileName)
+    {
+      errorPagePath = errorPageDirPath + '/' + targetFileName;
+      break ;
+    }
+  }
+  closedir(dir);
+  return (errorPagePath);
+}
+
 /*
-**  Provisional. More than one error page might be available.
-**
-**  Idea. Create folder for each host:port config where error pages
-**  will be stored as errorcode.html. ex: 404.html, 500.html.
-**  And search in that folder for errorFolderPath + '/' + errorCode.html,
-**  if not found, buildError.
+**  Each ServerConfig has a directory where custom error pages
+**  are stored as errorcode.html. ex: 404.html, 500.html.
+**  If errorCode.html is not found in there, buildError.
 */
 
 void  Response::sendError(int const fd, int error)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   FileData *        fileData;
+  std::string       errorPagePath;
 
-  if (error == 404) //Not Found
+  errorPagePath = this->_findErrorPage(connData.getServer()->error_page_dir,
+                                        error);
+  if (errorPagePath != "")
   {
-    fileData = new FileData(connData.getServer()->not_found_page, fd);
+    fileData = new FileData(errorPagePath, fd);
     fileData->rspStatus = error;
     if (!this->fileHandler.openFile(fileData->filePath, fileData->fd,
                                     O_RDONLY, 0))

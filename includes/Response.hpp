@@ -42,6 +42,8 @@ private:
 	void	_buildChunkedResponse(int const fd, ConnectionData & connData,
 												std::string & content,
 												std::size_t const endHeadersPos);
+	std::string	_findErrorPage(std::string const & errorPageDirPath,
+															int const errorCode);
 	Response(void);
 
 public:
