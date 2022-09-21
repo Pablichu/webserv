@@ -132,7 +132,7 @@ bool  GetProcessor::start(int const fd, int & error) const
   else
   {
     cgiInterpreterPath = this->_getCgiInterpreter(connData,
-      filePath.substr(filePath.rfind('.') + 1));
+                          utils::getFileExtension(filePath));
     if (cgiInterpreterPath != "")
     {
       if (!this->_launchCGI(connData, fd, cgiInterpreterPath, filePath))

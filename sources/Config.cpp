@@ -604,7 +604,7 @@ bool  ServerConfig::_processCgiPair(std::string const & value)
     if (payload == "") //Double comma or starting comma found
       return (false);
     if (pair.first == "")
-       pair.first = payload;
+       pair.first = '.' + payload;
     else if (pair.second == "")
     {
       pair.second = payload;

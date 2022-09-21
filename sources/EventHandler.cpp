@@ -232,22 +232,7 @@ bool  EventHandler::_validRequest(int const fd, int & error)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
 
-  if (!this->_configMatcher.match(connData))
-  { //Request path did not match any server's location uri
-    error = 404; // Not Found
-    return (false);
-  }
-  if (!connData.getLocation()->methods.count(connData.req.getPetit("METHOD")))
-  { //Request method is not allowed in target location
-    error = 405; // Method Not Allowed
-  }
-  //else if (!validFileExtension)
-    //error = 415; // Unsupported Media Type
-  //else if (!validStandardHeaders)
-    //error = 400; // Bad Request
-  else if (connData.req.getPetit("PROTOCOL") != "HTTP/1.1")
-    error = 505; // HTTP Version Not Supported
-  if (error)
+  if (!this->_httpValidator.isValidRequest(connData, error))
     return (false);
   return (true);
 }

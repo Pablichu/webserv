@@ -25,7 +25,7 @@ bool  UrlParser::parse(std::string url,
     url.erase(0, needle);
     needle = data["PATH"].rfind("/");
     data["FILENAME"] = data["PATH"].substr(needle + 1);
-    data["FILETYPE"] = data["FILENAME"].substr(data["FILENAME"].rfind(".") + 1);
+    data["FILETYPE"] = data["FILENAME"].substr(data["FILENAME"].rfind("."));
   }
   else
   {

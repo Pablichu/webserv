@@ -3,8 +3,8 @@
 #include "Monitor.hpp"
 #include "FdTable.hpp"
 #include "ConnectionHandler.hpp"
-#include "ConfigMatcher.hpp"
 #include "Response.hpp"
+#include "HttpValidator.hpp"
 
 class EventHandler
 {
@@ -28,7 +28,7 @@ private:
   Monitor &           _monitor;
   FdTable &           _fdTable;
   ConnectionHandler & _connHandler;
-  ConfigMatcher       _configMatcher;
+  HttpValidator       _httpValidator;
   Response            _response;
 
   EventHandler(void);
