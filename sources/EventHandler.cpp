@@ -100,7 +100,8 @@ void  EventHandler::pipeWrite(int const fd)
 void  EventHandler::pipeRead(int const fd)
 {
   CgiData &         cgiData = this->_fdTable.getPipe(fd);
-  ConnectionData &  connData = this->_fdTable.getConnSock(cgiData.connFd);
+  int const         connFd = cgiData.connFd;
+  ConnectionData &  connData = this->_fdTable.getConnSock(connFd);
   int               error = 0;
   int               exitStatus;
 
@@ -113,16 +114,16 @@ void  EventHandler::pipeRead(int const fd)
       this->_response.cgiHandler.terminateProcess(connData.cgiData->pID);
     connData.io.clear();
     // Build Internal Server Error
-    this->_response.sendError(cgiData.connFd, 500);
+    this->_response.sendError(connFd, 500);
     connData.cgiData->closeROutPipe();
     connData.cgiData = 0;
     this->_monitor.remove(fd);
     this->_fdTable.remove(fd);
     return ;
   }
-  if (!(this->_monitor[cgiData.connFd].events & POLLOUT)
+  if (!(this->_monitor[connFd].events & POLLOUT)
       && connData.io.getBufferSize())
-    this->_monitor[cgiData.connFd].events = POLLIN | POLLOUT;
+    this->_monitor[connFd].events = POLLIN | POLLOUT;
   if (connData.io.finishedRead())
   { //All data was received
     if (!exitStatus)
@@ -134,8 +135,8 @@ void  EventHandler::pipeRead(int const fd)
     this->_fdTable.remove(fd);
     if (connData.io.getPayloadSize() == 0)
     {
-      if (!this->_response.process(cgiData.connFd, error))
-        this->_response.sendError(cgiData.connFd, error);
+      if (!this->_response.process(connFd, error))
+        this->_response.sendError(connFd, error);
     }
   }
   return ;
