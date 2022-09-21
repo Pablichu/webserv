@@ -23,6 +23,8 @@ InitStatusCode::InitStatusCode(void)
   this->m.insert(
     std::pair<int const, std::string const>(405, "Method Not Allowed"));
   this->m.insert(
+    std::pair<int const, std::string const>(411, "Length Required"));
+  this->m.insert(
     std::pair<int const, std::string const>(413, "Payload Too Large"));
   this->m.insert(
     std::pair<int const, std::string const>(414, "URI Too Long"));
@@ -30,6 +32,8 @@ InitStatusCode::InitStatusCode(void)
     std::pair<int const, std::string const>(415, "Unsupported Media Type"));
   this->m.insert(
     std::pair<int const, std::string const>(500, "Internal Server Error"));
+  this->m.insert(
+    std::pair<int const, std::string const>(501, "Not Implemented"));
   this->m.insert(
     std::pair<int const, std::string const>(503, "Service Unavailable"));
   this->m.insert(
