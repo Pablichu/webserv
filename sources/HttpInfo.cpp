@@ -81,6 +81,8 @@ InitContentType::InitContentType(void)
   this->m.insert(
     std::pair<std::string const, std::string const>(".txt", "text/plain"));
   this->m.insert(
+    std::pair<std::string const, std::string const>(".pdf", "application/pdf"));
+  this->m.insert(
     std::pair<std::string const, std::string const>(".wav", "audio/wav"));
   this->m.insert(
     std::pair<std::string const, std::string const>(".xml", "application/xml"));
