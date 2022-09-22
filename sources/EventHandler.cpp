@@ -35,6 +35,7 @@ void  EventHandler::connectionRead(int const fd)
   if (connData.req.getDataSate() != done
       && connData.req.dataAvailible())
     this->_processConnectionRead(fd);
+  connData.lastRead = time(NULL);
 }
 
 void  EventHandler::connectionWrite(int const fd)
@@ -50,11 +51,12 @@ void  EventHandler::connectionWrite(int const fd)
   //This check is relevant, because the entire buffer might not be sent.
   if(connData.io.getBufferSize() == 0)
     this->_monitor[fd].events = POLLIN;
+  connData.lastSend = time(NULL);
   if (connData.io.finishedSend()
       && connData.io.getPayloadSize() != 0)
   { // Request handling finished succesfully
     if (connData.req.getPetit("CONNECTION") != "close"
-        && connData.handledRequests < ConnectionData::max - 1)
+        && connData.handledRequests < ConnectionData::keepAliveMaxReq - 1)
       connData.setIdle();
     else
       this->_connHandler.end(fd);
@@ -68,33 +70,33 @@ void  EventHandler::pipeWrite(int const fd)
   int               readPipeFd;
 
   if (!this->_response.cgiHandler.sendBody(fd, connData))
-    { // Order of statements is important!!
-      std::cout << "sendBody to PipeWrite failed." << std::endl;
-      connData.io.clear();
-      // Build Internal Server Error
-      this->_response.sendError(cgiData.connFd, 500);
-      readPipeFd = connData.cgiData->getROutPipe();
-      this->_monitor.remove(fd);
-      this->_monitor.remove(readPipeFd);
-      // Remove cgiData from ConnectionData, closing both pipes.
-      connData.cgiData->closePipes();
-      connData.cgiData = 0;
-      this->_fdTable.remove(fd);
-      this->_fdTable.remove(readPipeFd);
-      return ;
-    }
-    if (connData.io.finishedSend())
-    {
-      /*
-      **  Close pipe fd, but do not delete CgiData structure,
-      **  only PipeRead type must do it, because it is shared between the two.
-      */
-      connData.io.clear();
-      this->_monitor.remove(fd);
-	    this->_fdTable.remove(fd);
-      //CgiData has not been deleted yet, because the Read Pipe is still open
-      connData.cgiData->closeWInPipe();
-    }
+  { // Order of statements is important!!
+    std::cout << "sendBody to PipeWrite failed." << std::endl;
+    connData.io.clear();
+    // Build Internal Server Error
+    this->_response.sendError(cgiData.connFd, 500);
+    readPipeFd = connData.cgiData->getROutPipe();
+    this->_monitor.remove(fd);
+    this->_monitor.remove(readPipeFd);
+    // Remove cgiData from ConnectionData, closing both pipes.
+    connData.cgiData->closePipes();
+    connData.cgiData = 0;
+    this->_fdTable.remove(fd);
+    this->_fdTable.remove(readPipeFd);
+    return ;
+  }
+  if (connData.io.finishedSend())
+  {
+    /*
+    **  Close pipe fd, but do not delete CgiData structure,
+    **  only PipeRead type must do it, because it is shared between the two.
+    */
+    connData.io.clear();
+    this->_monitor.remove(fd);
+    this->_fdTable.remove(fd);
+    //CgiData has not been deleted yet, because the Read Pipe is still open
+    connData.cgiData->closeWInPipe();
+  }
 }
 
 void  EventHandler::pipeRead(int const fd)
@@ -137,6 +139,7 @@ void  EventHandler::pipeRead(int const fd)
     {
       if (!this->_response.process(connFd, error))
         this->_response.sendError(connFd, error);
+      connData.lastSend = time(NULL);
     }
   }
   return ;
@@ -227,6 +230,7 @@ void  EventHandler::_processConnectionRead(int const fd)
   if (!this->_validRequest(fd, error)
       || !this->_response.process(fd, error))
     this->_response.sendError(fd, error);
+  connData.lastSend = time(NULL);
 }
 
 bool  EventHandler::_validRequest(int const fd, int & error)

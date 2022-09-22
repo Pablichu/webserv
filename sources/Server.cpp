@@ -145,6 +145,46 @@ void  Server::_handleEvent(std::size_t index)
   }
 }
 
+bool  Server::_checkActive(int const fd, ConnectionData & connData)
+{
+  double        timeSince;
+  time_t const  currentTime = time(NULL);
+
+  if (connData.lastSend)
+  {
+    timeSince = difftime(currentTime, connData.lastSend);
+    if (timeSince >= ConnectionData::SendTimeout)
+    {
+      this->_connHandler.end(fd);
+      return (true);
+    }
+  }
+  else
+  {
+    timeSince = difftime(currentTime, connData.lastRead);
+    if (timeSince >= ConnectionData::ReadTimeout)
+    {
+      this->_connHandler.end(fd);
+      return (true);
+    }
+  }
+  return (false);
+}
+
+bool  Server::_checkIdle(int const fd, time_t const lastActive)
+{
+  double        timeIdle;
+  time_t const  currentTime = time(NULL);
+
+  timeIdle = difftime(currentTime, lastActive);
+  if (timeIdle >= ConnectionData::keepAliveTimeout)
+  {
+    this->_connHandler.end(fd);
+    return (true);
+  }
+  return (false);
+}
+
 bool  Server::_checkTimeout(int const fd)
 {
   FdType            fdType;
@@ -153,22 +193,15 @@ bool  Server::_checkTimeout(int const fd)
   **  which is a big structure.
   */
   ConnectionData *  connData;
-  double            timeIdle;
-  time_t const      currentTime = time(NULL);
 
   fdType = this->_fdTable.getType(fd);
   if (fdType != ConnSock) // Only client connection sockets have timeout
     return (false);
   connData = &this->_fdTable.getConnSock(fd);
-  if (connData->status != Idle)
-    return (false);
-  timeIdle = difftime(currentTime, connData->lastActive);
-  if (timeIdle >= ConnectionData::timeout)
-  {
-    this->_connHandler.end(fd);
-    return (true);
-  }
-  return (false);
+  if (connData->status != Idle) // Active
+    return (this->_checkActive(fd, *connData));
+  else // Idle
+    return (this->_checkIdle(fd, connData->lastActive));
 }
 
 /*
@@ -194,7 +227,8 @@ bool  Server::start(void)
     biggestActiveFd = static_cast<std::size_t>(
                         this->_monitor.biggestActiveFd());
     numEvents = poll(this->_monitor.getFds(), biggestActiveFd + 1,
-                      static_cast<int>(ConnectionData::timeout / 2) * 1000);
+                      static_cast<int>(ConnectionData::keepAliveTimeout / 2)
+                      * 1000);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;

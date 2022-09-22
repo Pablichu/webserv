@@ -52,6 +52,7 @@ void  ConnectionHandler::accept(int const listenSocket)
     this->_fdTable.getConnSock(newConn).portConfigs = configs;
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
     this->_fdTable.getConnSock(newConn).ip = ip;
+    this->_fdTable.getConnSock(newConn).lastRead = time(NULL);
     this->_monitor.add(newConn, POLLIN);
   }
 }

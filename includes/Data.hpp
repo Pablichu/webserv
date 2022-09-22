@@ -79,15 +79,28 @@ struct	ConnectionData
 	InputOutput													io;
 	ConnectionStatus										status;
 	time_t															lastActive;
+	time_t															lastRead;
+	time_t															lastSend;
 	int																	handledRequests;
 	DIR *																dirListNeedle;
 	FileData *													fileData;
 	CgiData *														cgiData;
 
+	/*
+	**	Maximum time (seconds) between two read operations in the same request,
+	**	as well as between the initial connection and the first read operation.
+	*/
+	static double const									ReadTimeout;
+	/*
+	**	Maximum time (seconds) between two send operations in the same response,
+	**	as well as between the start of the request processing and the first
+	**	send operation to the client.
+	*/
+	static double const									SendTimeout;
 	// Maximum time (seconds) a connection can stay idle.
-	static double const									timeout;
+	static double const									keepAliveTimeout;
 	// Maximum requests that can reuse each connection.
-	static int const										max;
+	static int const										keepAliveMaxReq;
 
 	ConnectionData(void);
 	~ConnectionData(void);
