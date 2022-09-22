@@ -62,27 +62,36 @@ bool	Request::processChunked()
 {
 	std::string &	body = this->_values["BODY"];
 	std::string &	data = this->_data;
+	size_t			buffer;
 	int				pos;
-	int				buffer;
 
 	while (!data.empty())
 	{
-		if (!data.find("0\r\n\r\n"))
+		if (!data.find("0\r\n\r\n"))//what happens if in data we do not recieve this completly?
 		{
 			this->_type = done;
 			data.clear();
 			std::cout << "CHUNKED FINISHED, HAPPY UH?" << std::endl;
-			return false;
+			break ;
 		}
 
 		pos = data.find("\r\n");
 		if (pos == -1)
-			return false;
+			break ;
 		buffer = _hextodec(data.substr(0, pos));
+		std::cout << buffer << "|" << data.size() - pos -1 << std::endl;
+		if ((buffer + pos + 1) > (data.size() - pos -1))
+		{
+			std::cout << "Incomplete chunk" << std::endl;
+			break ;
+		}
+		
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
 		if (data.find("\r\n") || body.size() > this->_max_body_size)
 		{
+			std::cout << data.substr(0, 10) << std::endl;
+			exit(0);
 			if (body.size() > this->_max_body_size)
 				std::cout << " >>>> Exceeded max body size: " << body.size() << "/" << this->_max_body_size << std::endl;
 			else
@@ -182,6 +191,7 @@ size_t	Request::_hextodec(std::string hex)
 
 	ss << std::hex << hex;
 	ss >> nb;
+	std::cout << "Hex: " << hex << "| nb: " << nb << std::endl;
 	return nb;
 }
 
