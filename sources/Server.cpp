@@ -1,5 +1,7 @@
 #include "Server.hpp"
 
+int const Server::maxRequests = 5; //TRY WITH 10?
+
 Server::Server(void) : _monitor(_fdTable),
                         _connHandler(_monitor, _fdTable),
                         _eventHandler(_monitor, _fdTable, _connHandler)
@@ -52,7 +54,7 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 	}
 
   //	Start listening to socket
-	if (listen(sock, MAX_REQUEST))
+	if (listen(sock, Server::maxRequests))
 	{
 		std::cerr << "Could not create socket queue" << std::endl;
     close(sock);
@@ -242,6 +244,7 @@ bool  Server::start(void)
         continue;
       this->_handleEvent(i);
     }
+    this->_monitor.adjustSize();
   }
   return (true);
 }

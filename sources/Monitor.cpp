@@ -95,6 +95,11 @@ void  Monitor::remove(int const fd)
   this->_fds[fd].fd = -1;
   if (fd == this->_biggestActiveFd)
     this->_getNextBiggestFd();
+  return ;
+}
+
+void  Monitor::adjustSize(void)
+{
   if (this->_fds.size()
       > static_cast<std::size_t>(this->_biggestActiveFd * 2))
     this->_fds.resize(this->_biggestActiveFd * 2);

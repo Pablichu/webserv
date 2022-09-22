@@ -4,7 +4,8 @@
     "port": 7689,
     "max_body_size": 8192,
     "location": {
-      "uri": "bye"
+      "root": "/tmp",
+      "uri": "/bye"
     }
   }
 }
@@ -33,8 +34,13 @@
 ###
 #5 valid
 {"server":{"port":8000,
-  "error_page_dir": "/tmp/www/404.html",
-  "server_name":"hello.com,bye.es"}}
+"location": {
+  "uri": "/hello",
+  "root": "/tmp",
+},
+  "error_page_dir": "/tmp",
+  "server_name":"hello.com,bye.es",
+  }}
 ###
 #6 invalid
 "server": {

@@ -90,7 +90,7 @@ bool  Config::_checkMinData(void)
 	  }
 	  if (this->_serverConfig[i].error_page_dir.empty())
 	  {
-		std::cout << " -> Default error_page_dir set" << std::endl;
+		std::cout << "\n -> Default error_page_dir set\n" << std::endl;
 		this->_serverConfig[i].error_page_dir = ".default";
 	  }
 	  if (this->_serverConfig[i].max_body_size < 100)
@@ -108,14 +108,12 @@ bool  Config::_checkMinData(void)
 			return (false);
 		  }
 		  if (this->_serverConfig[i].location[j].default_file.empty())
-		  {
-			std::cout << "Error: no default_file defined in " << i << " " << j << std::endl;
-			return (false);
-		  }
+        this->_serverConfig[i].location[j].default_file = "index.html";
 		  if (this->_serverConfig[i].location[j].methods.empty())
 		  {
-			std::cout << "Error: no methods defined in " << i << " " << j << std::endl;
-			return (false);
+        this->_serverConfig[i].location[j].methods.insert("GET");
+        this->_serverConfig[i].location[j].methods.insert("POST");
+        this->_serverConfig[i].location[j].methods.insert("DELETE");
 		  }
       if (this->_serverConfig[i].location[j].cgi_dir != "")
       {

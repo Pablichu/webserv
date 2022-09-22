@@ -11,8 +11,6 @@
 #include "FdTable.hpp"
 #include "EventHandler.hpp"
 
-#define MAX_REQUEST 5 //TRY WITH 10?
-
 class	Server
 {
 	private:
@@ -29,6 +27,9 @@ class	Server
 		bool	_checkTimeout(int const fd);
 
 	public:
+
+		static int const	maxRequests;
+
 		Server();
 		~Server();
 
