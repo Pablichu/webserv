@@ -40,14 +40,14 @@ bool  DeleteProcessor::_getFilePath(ConnectionData & connData,
   return (true);
 }
 
-bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
+bool  DeleteProcessor::_launchCGI(ConnectionData & connData, int const fd,
                                   std::string const & interpreterPath,
                                   std::string const & scriptPath) const
 {
   CgiData *                                           cgiData;
   std::map<std::string, std::string>::const_iterator  bodyPair;
 
-  cgiData = new CgiData(socket, interpreterPath, scriptPath);
+  cgiData = new CgiData(fd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -67,6 +67,7 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     delete cgiData;
     return (false);
   }
+  connData.cgiData = cgiData;
   bodyPair = connData.req.getHeaders().find("BODY");
   if (bodyPair != connData.req.getHeaders().end())
   {
@@ -81,11 +82,10 @@ bool  DeleteProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
   this->_monitor.add(cgiData->getROutPipe(), POLLIN);
-  connData.cgiData = cgiData;
   return (true);
 }
 
-bool  DeleteProcessor::_removeFile(pollfd & socket, ConnectionData & connData,
+bool  DeleteProcessor::_removeFile(int const fd, ConnectionData & connData,
                                     std::string const & filePath) const
 {
   std::string content;
@@ -93,13 +93,13 @@ bool  DeleteProcessor::_removeFile(pollfd & socket, ConnectionData & connData,
   if (!this->_response.fileHandler.removeFile(filePath))
     return (false);
   //Build success response directly
-  this->_response.buildDeleted(socket, connData);
+  this->_response.buildDeleted(fd, connData);
   return (true);
 }
 
-bool  DeleteProcessor::start(pollfd & socket, int & error) const
+bool  DeleteProcessor::start(int const fd, int & error) const
 {
-  ConnectionData &  connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   std::string       filePath;
   std::string       cgiInterpreterPath;
 
@@ -112,10 +112,10 @@ bool  DeleteProcessor::start(pollfd & socket, int & error) const
   else
   {
     cgiInterpreterPath = this->_getCgiInterpreter(connData,
-      filePath.substr(filePath.rfind('.') + 1));
+                          utils::getFileExtension(filePath));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, fd, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -123,7 +123,7 @@ bool  DeleteProcessor::start(pollfd & socket, int & error) const
     }
     else
     {
-      if(!this->_removeFile(socket, connData, filePath))
+      if(!this->_removeFile(fd, connData, filePath))
       {
         error = 500; // Internal Server Error
         return (false);

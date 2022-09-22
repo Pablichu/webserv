@@ -45,6 +45,19 @@ std::vector< ServerConfig > const &	Config::getConfig(void) const
   return (this->_serverConfig);
 }
 
+bool  Config::validDirectoryPath(std::string & path)
+{
+  struct stat info;
+
+  if (stat(path.c_str(), &info))
+    return (false);
+  if (!S_ISDIR(info.st_mode))
+    return (false);
+  if (*(path.end() - 1) == '/')
+    path.erase(path.size() - 1);
+  return (true);
+}
+
 //PRIVATE METHODS
 
 bool  Config::_validConfigPath(void) const
@@ -72,18 +85,13 @@ bool  Config::_checkMinData(void)
   {
 	  if (!this->_serverConfig[i].port)
 	  {
-		std::cout << "Error: Port not setted" << std::endl;
+		std::cout << "Error: Port not set" << std::endl;
 	  	return (false);
 	  }
-	  if (this->_serverConfig[i].not_found_page.empty())
+	  if (this->_serverConfig[i].error_page_dir.empty())
 	  {
-		if (access(".default/404.html", F_OK))
-		{
-		  std::cout << "Error: default 404 could not be accessed" << std::endl;
-		  return (false);
-		}
-		std::cout << " -> Standard 404 html setted" << std::endl;
-		this->_serverConfig[i].not_found_page = ".default/404.html";
+		std::cout << " -> Default error_page_dir set" << std::endl;
+		this->_serverConfig[i].error_page_dir = ".default";
 	  }
 	  if (this->_serverConfig[i].max_body_size < 100)
 		std::cout << "Warning: max body size too low" << std::endl;
@@ -127,7 +135,7 @@ bool  Config::_checkMinData(void)
 bool  Config::_isServerProperty(std::string const & prop)
 {
   if (prop != "port" && prop != "server_name"
-        && prop != "not_found_page" && prop != "max_body_size"
+        && prop != "error_page_dir" && prop != "max_body_size"
         && prop != "location" && prop != "cgi_interpreter")
     return (false);
   return (true);
@@ -526,8 +534,9 @@ bool  ServerConfig::setProperty(std::pair<std::string, std::string> & pr)
     if (!this->_setServerName(val))
       return (false);
   }
-  else if (prop == "not_found_page" && (this->_userDefined.insert(prop)).second)
-    this->not_found_page = val; //validate path
+  else if (prop == "error_page_dir" && Config::validDirectoryPath(val)
+            && (this->_userDefined.insert(prop)).second)
+    this->error_page_dir = val;
   else if (prop == "max_body_size" && (this->_userDefined.insert(prop)).second)
     this->max_body_size = atoi(val.c_str()); //Implicit conversion
   else if (prop == "cgi_interpreter" && (this->_userDefined.insert(prop)).second)
@@ -591,7 +600,7 @@ bool  ServerConfig::_processCgiPair(std::string const & value)
     if (payload == "") //Double comma or starting comma found
       return (false);
     if (pair.first == "")
-       pair.first = payload;
+       pair.first = '.' + payload;
     else if (pair.second == "")
     {
       pair.second = payload;
@@ -653,7 +662,7 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
   if (prop == "uri" && this->_validUri(val)
       && (this->_userDefined.insert(prop)).second)
     this->uri = val;
-  else if (prop == "root" && this->_validDirectoryPath(val)
+  else if (prop == "root" && Config::validDirectoryPath(val)
             && (this->_userDefined.insert(prop)).second)
     this->root = val;
   else if (prop == "methods" && (this->_userDefined.insert(prop)).second)
@@ -675,10 +684,10 @@ bool  LocationConfig::setProperty(std::pair<std::string, std::string> & pr)
   }
   else if (prop == "default_file" && (this->_userDefined.insert(prop)).second)
     this->default_file = val;
-  else if (prop == "upload_dir" && this->_validDirectoryPath(val)
+  else if (prop == "upload_dir" && Config::validDirectoryPath(val)
             && (this->_userDefined.insert(prop)).second)
     this->upload_dir = val;
-  else if (prop == "cgi_dir" && this->_validDirectoryPath(val)
+  else if (prop == "cgi_dir" && Config::validDirectoryPath(val)
             && (this->_userDefined.insert(prop)).second)
     this->cgi_dir = val;
   else
@@ -739,18 +748,5 @@ bool  LocationConfig::_validUri(std::string const & uri)
       return (true);
     return (false);
   }
-  return (true);
-}
-
-bool  LocationConfig::_validDirectoryPath(std::string & path)
-{
-  struct stat info;
-
-  if (stat(path.c_str(), &info))
-    return (false);
-  if (!S_ISDIR(info.st_mode))
-    return (false);
-  if (*(path.end() - 1) == '/')
-    path.erase(path.size() - 1);
   return (true);
 }

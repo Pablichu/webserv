@@ -8,6 +8,7 @@ SRC =	main.cpp \
 		$(ROOT)/Config.cpp \
 		$(ROOT)/ConfigMatcher.cpp \
 		$(ROOT)/HttpInfo.cpp \
+		$(ROOT)/HttpValidator.cpp \
 		$(ROOT)/InputOutput.cpp \
 		$(ROOT)/Data.cpp \
 		$(ROOT)/Request.cpp \

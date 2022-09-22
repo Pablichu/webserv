@@ -46,14 +46,14 @@ bool  GetProcessor::_getFilePath(ConnectionData & connData,
   return (true);
 }
 
-bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
+bool  GetProcessor::_launchCGI(ConnectionData & connData, int const fd,
                                 std::string const & interpreterPath,
                                 std::string const & scriptPath) const
 {
   CgiData *                                           cgiData;
   std::map<std::string, std::string>::const_iterator  bodyPair;
 
-  cgiData = new CgiData(socket, interpreterPath, scriptPath);
+  cgiData = new CgiData(fd, interpreterPath, scriptPath);
   if (!this->_response.cgiHandler.initPipes(*cgiData,
       *this->_response.cgiHandler.getEnv(connData.req.getHeaders(),
                                           connData.urlData,
@@ -73,6 +73,7 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
     delete cgiData;
     return (false);
   }
+  connData.cgiData = cgiData;
   bodyPair = connData.req.getHeaders().find("BODY");
   if (bodyPair != connData.req.getHeaders().end())
   {
@@ -87,14 +88,13 @@ bool  GetProcessor::_launchCGI(ConnectionData & connData, pollfd & socket,
   this->_fdTable.add(cgiData->getROutPipe(), cgiData, true);
   //Check POLLIN event of read pipe fd with poll()
   this->_monitor.add(cgiData->getROutPipe(), POLLIN);
-  connData.cgiData = cgiData;
   return (true);
 }
 
-bool  GetProcessor::_openFile(ConnectionData & connData, pollfd & socket,
+bool  GetProcessor::_openFile(ConnectionData & connData, int const fd,
                               std::string const & filePath) const
 {
-  FileData *  fileData = new FileData(filePath, socket);
+  FileData *  fileData = new FileData(filePath, fd);
 
   if (!this->_response.fileHandler.openFile(fileData->filePath, fileData->fd,
                                             O_RDONLY, 0))
@@ -102,15 +102,15 @@ bool  GetProcessor::_openFile(ConnectionData & connData, pollfd & socket,
     delete fileData;
     return (false);
   }
-  this->_monitor.add(fileData->fd, POLLIN);
-  this->_fdTable.add(fileData->fd, fileData);
   connData.fileData = fileData;
+  this->_fdTable.add(fileData->fd, fileData);
+  this->_monitor.add(fileData->fd, POLLIN);
   return (true);
 }
 
-bool  GetProcessor::start(pollfd & socket, int & error) const
+bool  GetProcessor::start(int const fd, int & error) const
 {
-  ConnectionData &        connData = this->_fdTable.getConnSock(socket.fd);
+  ConnectionData &        connData = this->_fdTable.getConnSock(fd);
   LocationConfig const *  loc = connData.getLocation();
   std::string             filePath;
   std::string             cgiInterpreterPath;
@@ -120,7 +120,7 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
     filePath.clear();
     if (loc->dir_list == true && !connData.urlData.count("FILENAME"))
     {
-      this->_response.buildDirList(socket, connData,
+      this->_response.buildDirList(fd, connData,
         connData.urlData.find("PATH")->second, loc->root);
     }
     else
@@ -132,10 +132,10 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
   else
   {
     cgiInterpreterPath = this->_getCgiInterpreter(connData,
-      filePath.substr(filePath.rfind('.') + 1));
+                          utils::getFileExtension(filePath));
     if (cgiInterpreterPath != "")
     {
-      if (!this->_launchCGI(connData, socket, cgiInterpreterPath, filePath))
+      if (!this->_launchCGI(connData, fd, cgiInterpreterPath, filePath))
       {
         error = 500; // Internal Server Error
         return (false);
@@ -143,7 +143,7 @@ bool  GetProcessor::start(pollfd & socket, int & error) const
     }
     else
     {
-      if(!this->_openFile(connData, socket, filePath))
+      if(!this->_openFile(connData, fd, filePath))
       {
         error = 500; // Internal Server Error
         return (false);

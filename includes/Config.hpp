@@ -33,7 +33,6 @@ private:
 
 	bool	_setMethods(std::string const & value);
 	bool	_validUri(std::string const & uri);
-	bool	_validDirectoryPath(std::string & path);
 };
 
 
@@ -41,7 +40,7 @@ struct	ServerConfig
 {
 	std::size_t													port; // max. port number 65535
 	std::set<std::string>								server_name; // host
-	std::string													not_found_page;
+	std::string													error_page_dir;
 	std::size_t													max_body_size;
 	std::map<std::string, std::string>	cgiInterpreter;
 	//Dynamic array to store different location configs
@@ -113,6 +112,8 @@ public:
 
 	Config(void);
 	~Config(void);
+
+	static bool					validDirectoryPath(std::string & path);
 
 	std::string const &	getPath(void) const;
 	void								setPath(std::string const & path);

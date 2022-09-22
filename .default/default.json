@@ -3,7 +3,7 @@
     {
       "port": 8080,
       "server_name": "localhost:8080",
-      "not_found_page": ".default/404.html",
+      "error_page_dir": ".default/404.html",
       "max_body_size": 8192,
       "location": [
         {

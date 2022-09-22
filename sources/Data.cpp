@@ -1,8 +1,8 @@
 #include "Data.hpp"
 
-CgiData::CgiData(pollfd & socket, std::string const & interpreterPath,
+CgiData::CgiData(int const connFd, std::string const & interpreterPath,
                   std::string const & scriptPath)
-                : socket(socket), interpreterPath(interpreterPath),
+                : connFd(connFd), interpreterPath(interpreterPath),
                 scriptPath(scriptPath)
 {
   std::fill(this->inPipe, this->inPipe + 2, -1);
@@ -55,14 +55,15 @@ void  CgiData::closePipes(void)
   return ;
 }
 
-FileData::FileData(std::string const & filePath, pollfd & socket)
-                    : fd(0), socket(socket), filePath(filePath), rspStatus(200)
+FileData::FileData(std::string const & filePath, int const connFd)
+                    : fd(0), connFd(connFd), filePath(filePath), rspStatus(200)
 {
   return ;
 }
 
 ConnectionData::ConnectionData(void) : serverIndex(0), locationIndex(0),
-  handledRequests(0), dirListNeedle(0), fileData(0), cgiData(0)
+  lastActive(0), lastRead(0), lastSend(0), handledRequests(0), dirListNeedle(0),
+  fileData(0), cgiData(0)
 {
   return ;
 }
@@ -72,8 +73,10 @@ ConnectionData::~ConnectionData(void)
   return ;
 }
 
-double const  ConnectionData::timeout = 5;
-int const ConnectionData::max = 100;
+double const  ConnectionData::ReadTimeout = 60;
+double const  ConnectionData::SendTimeout = 60;
+double const  ConnectionData::keepAliveTimeout = 5;
+int const ConnectionData::keepAliveMaxReq = 100;
 
 ServerConfig const *  ConnectionData::getServer(void)
 {
@@ -99,6 +102,8 @@ void  ConnectionData::setIdle(void)
   this->io.clear();
   this->status = Idle;
   this->lastActive = time(NULL);
+  this->lastRead = 0;
+  this->lastSend = 0;
   this->handledRequests += 1;
   this->dirListNeedle = 0; // Should have been zeroed previously
   this->fileData = 0; // Should have been zeroed previously

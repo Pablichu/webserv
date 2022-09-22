@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
-Server::Server(void) : _connHandler(_monitor, _fdTable),
+Server::Server(void) : _monitor(_fdTable),
+                        _connHandler(_monitor, _fdTable),
                         _eventHandler(_monitor, _fdTable, _connHandler)
 {}
 
@@ -114,37 +115,77 @@ void  Server::_handleEvent(std::size_t index)
   }
   else if (fdType == PipeWrite)
   {// Write pipe from cgi process is ready to write
-    this->_eventHandler.pipeWrite(fd, index);
+    this->_eventHandler.pipeWrite(fd);
   }
   else if (fdType == PipeRead)
   {// Read pipe from cgi process has data to read
-    this->_eventHandler.pipeRead(fd, index);
+    this->_eventHandler.pipeRead(fd);
   }
   else if (fdType == File)
   {
     if (this->_monitor[index].revents & POLLIN)
     {// A file fd is ready to read.
-      this->_eventHandler.fileRead(fd, index);
+      this->_eventHandler.fileRead(fd);
     }
     else // POLLOUT
     {// A file fd is ready to write.
-      this->_eventHandler.fileWrite(fd, index);
+      this->_eventHandler.fileWrite(fd);
     }
   }
   else
   {
     if (this->_monitor[index].revents & POLLIN)
     {// Connected client socket is ready to read without blocking
-      this->_eventHandler.connectionRead(fd, index);
+      this->_eventHandler.connectionRead(fd);
     }
     else if (this->_monitor[index].revents & POLLOUT)
     {// Connected client socket is ready to write without blocking
-      this->_eventHandler.connectionWrite(fd, index);
+      this->_eventHandler.connectionWrite(fd);
     }
   }
 }
 
-bool  Server::_checkTimeout(int const fd, std::size_t const index)
+bool  Server::_checkActive(int const fd, ConnectionData & connData)
+{
+  double        timeSince;
+  time_t const  currentTime = time(NULL);
+
+  if (connData.lastSend)
+  {
+    timeSince = difftime(currentTime, connData.lastSend);
+    if (timeSince >= ConnectionData::SendTimeout)
+    {
+      this->_connHandler.end(fd);
+      return (true);
+    }
+  }
+  else
+  {
+    timeSince = difftime(currentTime, connData.lastRead);
+    if (timeSince >= ConnectionData::ReadTimeout)
+    {
+      this->_connHandler.end(fd);
+      return (true);
+    }
+  }
+  return (false);
+}
+
+bool  Server::_checkIdle(int const fd, time_t const lastActive)
+{
+  double        timeIdle;
+  time_t const  currentTime = time(NULL);
+
+  timeIdle = difftime(currentTime, lastActive);
+  if (timeIdle >= ConnectionData::keepAliveTimeout)
+  {
+    this->_connHandler.end(fd);
+    return (true);
+  }
+  return (false);
+}
+
+bool  Server::_checkTimeout(int const fd)
 {
   FdType            fdType;
   /*
@@ -152,24 +193,15 @@ bool  Server::_checkTimeout(int const fd, std::size_t const index)
   **  which is a big structure.
   */
   ConnectionData *  connData;
-  double            timeIdle;
-  time_t const      currentTime = time(NULL);
 
-  if (fd == -1) // Removed fd during this poll iteration
-    return (false);
   fdType = this->_fdTable.getType(fd);
   if (fdType != ConnSock) // Only client connection sockets have timeout
     return (false);
   connData = &this->_fdTable.getConnSock(fd);
-  if (connData->status != Idle)
-    return (false);
-  timeIdle = difftime(currentTime, connData->lastActive);
-  if (timeIdle >= ConnectionData::timeout)
-  {
-    this->_connHandler.end(fd, index);
-    return (true);
-  }
-  return (false);
+  if (connData->status != Idle) // Active
+    return (this->_checkActive(fd, *connData));
+  else // Idle
+    return (this->_checkIdle(fd, connData->lastActive));
 }
 
 /*
@@ -183,28 +215,33 @@ bool  Server::_checkTimeout(int const fd, std::size_t const index)
 bool  Server::start(void)
 {
   int         numEvents;
-  std::size_t monitorLen;
+  std::size_t biggestActiveFd;
 
   while (true)
   {
-    //Store monitor length before calling poll. monitor can grow during loop.
-    monitorLen = this->_monitor.len();
-    numEvents = poll(this->_monitor.getFds(), monitorLen,
-                      static_cast<int>(ConnectionData::timeout / 2) * 1000);
+    /*
+    **  Store monitor's biggestActiveFd before calling poll, so that
+    **  the loop ends before empty pollfds at the back and new pollfds
+    **  with a bigger fd created during the current iteration are reached.
+    */
+    biggestActiveFd = static_cast<std::size_t>(
+                        this->_monitor.biggestActiveFd());
+    numEvents = poll(this->_monitor.getFds(), biggestActiveFd + 1,
+                      static_cast<int>(ConnectionData::keepAliveTimeout / 2)
+                      * 1000);
     if (numEvents < 0)
     {
       std::cerr << "poll() error" << std::endl;
       return (false);
     }
-    for (std::size_t i = 0; i < monitorLen; ++i)
+    for (std::size_t i = 0; i <= biggestActiveFd; ++i)
     { // INEFFICIENT!! Not using kqueue for compatibility issues
-      if (this->_checkTimeout(this->_monitor[i].fd, i)
-          || this->_monitor[i].revents == 0
-          || this->_monitor[i].fd == -1)
+      if (this->_monitor[i].fd == -1
+          || this->_checkTimeout(this->_monitor[i].fd)
+          || this->_monitor[i].revents == 0)
         continue;
       this->_handleEvent(i);
     }
-    this->_monitor.purge();
   }
   return (true);
 }

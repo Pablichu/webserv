@@ -47,7 +47,8 @@ cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/reply.py
 
 import sys
 import os
-
+from signal import signal, SIGPIPE, SIG_DFL  
+signal(SIGPIPE,SIG_DFL)
 print("Content-Type: text/plain; charset=utf-8")
 print("")
 print(sys.stdin.read())
@@ -59,6 +60,8 @@ chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/reply.py
 
 cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/redir.py
 
+from signal import signal, SIGPIPE, SIG_DFL  
+signal(SIGPIPE,SIG_DFL)
 print("Location: http://localhost:8080/gallery")
 print("")
 EOF
@@ -67,6 +70,8 @@ chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/redir.py
 
 cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/local_redir.py
 
+from signal import signal, SIGPIPE, SIG_DFL  
+signal(SIGPIPE,SIG_DFL)
 print("Location: /index.html")
 print("")
 EOF

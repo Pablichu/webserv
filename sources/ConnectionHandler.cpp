@@ -44,7 +44,6 @@ void  ConnectionHandler::accept(int const listenSocket)
       close(newConn);
       continue ;
     }
-    this->_monitor.add(newConn, POLLIN);
     /*
     **  Add new connection socket as key in _connectionSockets
     **  and configs vector as value.
@@ -54,6 +53,8 @@ void  ConnectionHandler::accept(int const listenSocket)
     inet_ntop(address.sin_family, &address.sin_addr, ip, INET_ADDRSTRLEN);
     this->_fdTable.getConnSock(newConn).ip = ip;
 	this->_fdTable.getConnSock(newConn).req.setMaxBodySize(this->_fdTable.getConnSock(newConn).getServer()->max_body_size);
+    this->_fdTable.getConnSock(newConn).lastRead = time(NULL);
+    this->_monitor.add(newConn, POLLIN);
   }
 }
 
@@ -68,28 +69,35 @@ void  ConnectionHandler::accept(int const listenSocket)
 **  connection.
 */
 
-void  ConnectionHandler::end(int const fd, std::size_t const index)
+void  ConnectionHandler::end(int const fd)
 {
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
   int               associatedFd;
+  int               auxAssociatedFd;
 
   if (connData.fileData)
   { // Order of removals is important. fdTable deletes fileData.
     associatedFd = connData.fileData->fd;
-    this->_monitor.removeByFd(associatedFd);
+    this->_monitor.remove(associatedFd);
     this->_fdTable.remove(associatedFd);
     close(associatedFd);
   }
   else if (connData.cgiData)
   { // Order of removals is important. fdTable deletes cgiData.
     associatedFd = connData.cgiData->getROutPipe();
+    auxAssociatedFd = connData.cgiData->getWInPipe();
     connData.cgiData->closePipes();
-    this->_monitor.removeByFd(associatedFd);
+    kill(connData.cgiData->pID, SIGKILL);
+    waitpid(connData.cgiData->pID, NULL, 0);
+    if (auxAssociatedFd != -1)
+      this->_monitor.remove(auxAssociatedFd);
+    this->_monitor.remove(associatedFd);
+    this->_fdTable.remove(auxAssociatedFd);
     this->_fdTable.remove(associatedFd);
   }
   else if (connData.dirListNeedle)
     closedir(connData.dirListNeedle);
-  this->_monitor.removeByIndex(index);
+  this->_monitor.remove(fd);
   this->_fdTable.remove(fd);
   close(fd);
   return ;
@@ -131,7 +139,7 @@ bool  ConnectionHandler::receive(int const fd)
 **  is bigger than buffer size.
 */
 
-void  ConnectionHandler::send(int const fd, std::size_t const index)
+void  ConnectionHandler::send(int const fd)
 {
   std::size_t       bytesSent;
   ConnectionData &  connData = this->_fdTable.getConnSock(fd);
@@ -145,7 +153,7 @@ void  ConnectionHandler::send(int const fd, std::size_t const index)
 	if (bytesSent <= 0)
 	{
 		std::cout << "Could not send data to client." << std::endl;
-		this->end(fd, index);
+		this->end(fd);
     return ;
 	}
 	io.addBytesSent(bytesSent);

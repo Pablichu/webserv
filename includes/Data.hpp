@@ -14,14 +14,18 @@ struct  LocationConfig;
 
 struct	CgiData
 {
-	pollfd &					socket;
+	/*
+	**	If Monitor is reallocated, this pollfd will change,
+	**	that is why a pointer is used, not a reference.
+	*/
+	int const					connFd;
 	std::string const interpreterPath;
 	std::string	const	scriptPath;
   int         			inPipe[2];
   int         			outPipe[2];
 	pid_t							pID;
 
-	CgiData(pollfd & socket, std::string const & interpreterPath,
+	CgiData(int const connFd, std::string const & interpreterPath,
 					std::string const & scriptPath);
 
 	int		getRInPipe(void) const;
@@ -43,13 +47,17 @@ enum	FileOp
 struct FileData
 {
 	int					fd;
-	pollfd &		socket;
+	/*
+	**	If Monitor is reallocated, this pollfd will change,
+	**	that is why a pointer is used, not a reference.
+	*/
+	int const		connFd;
 	std::string	filePath;
 	long				fileSize;
 	FileOp			fileOp;
 	int					rspStatus;
 
-	FileData(std::string const & filePath, pollfd & socket);
+	FileData(std::string const & filePath, int const connFd);
 };
 
 enum	ConnectionStatus
@@ -71,16 +79,29 @@ struct	ConnectionData
 	int									rspStatus;
 	ConnectionStatus					status;
 	time_t								lastActive;
+	time_t								lastRead;
+	time_t								lastSend;
 	int									handledRequests;
 	DIR *								dirListNeedle;
 	FileData *							fileData;
 	CgiData *							cgiData;
 	Request								req;
 
+	/*
+	**	Maximum time (seconds) between two read operations in the same request,
+	**	as well as between the initial connection and the first read operation.
+	*/
+	static double const									ReadTimeout;
+	/*
+	**	Maximum time (seconds) between two send operations in the same response,
+	**	as well as between the start of the request processing and the first
+	**	send operation to the client.
+	*/
+	static double const									SendTimeout;
 	// Maximum time (seconds) a connection can stay idle.
-	static double const									timeout;
+	static double const									keepAliveTimeout;
 	// Maximum requests that can reuse each connection.
-	static int const										max;
+	static int const										keepAliveMaxReq;
 
 	ConnectionData(void);
 	~ConnectionData(void);

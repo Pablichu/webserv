@@ -87,7 +87,7 @@ void  utils::addKeepAliveHeaders(std::string & headers,
                                 int const handledRequests,
                                 bool const clientClose)
 {
-  if (handledRequests == ConnectionData::max - 1
+  if (handledRequests == ConnectionData::keepAliveMaxReq - 1
       || clientClose)
   {
     headers.append("Connection: close\r\n");
@@ -97,9 +97,10 @@ void  utils::addKeepAliveHeaders(std::string & headers,
     headers.append("Connection: keep-alive\r\n");
     headers.append("Keep-Alive: timeout=");
     headers.append(utils::toString<int>(
-                    static_cast<int>(ConnectionData::timeout)
+                    static_cast<int>(ConnectionData::keepAliveTimeout)
                   ) + ", ");
-    headers.append("max=" + utils::toString<int>(ConnectionData::max));
+    headers.append("max=" +
+                    utils::toString<int>(ConnectionData::keepAliveMaxReq));
     headers.append("\r\n");
   }
   return ;

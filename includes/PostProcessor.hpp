@@ -18,10 +18,10 @@ private:
 
   bool  _getFilePath(ConnectionData & connData, std::string & filePath) const;
   bool  _isAppend(std::string const & filePath) const;
-  bool  _launchCGI(ConnectionData & connData, pollfd & socket,
+  bool  _launchCGI(ConnectionData & connData, int const fd,
                     std::string const & interpreterPath,
                     std::string const & scriptPath) const;
-  bool  _openFile(ConnectionData & connData, pollfd & socket,
+  bool  _openFile(ConnectionData & connData, int const fd,
                   std::string const & filePath, bool const append) const;
   PostProcessor(void);
 
@@ -30,6 +30,6 @@ public:
   PostProcessor(Response & response, FdTable & fdTable, Monitor & monitor);
   ~PostProcessor(void);
 
-  bool  start(pollfd & socket, int & error) const;
+  bool  start(int const fd, int & error) const;
 
 };

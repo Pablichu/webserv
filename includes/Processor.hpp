@@ -19,7 +19,7 @@ protected:
                         std::string const & extension) const;
   virtual bool  _getFilePath(ConnectionData & connData,
                               std::string & filePath) const = 0;
-  virtual bool  _launchCGI(ConnectionData & conn, pollfd & socket,
+  virtual bool  _launchCGI(ConnectionData & conn, int const fd,
                             std::string const & interpreterPath,
                             std::string const & scriptPath) const = 0;
 
@@ -28,6 +28,6 @@ public:
   Processor(FdTable & fdTable, Monitor & monitor);
   virtual ~Processor(void);
 
-  virtual bool  start(pollfd & socket, int & error) const = 0;
+  virtual bool  start(int const fd, int & error) const = 0;
 
 };
