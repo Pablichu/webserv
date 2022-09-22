@@ -72,6 +72,8 @@ void  EventHandler::pipeWrite(int const fd)
   if (!this->_response.cgiHandler.sendBody(fd, connData))
   { // Order of statements is important!!
     std::cout << "sendBody to PipeWrite failed." << std::endl;
+    // To avoid zombie process. No need to check exit status.
+    this->_response.cgiHandler.getExitStatus(connData.cgiData->pID);
     connData.io.clear();
     // Build Internal Server Error
     this->_response.sendError(cgiData.connFd, 500);

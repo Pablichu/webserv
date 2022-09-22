@@ -86,6 +86,8 @@ void  ConnectionHandler::end(int const fd)
     associatedFd = connData.cgiData->getROutPipe();
     auxAssociatedFd = connData.cgiData->getWInPipe();
     connData.cgiData->closePipes();
+    kill(connData.cgiData->pID, SIGKILL);
+    waitpid(connData.cgiData->pID, NULL, 0);
     if (auxAssociatedFd != -1)
       this->_monitor.remove(auxAssociatedFd);
     this->_monitor.remove(associatedFd);

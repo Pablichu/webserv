@@ -5,6 +5,9 @@
 #include <netinet/in.h>
 #include <netinet/ip.h> /* superset of previous */
 #include <arpa/inet.h>
+#include <csignal>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "Monitor.hpp"
 #include "FdTable.hpp"
