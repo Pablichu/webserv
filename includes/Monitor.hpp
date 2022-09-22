@@ -54,6 +54,7 @@ public:
   int         biggestActiveFd(void) const;
   void        add(int const fd, short const events);
   void        remove(int const fd);
+  void        adjustSize(void);
 
 };
 

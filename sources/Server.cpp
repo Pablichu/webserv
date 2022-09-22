@@ -242,6 +242,7 @@ bool  Server::start(void)
         continue;
       this->_handleEvent(i);
     }
+    this->_monitor.adjustSize();
   }
   return (true);
 }
