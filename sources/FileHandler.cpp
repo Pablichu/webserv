@@ -98,6 +98,7 @@ bool	FileHandler::_readFileFirst(int const fd, ConnectionData & connData)
 	headers += utils::toString(fileData.rspStatus) + ' ';
 	headers += HttpInfo::statusCode.find(fileData.rspStatus)->second + "\r\n";
 	headers += "Date: " + utils::getDate() + "\r\n";
+	headers += "Server: " + HttpInfo::serverName + "\r\n";
 	utils::addKeepAliveHeaders(headers, connData.handledRequests,
 								connData.req.getPetit("CONNECTION") == "close");
 	headers += "Content-length: " + utils::toString(fileData.fileSize) + "\r\n";

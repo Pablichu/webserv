@@ -67,6 +67,7 @@ void  Response::buildRedirect(int const fd, ConnectionData & connData,
   content = "HTTP/1.1 " + utils::toString<int>(code) + ' '
             + HttpInfo::statusCode.find(code)->second + "\r\n";
   content += "Date: " + utils::getDate() + "\r\n";
+  content.append("Server: " + HttpInfo::serverName + "\r\n");
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n\r\n";
@@ -82,6 +83,7 @@ void  Response::buildDeleted(int const fd, ConnectionData & connData)
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Server: " + HttpInfo::serverName + "\r\n");
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
@@ -103,6 +105,7 @@ void  Response::buildUploaded(int const fd, ConnectionData & connData,
   content.append(utils::toString(code) + ' ');
   content.append(HttpInfo::statusCode.find(code)->second + "\r\n");
   content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Server: " + HttpInfo::serverName + "\r\n");
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content += "Location: " + url + "\r\n";
@@ -210,6 +213,7 @@ void  Response::buildDirList(int const fd, ConnectionData & connData,
 
   content = "HTTP/1.1 200 OK\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Server: " + HttpInfo::serverName + "\r\n");
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
@@ -253,6 +257,7 @@ void  Response::buildError(int const fd, ConnectionData & connData,
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
   content.append("Date: " + utils::getDate() + "\r\n");
+  content.append("Server: " + HttpInfo::serverName + "\r\n");
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
