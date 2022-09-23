@@ -215,7 +215,9 @@ void  EventHandler::_processConnectionRead(int const fd)
   if (connData.req.processWhat())
   {
 	connData.io.clear();
+	connData.handledRequests = ConnectionData::keepAliveMaxReq;
     this->_response.sendError(fd, 413);
+	this->_monitor[fd].events = POLLOUT;
     return ;
   }
   if (connData.req.getDataSate() != done)
