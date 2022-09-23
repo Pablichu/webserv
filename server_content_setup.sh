@@ -191,6 +191,29 @@ EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/form.pl
 
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/cookie.pl
+
+use CGI qw/:standard/;
+use CGI::Cookie;
+ 
+# Create new cookies and send them
+\$cookie1 = CGI::Cookie->new(-name=>'HIPPIE_COOKIE',-value=>42);
+#\$cookie2 = CGI::Cookie->new(-name=>'IMAGINE_DRAGONS_IS_OVERRATED',-value=>666);
+print header(-cookie=>[\$cookie1,\$cookie2]);
+ 
+# fetch existing cookies
+%cookies = CGI::Cookie->fetch;
+\$hippieCookie = \$cookies{'HIPPIE_COOKIE'}->value;
+#\$hippieCookie2 = \$cookies{'IMAGINE_DRAGONS_IS_OVERRATED'}->value;
+if (\$hippieCookie)
+{
+  print "Found hippie cookie that says -> \$hippieCookie";
+  #print "Capatapa -> \$hippieCookie2";
+}
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/cookie.pl
+
 sed s:WEBSERV_PATH:$PWD:g tests/example_config.json \
 	> tests/tmp_config.json
 
