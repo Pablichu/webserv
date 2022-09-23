@@ -30,7 +30,7 @@ private:
 
   std::vector< ServerConfig const * > * _deserializeListenSock(uintptr_t raw);
   ConnectionData *						_deserializeConnSock(uintptr_t raw);
-  FileData *		_deserializeFile(uintptr_t raw);
+  FileData *							_deserializeFile(uintptr_t raw);
   CgiData *								_deserializePipe(uintptr_t raw);
 
   bool	_littleAddChecker(int const fd);

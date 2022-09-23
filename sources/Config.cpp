@@ -505,7 +505,7 @@ void  Config::_tokenizeFile(std::vector<std::string> & tokens)
 //ServerConfig STRUCTURE METHOD DEFINITIONS
 //No need to initialize empty string classes
 
-ServerConfig::ServerConfig(void) : port(0), max_body_size(SIZE_MAX)
+ServerConfig::ServerConfig(void) : port(0), max_body_size(ULONG_MAX)
 {
   return ;
 }
