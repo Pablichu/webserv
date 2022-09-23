@@ -228,4 +228,6 @@ then
   exit $EXIT_CODE
 fi
 
-echo -e "\nPOST tests passed. Congrats!\n"
+rm $DOWNLOAD_IMG_FILE_PATH
+
+echo "\nPOST tests passed. Congrats!\n"

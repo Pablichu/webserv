@@ -18,17 +18,23 @@ void  Request::process()
 	//First line
 	pos = reqData.find(" ");
 	this->_values["METHOD"] = reqData.substr(0, pos);
-	pos++;
-	rpos = reqData.find("H") - 1;
-	this->_values["PATH"] = reqData.substr(pos, rpos - pos);
-	pos = rpos + 1;
-	rpos = reqData.find("\r\n");
-	this->_values["PROTOCOL"] = reqData.substr(pos, rpos - pos);
+	reqData.erase(0, pos + 1);
+
+	pos = reqData.find(" ");
+	this->_values["PATH"] = reqData.substr(0, pos);
+	reqData.erase(0, pos + 1);
+	pos = 0;
+
+	pos = reqData.find("\r\n");
+	this->_values["PROTOCOL"] = reqData.substr(0, pos);
+	reqData.erase(0, pos + 2);
 
 	//Get rest of reqData
+	rpos = 0;
 	while(true)
 	{
-		reqData.erase(0, rpos + 1);
+		if (rpos)
+			reqData.erase(0, rpos + 1);
 		//This takes the body in case there is
 		if (reqData[0] == '\r') // Line terminations in HTTP messages are \r\n
 		{
@@ -67,11 +73,10 @@ bool	Request::processChunked()
 
 	while (!data.empty())
 	{
-		if (!data.find("0\r\n\r\n"))//what happens if in data we do not recieve this completly?
+		if (!data.find("0\r\n\r\n"))
 		{
 			this->_type = done;
 			data.clear();
-			std::cout << "CHUNKED FINISHED, HAPPY UH?" << std::endl;
 			break ;
 		}
 
@@ -79,19 +84,13 @@ bool	Request::processChunked()
 		if (pos == -1)
 			break ;
 		buffer = _hextodec(data.substr(0, pos));
-		std::cout << buffer << "|" << data.size() - pos -1 << std::endl;
-		if ((buffer + pos + 1) > (data.size() - pos -1))
-		{
-			std::cout << "Incomplete chunk" << std::endl;
+		if ((buffer + pos + 1) > (data.size() - pos -1) || buffer == 0)
 			break ;
-		}
-		
+
 		body.append(data.substr(pos + 2, buffer));
 		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
 		if (data.find("\r\n") || body.size() > this->_max_body_size)
 		{
-			std::cout << data.substr(0, 10) << std::endl;
-			exit(0);
 			if (body.size() > this->_max_body_size)
 				std::cout << " >>>> Exceeded max body size: " << body.size() << "/" << this->_max_body_size << std::endl;
 			else
@@ -191,7 +190,6 @@ size_t	Request::_hextodec(std::string hex)
 
 	ss << std::hex << hex;
 	ss >> nb;
-	std::cout << "Hex: " << hex << "| nb: " << nb << std::endl;
 	return nb;
 }
 
