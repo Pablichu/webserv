@@ -214,11 +214,23 @@ bool  Server::_checkTimeout(int const fd)
 **  and file fds have data to receive or are ready to send data to them.
 */
 
+//Global var for sigint
+bool	G_SIGOUT;
+
+void	signal_handler(int signal)
+{
+	std::cout << "Signal " << signal << " detected. Stopping all process..." << std::endl;
+	G_SIGOUT = true;
+	signal = 0;
+}
+
 bool  Server::start(void)
 {
   int         numEvents;
   std::size_t biggestActiveFd;
 
+  G_SIGOUT = false;
+  signal(SIGINT, signal_handler);
   while (true)
   {
     /*
@@ -242,6 +254,8 @@ bool  Server::start(void)
           || this->_checkTimeout(this->_monitor[i].fd)
           || this->_monitor[i].revents == 0)
         continue;
+	  if (G_SIGOUT)
+	  	return (true);
       this->_handleEvent(i);
     }
     this->_monitor.adjustSize();
