@@ -3,7 +3,6 @@
     {
       "port": 8080,
       "server_name": "localhost,www.hola.es",
-      "max_body_size": 8192,
       "location": [
         {
           "uri": "/",
