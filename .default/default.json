@@ -3,14 +3,13 @@
     {
       "port": 8080,
       "server_name": "localhost:8080",
-      "error_page_dir": ".default/404.html",
+      "error_page_dir": ".default",
       "max_body_size": 8192,
       "location": [
         {
           "uri": "/",
           "root": ".default",
           "methods": "GET",
-          "redirection": "",
           "dir_list": 0,
           "default_file": "welcome.html"
         }

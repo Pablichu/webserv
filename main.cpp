@@ -1,5 +1,10 @@
 #include "./includes/Server.hpp"
 
+void	leak_checker()
+{
+	system("leaks webserv");
+}
+
 int		main(int argc, char **argv)
 {
   Config  config;
@@ -24,7 +29,7 @@ int		main(int argc, char **argv)
   }
   if (!server.prepare(config.getConfig()))
     return (1);
-  if (!server.start())
-    return (1);
+  server.start();
+  std::atexit(leak_checker);
   return (0);
 }
