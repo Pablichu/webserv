@@ -25,7 +25,7 @@ EXIT_CODE=""
 # &> is not portable. 2>&1 redirects stderr to stdout
 #
 curl -v -f --data-binary @"${UPLOAD_TXT_FILE_PATH}" $TXT_REQUEST_URI \
-  > $LOG_FILE_PATH 2>&1
+  -H "Content-Type: text/plain" > $LOG_FILE_PATH 2>&1
 
 EXIT_CODE="$?"
 
@@ -64,7 +64,7 @@ fi
 # POST to existing file to append
 
 curl -v -f --data-binary @"${UPLOAD_TXT_FILE_PATH}" $TXT_REQUEST_URI \
-  > $LOG_FILE_PATH 2>&1
+  -H "Content-Type: text/plain" > $LOG_FILE_PATH 2>&1
 
 EXIT_CODE="$?"
 
@@ -117,13 +117,14 @@ fi
 # POST big text file in chunks
 
 curl -v -f --data-binary @"${UPLOAD_TXT_FILE_PATH}" $TXT_REQUEST_URI \
-  -H "Transfer-Encoding: chunked" > $LOG_FILE_PATH 2>&1
+  -H "Content-Type: text/plain" -H "Transfer-Encoding: chunked" \
+  > $LOG_FILE_PATH 2>&1
 
 EXIT_CODE="$?"
 
 if [ "$EXIT_CODE" -ne "0" ] || [ ! -f "$TARGET_TXT_FILE_PATH" ]
 then
-  echo "Chunked POST request failed."; fi
+  echo "Chunked POST request failed.";
   if [ -f "$TARGET_TXT_FILE_PATH" ]; then rm $TARGET_TXT_FILE_PATH; fi
   exit $EXIT_CODE
 fi
@@ -147,6 +148,19 @@ if [ "$EXIT_CODE" -ne "0" ]
 then
   echo "Chunked POST request file contents are incorrect."
   if [ -f "$TARGET_TXT_FILE_PATH" ]; then rm $TARGET_TXT_FILE_PATH; fi
+  exit $EXIT_CODE
+fi
+
+# DELETE uploaded file
+
+curl -f -s -X DELETE $TXT_REQUEST_URI > /dev/null 2>&1
+
+EXIT_CODE="$?"
+
+if [ "$EXIT_CODE" -ne "0" ] || [ -f "$TARGET_TXT_FILE_PATH" ]
+then
+  echo "DELETE request failed."
+  if [ -f "$TARGET_TXT_FILE_PATH" ]; then rm "$TARGET_TXT_FILE_PATH"; fi
   exit $EXIT_CODE
 fi
 
