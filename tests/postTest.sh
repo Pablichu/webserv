@@ -34,7 +34,7 @@ then
   if [ "$EXIT_CODE" -ne "22" ]; then
     echo "Run make && make start before executing this test script."
   else
-    echo "First POST request failed."; fi
+    echo "First POST request failed.";
   if [ -f "$TARGET_TXT_FILE_PATH" ]; then rm $TARGET_TXT_FILE_PATH; fi
   exit $EXIT_CODE
 fi
