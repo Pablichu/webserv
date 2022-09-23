@@ -3,8 +3,7 @@
 #include <iostream>
 #include <map>
 #include <sstream>
-#include <stdlib.h>
-#include <string.h>
+#include <string>
 
 enum	bodyType
 {
