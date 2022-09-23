@@ -443,7 +443,17 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
   **  depending on the response type.
   */
   if (io.isFirstRead())
-    reserveSpace = 41 + 38 + 26 + 56 + 28 + 8; //start-line + Date + Server + Keep-Alive/Connection + Transfer-Encoding header + hex + 2 \r\n
+  {
+    /*
+    **  start-line + Date + Server + Keep-Alive/Connection
+    **  + Transfer-Encoding header + hex + 2 \r\n
+    */
+    reserveSpace = 41 + 38 + 26
+                    + (52
+                    + utils::toString(ConnectionData::keepAliveTimeout).length()
+                    + utils::toString(ConnectionData::keepAliveMaxReq).length())
+                    + 28 + 8;
+  }
   else if (io.getPayloadSize() == 0)
     reserveSpace = 4 + 4; //4 maximum hex characters for body <= 8000 + 2 \r\n
   len = read(rPipe, io.inputBuffer(),
