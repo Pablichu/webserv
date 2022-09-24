@@ -33,7 +33,7 @@ class	Request
 		Request();
 		~Request();
 
-	    void  process(void);
+	    bool  process(void);
 		const std::string	getPetit(std::string petition);
 
 		std::map<std::string, std::string>::iterator	begin();

@@ -8,7 +8,7 @@ Request::~Request() {}
 *  To avoid generating a copy of reqData, consider passing
 *  std::string const & reqData, but to do this, reqData.erase() cannot be used.
 */
-void  Request::process()
+bool	Request::process()
 {
 	std::string	buff;
 	size_t		pos;
@@ -58,16 +58,16 @@ void  Request::process()
 	if (this->getPetit("TRANSFER-ENCODING") == "chunked")
 	{
 		this->_type = chunked;
-		processChunked();
+		return processChunked();
 	}
 	else if (this->getPetit("CONTENT-LENGTH") != "")
 	{
 		this->_type = normal;
 		this->_length = this->_stoi_mine(this->getPetit("CONTENT-LENGTH"));
-		this->processBody();
+		return this->processBody();
 	}
-	else
-		this->_type = done;
+	this->_type = done;
+	return false;
 }
 
 bool	Request::processChunked()
@@ -149,9 +149,7 @@ bool		Request::processWhat()
 		return this->processBody();
 	else if (this->getDataSate() == chunked)
 		return this->processChunked();
-	else
-		this->process();
-	return false;
+	return this->process();
 }
 
 std::map<std::string, std::string>::iterator	Request::begin()
