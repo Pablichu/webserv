@@ -24,6 +24,7 @@ class	Request
 		size_t		_length;
 		size_t		_max_body_size;
 		bool		_dataAvailible;
+		bool		_invalid_header;
 
 		size_t	_hextodec(std::string hex);
 		size_t	_stoi_mine(std::string nb);
@@ -47,7 +48,9 @@ class	Request
 		bool				processChunked();
 		bool				processBody();
 		const std::string	stoupper(std::string src);
-		void	clear(void);
+		void				clear(void);
 
 		void				setMaxBodySize(const std::size_t mbs);
+
+		bool				valid_header() const;
 };

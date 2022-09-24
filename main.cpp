@@ -8,7 +8,7 @@ void	leak_checker()
 int		main(int argc, char **argv)
 {
   Config  config;
-	Server  server;
+  Server  server;
 
   if (argc == 1)
   {
@@ -30,6 +30,6 @@ int		main(int argc, char **argv)
   if (!server.prepare(config.getConfig()))
     return (1);
   server.start();
-  std::atexit(leak_checker);
+  //std::atexit(leak_checker);
   return (0);
 }
