@@ -20,11 +20,11 @@
 👍 • Client should be able to upload files.
 👍 • poll (or equivalent) should check read and write at the same time.
 👍 • A request to your server should never hang forever.
-⏳ • Your server should never block and the client should be bounce properly if necessary.
-⏳ • Your HTTP response status codes must be accurate.
-❌ • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
-❌ • Stress tests your server it must stay available at all cost.
-👁🐽👁 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
+👁🐽👁👍 • Your server should never block and the client should be bounce properly if necessary.
+👍 • Your HTTP response status codes must be accurate.
+👍 • We will consider that Nginx is HTTP 1.1 compliant and may be used to compare headers and answer behaviors.
+👍 • Stress tests your server it must stay available at all cost.
+👁🐽👁👍 • Your program should not leak and should never crash, (even when out of memory if all the initialization is done)
 
 ◦ setup routes with one or multiple of the following rules/configuration (routes wont be using regexp):
   👍 ∗ define a directory or a file from where the file should be search (for example if url /kapouet is rooted to /tmp/www, url /kapouet/pouic/toto/pouet is /tmp/www/pouic/toto/pouet)
@@ -44,14 +44,9 @@
   👍 ◦ setup the server_names or not
   👍 Because you won’t call the CGI directly use the full path as PATH_INFO
   👍 · your server should work with one CGI (php-cgi, python...)
-  ⏳ ◦ limit client body size (needs to be tested)
+  👍 ◦ limit client body size (needs to be tested)
 
 	<<<<<< BONUS >>>>>>
 		👍  Multiple CGI
-		⏳  Cookies 🍪 
+		👍  Cookies 🍪 
 
-Movidas del Peblo:
--  Body length from config -> needs to cut connection before proccesing whole body
--  frontend pagina de fotos
--  cookies
--  clean exit
