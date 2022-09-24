@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() : _loops(0), _type(none), _length(0), _dataAvailible(false) {}
+Request::Request() : _loops(0), _type(none), _length(0), _dataAvailible(false), _invalid_header(false) {}
 
 Request::~Request() {}
 
@@ -17,15 +17,21 @@ void  Request::process()
 
 	//First line
 	pos = reqData.find(" ");
+	if (pos == std::string::npos)
+		this->_invalid_header = true;
 	this->_values["METHOD"] = reqData.substr(0, pos);
 	reqData.erase(0, pos + 1);
 
 	pos = reqData.find(" ");
+	if (pos == std::string::npos)
+		this->_invalid_header = true;
 	this->_values["PATH"] = reqData.substr(0, pos);
 	reqData.erase(0, pos + 1);
 	pos = 0;
 
 	pos = reqData.find("\r\n");
+	if (pos == std::string::npos)
+		this->_invalid_header = true;
 	this->_values["PROTOCOL"] = reqData.substr(0, pos);
 	reqData.erase(0, pos + 2);
 
@@ -91,11 +97,12 @@ bool	Request::processChunked()
 		data.erase(0, pos + buffer + 2);//this 4 is from two "\r\n"
 		if (data.find("\r\n") || body.size() > this->_max_body_size)
 		{
-			if (body.size() > this->_max_body_size)
+			// Body size execeed logs
+			/*if (body.size() > this->_max_body_size)
 				std::cout << " >>>> Exceeded max body size: " << body.size() << "/" << this->_max_body_size << std::endl;
 			else
 				std::cout << " >>>> Chunk is too large: " << data.size() << "/" << buffer << std::endl
-					<< "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;
+					<< "(warning -> with chunked system the length respect to the size of the chunk may not be accurate)" << std::endl;*/
 			data.empty();
 			return true;
 		}
@@ -110,7 +117,8 @@ bool	Request::processBody()
 
 	if (reqData.size() > this->_length)
 	{
-		std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
+		// Body size execeed logs
+		//std::cout << " >>>> Body is too large " << reqData.size() << "/" << this->_length << std::endl;
 		return true;
 	}
 	this->_length -= reqData.size();
@@ -229,4 +237,9 @@ void	Request::clear(void)
 void	Request::setMaxBodySize(const std::size_t mbs)
 {
 	this->_max_body_size = mbs;
+}
+
+bool	Request::valid_header() const
+{
+	return this->_invalid_header;
 }

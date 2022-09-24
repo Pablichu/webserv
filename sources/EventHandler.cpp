@@ -225,13 +225,18 @@ void  EventHandler::_processConnectionRead(int const fd)
   connData.io.clear();
   UrlParser().parse(connData.req.getPetit("PATH"),
                     connData.urlData);
-  std::cout << "Data received for "
-            << connData.req.getPetit("HOST")
-            << " with path "
-            << connData.req.getPetit("PATH")
-            << " | Buffer reached: "
-			<< connData.req.updateLoop(false)
-			<< std::endl;
+  if (!connData.req.valid_header())
+  {
+  	std::cout << " > Data received -> "
+              << connData.req.getPetit("HOST")
+              << " | Path -> "
+              << connData.req.getPetit("PATH")
+			  << " | Protocol -> "
+              << connData.req.getPetit("PROTOCOL")
+              << " | Buffer reached: "
+			  << connData.req.updateLoop(false)
+			  << std::endl;
+  }
   if (!this->_validRequest(fd, error)
       || !this->_response.process(fd, error))
     this->_response.sendError(fd, error);

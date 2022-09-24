@@ -115,10 +115,11 @@ bool  ConnectionHandler::receive(int const fd)
   len = recv(fd, io.inputBuffer(), io.getAvailableBufferSize(), 0);
   if (len <= 0)
   {
-    std::cout << "Client connection closed unexpectedly.";
+	//Client close log
+    /*std::cout << "Client connection closed unexpectedly.";
     if (len == -1)
 		std::cout << " recv throught an -1";
-	std::cout << std::endl;
+	std::cout << std::endl;*/
 	return (false);
   }
   io.addBytesRead(len);

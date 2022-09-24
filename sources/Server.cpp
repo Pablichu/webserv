@@ -219,9 +219,8 @@ bool	G_SIGOUT;
 
 void	signal_handler(int signal)
 {
-	std::cout << "Signal " << signal << " detected. Stopping all process..." << std::endl;
+	std::cout << std::endl << "Signal " << signal << " detected. Stopping all process..." << std::endl;
 	G_SIGOUT = true;
-	signal = 0;
 }
 
 bool  Server::start(void)
