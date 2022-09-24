@@ -1,10 +1,5 @@
 #include "./includes/Server.hpp"
 
-void	leak_checker()
-{
-	system("leaks webserv");
-}
-
 int		main(int argc, char **argv)
 {
   Config  config;
