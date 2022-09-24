@@ -2,8 +2,8 @@
 
 #include <map>
 #include <algorithm>
-#include <stdlib.h>
-#include <signal.h>
+#include <cstdlib>
+#include <csignal>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <cstring>

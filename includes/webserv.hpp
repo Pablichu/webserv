@@ -7,9 +7,9 @@
 #include <streambuf>
 #include <sstream>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <fcntl.h>
-#include <signal.h>
+#include <csignal>
 #include <cmath>
 #include <cerrno>
 

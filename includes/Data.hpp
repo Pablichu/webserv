@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <poll.h>
-#include <time.h>
+#include <ctime>
 #include <dirent.h>
 
 #include "Config.hpp"
