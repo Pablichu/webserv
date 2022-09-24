@@ -212,6 +212,27 @@ EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/cookie.pl
 
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/cookiedos.pl
+
+use CGI qw/:standard/;
+use CGI::Cookie;
+ 
+# Create new cookies and send them
+\$cookie1 = CGI::Cookie->new(-name=>'PETA_COOKIE',-value=>666,-expires=>'+3m');
+print header(-cookie=>\$cookie1);
+ 
+# fetch existing cookies
+%cookies = CGI::Cookie->fetch;
+\$hippieCookie = \$cookies{'PETA_COOKIE'};
+if (\$hippieCookie)
+{
+  \$hippieCookieVal = \$cookies{'PETA_COOKIE'}->value;
+  print "Found peta cookie that says -> \$hippieCookieVal";
+}
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/cookiedos.pl
+
 sed s:WEBSERV_PATH:$PWD:g tests/example_config.json \
 	> tests/tmp_config.json
 
