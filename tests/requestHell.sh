@@ -33,11 +33,10 @@ do
   RAND_VALUE=$(openssl rand -hex 10)
   TEST_FILE_NAME="$RAND_VALUE.txt"
   curl -f --data-binary @"${UPLOAD_TXT_FILE_PATH}" "$TXT_REQUEST_URI/$TEST_FILE_NAME" \
-    -H "Content-Type: text/plain"
-  curl -f -s -X DELETE "$TXT_REQUEST_URI/$TEST_FILE_NAME"
+    -H "Content-Type: text/plain" && curl -f -s -X DELETE "$TXT_REQUEST_URI/$TEST_FILE_NAME"
   curl -f --data-binary @"${UPLOAD_TXT_FILE_PATH}" "$TXT_REQUEST_URI/$TEST_FILE_NAME" \
-    -H "Content-Type: text/plain" -H "Transfer-Encoding: chunked"
-  curl -f -s -X DELETE "$TXT_REQUEST_URI/$TEST_FILE_NAME"
+    -H "Content-Type: text/plain" -H "Transfer-Encoding: chunked" && curl -f -s -X DELETE \
+    "$TXT_REQUEST_URI/$TEST_FILE_NAME"
   # There is no need to call wait for this use case
   sleep 0.09 #seconds
 done
