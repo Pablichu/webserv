@@ -244,7 +244,6 @@ bool  Server::start(void)
                       * 1000);
     if (numEvents < 0)
     {
-      std::cerr << "poll() error" << std::endl;
       return (false);
     }
     for (std::size_t i = 0; i <= biggestActiveFd; ++i)
