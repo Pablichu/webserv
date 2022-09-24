@@ -198,17 +198,15 @@ use CGI::Cookie;
  
 # Create new cookies and send them
 \$cookie1 = CGI::Cookie->new(-name=>'HIPPIE_COOKIE',-value=>42);
-#\$cookie2 = CGI::Cookie->new(-name=>'IMAGINE_DRAGONS_IS_OVERRATED',-value=>666);
-print header(-cookie=>[\$cookie1,\$cookie2]);
+print header(-cookie=>\$cookie1);
  
 # fetch existing cookies
 %cookies = CGI::Cookie->fetch;
-\$hippieCookie = \$cookies{'HIPPIE_COOKIE'}->value;
-#\$hippieCookie2 = \$cookies{'IMAGINE_DRAGONS_IS_OVERRATED'}->value;
+\$hippieCookie = \$cookies{'HIPPIE_COOKIE'};
 if (\$hippieCookie)
 {
-  print "Found hippie cookie that says -> \$hippieCookie";
-  #print "Capatapa -> \$hippieCookie2";
+  \$hippieCookieVal = \$cookies{'HIPPIE_COOKIE'}->value;
+  print "Found hippie cookie that says -> \$hippieCookieVal";
 }
 EOF
 
