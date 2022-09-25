@@ -21,17 +21,17 @@ class FdTable
 {
 private:
 
-  std::vector< std::pair<	FdType, uintptr_t > > _table;
+  std::vector< std::pair<	FdType, void * > > _table;
 
-  uintptr_t _serializeListenSock(std::vector< ServerConfig const * > *  ptr);
-  uintptr_t _serializeFile(FileData *  ptr);
-  uintptr_t _serializeConnSock(ConnectionData *  ptr);
-  uintptr_t _serializePipe(CgiData *  ptr);
+  void *  _serializeListenSock(std::vector< ServerConfig const * > *  ptr);
+  void *  _serializeFile(FileData *  ptr);
+  void *  _serializeConnSock(ConnectionData *  ptr);
+  void *  _serializePipe(CgiData *  ptr);
 
-  std::vector< ServerConfig const * > * _deserializeListenSock(uintptr_t raw);
-  ConnectionData *						_deserializeConnSock(uintptr_t raw);
-  FileData *							_deserializeFile(uintptr_t raw);
-  CgiData *								_deserializePipe(uintptr_t raw);
+  std::vector< ServerConfig const * > * _deserializeListenSock(void * raw);
+  ConnectionData *						_deserializeConnSock(void * raw);
+  FileData *							_deserializeFile(void * raw);
+  CgiData *								_deserializePipe(void * raw);
 
   bool	_littleAddChecker(int const fd);
 public:

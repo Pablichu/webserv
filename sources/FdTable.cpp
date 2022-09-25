@@ -7,7 +7,7 @@ FdTable::FdTable(void)
 
 FdTable::~FdTable(void)
 {
-	std::vector< std::pair<	FdType, uintptr_t > >::iterator it;
+	std::vector< std::pair<	FdType, void * > >::iterator it;
 
 	for (it = this->_table.begin(); it != this->_table.end(); ++it)
 	{
@@ -54,28 +54,28 @@ FdType  FdTable::getType(int const fd) const
 ** Serializers
 */
 
-uintptr_t
+void *
 FdTable::_serializeListenSock(std::vector< ServerConfig const * > *  ptr)
 {
-	return reinterpret_cast<uintptr_t>(ptr);
+	return reinterpret_cast<void *>(ptr);
 }
 
-uintptr_t
+void *
 FdTable::_serializeConnSock(ConnectionData *  ptr)
 {
-	return reinterpret_cast<uintptr_t>(ptr);
+	return reinterpret_cast<void *>(ptr);
 }
 
-uintptr_t
+void *
 FdTable::_serializeFile(FileData *  ptr)
 {
-	return reinterpret_cast<uintptr_t>(ptr);
+	return reinterpret_cast<void *>(ptr);
 }
 
-uintptr_t
+void *
 FdTable::_serializePipe(CgiData *  ptr)
 {
-	return reinterpret_cast<uintptr_t>(ptr);
+	return reinterpret_cast<void *>(ptr);
 }
 
 /*
@@ -83,25 +83,25 @@ FdTable::_serializePipe(CgiData *  ptr)
 */
 
 std::vector< ServerConfig const * > *
-FdTable::_deserializeListenSock(uintptr_t raw)
+FdTable::_deserializeListenSock(void * raw)
 {
 	return reinterpret_cast<std::vector< ServerConfig const * > * >(raw);
 }
 
 ConnectionData *
-FdTable::_deserializeConnSock(uintptr_t raw)
+FdTable::_deserializeConnSock(void * raw)
 {
 	return reinterpret_cast<ConnectionData * >(raw);
 }
 
 FileData *
-FdTable::_deserializeFile(uintptr_t raw)
+FdTable::_deserializeFile(void * raw)
 {
 	return reinterpret_cast<FileData * >(raw);
 }
 
 CgiData *
-FdTable::_deserializePipe(uintptr_t raw)
+FdTable::_deserializePipe(void * raw)
 {
 	return reinterpret_cast<CgiData * >(raw);
 }
