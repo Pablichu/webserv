@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 #include "Data.hpp"
 #include "utils.hpp"
 
