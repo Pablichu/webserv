@@ -129,8 +129,8 @@ bool	Request::processBody()
 
 	if (this->_values["BODY"].size() > this->_max_body_size)
 	{
-		std::cout << " >>>> Exceeded max body size: " << this->_values["BODY"].size() << "/"
-				  << this->_max_body_size << std::endl;
+		//std::cout << " >>>> Exceeded max body size: " << this->_values["BODY"].size() << "/"
+		//		  << this->_max_body_size << std::endl;
 		return true;
 	}
 	return false;
