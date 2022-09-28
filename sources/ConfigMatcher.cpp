@@ -71,7 +71,7 @@ bool  ConfigMatcher::_matchLocation(std::vector<LocationConfig> const & location
   if (static_cast<long>(reqUri.length()) != uriLen)
   {
     //Path not found
-    if (! (labs(static_cast<long>(reqUri.length()) - uriLen) == 1
+    if (! (std::labs(static_cast<long>(reqUri.length()) - uriLen) == 1
             && reqUri[reqUri.length() - 1] == '/') )
       return (false);
   }

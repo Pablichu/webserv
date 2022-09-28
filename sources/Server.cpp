@@ -206,14 +206,6 @@ bool  Server::_checkTimeout(int const fd)
     return (this->_checkIdle(fd, connData->lastActive));
 }
 
-/*
-**  Start server and call poll() indefinitely to know when clients connect
-**  to any virtual server socket.
-**
-**  Additionally, poll is also used to know when client sockets, cgi pipes
-**  and file fds have data to receive or are ready to send data to them.
-*/
-
 //Global var for sigint
 bool	G_SIGOUT;
 
@@ -223,6 +215,14 @@ void	signal_handler(int signal)
 	G_SIGOUT = true;
 }
 
+/*
+**  Start server and call poll() indefinitely to know when clients connect
+**  to any virtual server socket.
+**
+**  Additionally, poll is also used to know when client sockets, cgi pipes
+**  and file fds have data to receive or are ready to send data to them.
+*/
+
 bool  Server::start(void)
 {
   int         numEvents;
@@ -230,7 +230,7 @@ bool  Server::start(void)
 
   G_SIGOUT = false;
   signal(SIGINT, signal_handler);
-  while (true)
+  while (!G_SIGOUT)
   {
     /*
     **  Store monitor's biggestActiveFd before calling poll, so that
@@ -239,11 +239,15 @@ bool  Server::start(void)
     */
     biggestActiveFd = static_cast<std::size_t>(
                         this->_monitor.biggestActiveFd());
+    errno = 0;
     numEvents = poll(this->_monitor.getFds(), biggestActiveFd + 1,
                       static_cast<int>(ConnectionData::keepAliveTimeout / 2)
                       * 1000);
     if (numEvents < 0)
     {
+      if (errno == EINTR)
+        return (true);
+      std::cout << "poll() error." << std::endl;
       return (false);
     }
     for (std::size_t i = 0; i <= biggestActiveFd; ++i)
@@ -252,8 +256,6 @@ bool  Server::start(void)
           || this->_checkTimeout(this->_monitor[i].fd)
           || this->_monitor[i].revents == 0)
         continue;
-	  if (G_SIGOUT)
-	  	return (true);
       this->_handleEvent(i);
     }
     this->_monitor.adjustSize();

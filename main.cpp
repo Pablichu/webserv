@@ -30,7 +30,8 @@ int		main(int argc, char **argv)
   }
   if (!server.prepare(config.getConfig()))
     return (1);
-  server.start();
+  if (!server.start())
+    return (1);
   //std::atexit(leak_checker);
   return (0);
 }
