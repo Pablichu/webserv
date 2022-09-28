@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-int const Server::maxRequests = 5; //TRY WITH 10?
+int const Server::maxRequests = 1024;
 
 Server::Server(void) : _monitor(_fdTable),
                         _connHandler(_monitor, _fdTable),
