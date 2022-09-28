@@ -1,6 +1,6 @@
 #include "HttpInfo.hpp"
 
-std::string const HttpInfo::serverName = "HippieServer/1.0";
+std::string const HttpInfo::serverName = "HippieServer/1.1";
 std::string const HttpInfo::protocol = "HTTP/1.1";
 
 InitStatusCode::InitStatusCode(void)
