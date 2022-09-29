@@ -253,6 +253,7 @@ void  Response::buildError(int const fd, ConnectionData & connData,
 {
   std::string const errorCode = utils::toString<int>(error);
   std::string const errorDescription = HttpInfo::statusCode.find(error)->second;
+  std::size_t       needle;
   std::string       content;
 
   content = "HTTP/1.1 " + errorCode + ' ' + errorDescription + "\r\n";
@@ -261,7 +262,9 @@ void  Response::buildError(int const fd, ConnectionData & connData,
   utils::addKeepAliveHeaders(content, connData.handledRequests,
                               connData.req.getPetit("CONNECTION") == "close");
   content.append("Content-type: text/html; charset=utf-8\r\n\r\n");
+  needle = content.length();
   content.append(this->buildErrorHtml(errorCode, errorDescription));
+  utils::addContentLengthHeader(content, needle);
   this->_buildResponse(fd, connData, content);
   return ;
 }
