@@ -22,8 +22,6 @@ void  ConnectionHandler::accept(int const listenSocket)
   */
   configs = &this->_fdTable.getListenSockData(listenSocket);
   addrLen = sizeof(address);
-  while (true)
-  {
     /*
     **  Added :: before accept to call the C standard library accept,
     **  and not ConnectionHandler's.
@@ -32,17 +30,14 @@ void  ConnectionHandler::accept(int const listenSocket)
     if (newConn < 0)
     {
       if (errno != EWOULDBLOCK)
-      {
         std::cerr << "accept() error" << std::endl;
-        continue ;
-      }
-      break ;
+      return ;
     }
     if (fcntl(newConn, F_SETFL, O_NONBLOCK))
     {
       std::cerr << "Could not set non-blocking data socket" << std::endl;
       close(newConn);
-      continue ;
+      return ;
     }
     /*
     **  Add new connection socket as key in _connectionSockets
@@ -55,7 +50,6 @@ void  ConnectionHandler::accept(int const listenSocket)
 	this->_fdTable.getConnSock(newConn).req.setMaxBodySize(this->_fdTable.getConnSock(newConn).getServer()->max_body_size);
     this->_fdTable.getConnSock(newConn).lastRead = time(NULL);
     this->_monitor.add(newConn, POLLIN);
-  }
 }
 
 /*
