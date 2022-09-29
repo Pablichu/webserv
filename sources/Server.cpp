@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-int const Server::maxRequests = 1024;
+int const Server::connQueueLimit = 1024;
 
 Server::Server(void) : _monitor(_fdTable),
                         _connHandler(_monitor, _fdTable),
@@ -54,7 +54,7 @@ bool  Server::_initSocket(int & sock, std::size_t const port)
 	}
 
   //	Start listening to socket
-	if (listen(sock, Server::maxRequests))
+	if (listen(sock, Server::connQueueLimit))
 	{
 		std::cerr << "Could not create socket queue" << std::endl;
     close(sock);

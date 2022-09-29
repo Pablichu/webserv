@@ -28,7 +28,7 @@ class	Server
 
 	public:
 
-		static int const	maxRequests;
+		static int const	connQueueLimit;
 
 		Server();
 		~Server();
