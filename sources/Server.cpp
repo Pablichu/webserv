@@ -140,7 +140,7 @@ void  Server::_handleEvent(std::size_t index)
     {// Connected client socket is ready to read without blocking
       this->_eventHandler.connectionRead(fd);
     }
-    if (this->_monitor[index].revents & POLLOUT)
+    else if (this->_monitor[index].revents & POLLOUT)
     {// Connected client socket is ready to write without blocking
       this->_eventHandler.connectionWrite(fd);
     }
