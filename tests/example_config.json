@@ -2,7 +2,7 @@
   "server": [
     {
       "port": 8080,
-      "server_name": "localhost,www.hola.es",
+      "server_name": "localhost,www.omablo.es",
       "location": [
         {
           "uri": "/",

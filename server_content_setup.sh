@@ -218,20 +218,108 @@ use CGI qw/:standard/;
 use CGI::Cookie;
  
 # Create new cookies and send them
-\$cookie1 = CGI::Cookie->new(-name=>'PETA_COOKIE',-value=>666,-expires=>'+3m');
+\$cookie1 = CGI::Cookie->new(-name=>'LOGIN_COOKIE',-value=>666,-expires=>'+3m');
 print header(-cookie=>\$cookie1);
  
 # fetch existing cookies
 %cookies = CGI::Cookie->fetch;
-\$hippieCookie = \$cookies{'PETA_COOKIE'};
+\$hippieCookie = \$cookies{'LOGIN_COOKIE'};
 if (\$hippieCookie)
 {
-  \$hippieCookieVal = \$cookies{'PETA_COOKIE'}->value;
-  print "Found peta cookie that says -> \$hippieCookieVal";
+  \$hippieCookieVal = \$cookies{'LOGIN_COOKIE'}->value;
+  print "Found login cookie that says -> \$hippieCookieVal";
 }
+
 EOF
 
 chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/cookiedos.pl
+
+cat << EOF > $SERVER_LOCALHOST_PATH/cgi-bin/login_page.pl
+
+use CGI qw/:standard/;
+use CGI::Cookie;
+
+print "Content-Type: text/html\n\n";
+# Note there is a newline between 
+# this header and Data
+
+# Simple HTML code follows
+
+print "<html> <head>\n";
+print "<title>Login page</title>";
+print "<link rel='stylesheet' href='./style.css'>";
+print "</head>\n";
+print "<body>\n";
+
+# fetch existing cookies
+%cookies = CGI::Cookie->fetch;
+\$hippieCookie = \$cookies{'LOGIN_COOKIE'};
+if (\$hippieCookie)
+{
+  print "<h1>Cookie seteada!</h1>\n";
+  \$hippieCookieVal = \$cookies{'LOGIN_COOKIE'}->value;
+  print "<h2>Login cookie contiene -> \$hippieCookieVal</h2>";
+  print "<div align='center'><img src='https://media.istockphoto.com/vectors/good-job-vector-id1166386955?k=20&m=1166386955&s=612x612&w=0&h=YDNVQ-n0QRR2NMu9Rr99MCus2xQhNnlFf7niG3cD4Tc='></div>"
+}
+else
+{
+  print "<h1>Cookie no seteada o expirada</h1>\n";
+}
+print "</body> </html>\n";
+
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cgi-bin/login_page.pl
+
+FELIZ_JUEVES=$SERVER_LOCALHOST_PATH/feliz-jueves.jpg
+if [ -f "$FELIZ_JUEVES" ]; then
+    echo "feliz-jueves exists."
+else 
+	curl -s -o $FELIZ_JUEVES https://pbs.twimg.com/media/FdzwIuIWYAEkdoh?format=jpg&name=medium
+fi
+
+
+cat << EOF > $SERVER_LOCALHOST_PATH/style.css
+body {
+	background-image: url("feliz-jueves.jpg");
+	background-color: #cccccc;
+  }
+  
+  h1 {
+	color: rgb(6, 6, 9);
+	background-color: blueviolet;
+	text-align: center;
+  }
+  h2 {
+	color: rgb(6, 6, 9);
+	background-color: blueviolet;
+	text-align: center;
+  }
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/style.css
+
+cat << EOF > $SERVER_LOCALHOST_PATH/cookie.html
+<html><head>
+<meta content="text/html; charset=windows-1252">
+<title>Hello, world!</title>
+<body>
+	<h1>Lanzador de cookies</h1>
+	<p>
+		<a href="http://localhost:9000/cookie.pl">
+		<button>primera cookie de muestra</button>
+		</a>
+	</p>
+	<p>
+		<a href="http://localhost:9000/cookiedos.pl">
+		<button>segunda cookie de login</button>
+		</a>
+	</p>
+</body></html>
+EOF
+
+chmod u+x $SERVER_LOCALHOST_PATH/cookie.html
+
 
 sed s:WEBSERV_PATH:$PWD:g tests/example_config.json \
 	> tests/tmp_config.json

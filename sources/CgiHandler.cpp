@@ -396,10 +396,10 @@ int  CgiHandler::getExitStatus(pid_t const pID)
     {
       if (WEXITSTATUS(status) != EXIT_SUCCESS)
       {
-        std::cout << "CGI process exited with error." << std::endl;
+        std::cout << "\t- CGI process exited with error." << std::endl;
         return (-1);
       }
-      std::cout << "CGI process exited correctly." << std::endl;
+      std::cout << "\t- CGI process exited correctly." << std::endl;
       return (1);
     }
     else
@@ -460,7 +460,7 @@ bool  CgiHandler::receiveData(int rPipe, ConnectionData & connData)
               io.getAvailableBufferSize() - reserveSpace);
   if (len == 0)
   { //EOF
-    std::cout << "Pipe write end closed. No more data to read." << std::endl;
+    std::cout << "\t- Pipe write end closed. No more data to read." << std::endl;
     if (io.getPayloadSize() == 0)
     {
       io.pushBack("0\r\n\r\n");
